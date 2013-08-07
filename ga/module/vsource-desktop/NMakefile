@@ -1,0 +1,8 @@
+
+!include <..\NMakefile.common>
+
+OBJS	= vsource-desktop.obj ga-win32-common.obj ga-win32-gdi.obj
+TARGET	= vsource-desktop.$(EXT)
+
+!include <..\NMakefile.build>
+

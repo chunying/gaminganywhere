@@ -1,0 +1,11 @@
+
+!include <..\NMakefile.def>
+
+EXT		= dll
+LIBS		= gdi32.lib $(LIB_SYSTEM) $(LIB_FFMPEG) $(LIB_SDL) $(LIB_PTHREAD) ..\..\core\libga.lib
+LDFLAGS		= $(LIB_PATH) $(LIBS)
+MAKEMODULE	= cl /LD /MD $** $(LIBS) /link /DLL $(LIB_PATH) /opt:noref
+
+.cpp.obj:
+	$(CXX) -c -I..\..\core /MD $(CXX_FLAGS) -DGA_MODULE -DUSE_GA_WIN32_MACRO $<
+

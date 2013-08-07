@@ -1,0 +1,32 @@
+
+include NMakefile.common
+
+MAKEFILE=NMakefile
+
+all:
+	cd asource-system && nmake /f $(MAKEFILE) && cd ..
+	cd ctrl-sdl && nmake /f $(MAKEFILE) && cd ..
+	cd encoder-audio && nmake /f $(MAKEFILE) && cd ..
+	cd encoder-video && nmake /f $(MAKEFILE) && cd ..
+	cd filter-rgb2yuv && nmake /f $(MAKEFILE) && cd ..
+	cd vsource-desktop && nmake /f $(MAKEFILE) && cd ..
+	cd vsource-desktop && nmake /f $(MAKEFILE).d3d && cd ..
+	cd vsource-desktop && nmake /f $(MAKEFILE).dfm && cd ..
+
+install:
+	-mkdir ..\..\bin\mod
+	cd asource-system && nmake /f $(MAKEFILE) install && cd ..
+	cd ctrl-sdl && nmake /f $(MAKEFILE) install && cd ..
+	cd encoder-audio && nmake /f $(MAKEFILE) install && cd ..
+	cd encoder-video && nmake /f $(MAKEFILE) install && cd ..
+	cd filter-rgb2yuv && nmake /f $(MAKEFILE) install && cd ..
+	cd vsource-desktop && nmake /f $(MAKEFILE) install && cd ..
+
+clean:
+	cd asource-system && nmake /f $(MAKEFILE) clean && cd ..
+	cd ctrl-sdl && nmake /f $(MAKEFILE) clean && cd ..
+	cd encoder-audio && nmake /f $(MAKEFILE) clean && cd ..
+	cd encoder-video && nmake /f $(MAKEFILE) clean && cd ..
+	cd filter-rgb2yuv && nmake /f $(MAKEFILE) clean && cd ..
+	cd vsource-desktop && nmake /f $(MAKEFILE) clean && cd ..
+

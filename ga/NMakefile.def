@@ -1,0 +1,33 @@
+
+# NMakefile.def for Windows
+
+INCLUDES	= -I..\..\deps.win32\include \
+		  -I..\..\deps.win32\include\SDL2 \
+		  -I..\..\deps.win32\include\live555
+NODEBUG		= 1
+TARGETTOS	= WINNT
+
+!include <ntwin32.mak>
+
+TOOLS32		= $(VSINSTALLDIR)\VC
+CXX		= "$(TOOLS32)\bin\cl"
+CXX_FLAGS	= $(INCLUDES) $(cdebug) $(cflags) \
+		  -I. -I"$(TOOLS32)\include" \
+		  /EHsc \
+		  -DWIN32 -DUSE_GA_WIN32_MACRO \
+		  -D__STDC_CONSTANT_MACROS -DFF_API_OLD_AVIO=0 \
+		  -DPIPELINE_FILTER \
+		  -D_WIN32_WINNT=0x0501 -DNTDDI_VERSION=0x05010000
+
+# WINNT version 0x0501 for HRAWINPUT
+
+LIB_PATH	= /libpath:..\..\deps.win32\lib
+LIB_SYSTEM	= kernel32.lib user32.lib ws2_32.lib ole32.lib
+
+LIB_D3D		= d3d9.lib d3dx9.lib d3d10.lib d3d10_1.lib d3d11.lib DXGI.lib dxguid.lib dxerr.lib
+LIB_LIVE555	= libliveMedia.lib libgroupsock.lib libBasicUsageEnvironment.lib libUsageEnvironment.lib
+LIB_SDL		= SDL2.lib SDL2main.lib SDL2_ttf.lib
+LIB_FFMPEG	= swscale.lib swresample.lib postproc.lib \
+		  avdevice.lib avfilter.lib avformat.lib avcodec.lib avutil.lib
+LIB_PTHREAD	= pthreadVC2.lib
+

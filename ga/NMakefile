@@ -1,0 +1,39 @@
+
+
+# Makefile for Windows
+
+TARGET	= make_core make_module make_server make_client
+MAKEFILE= NMakefile
+
+all: $(TARGET)
+
+make_core:
+	cd core && nmake /f $(MAKEFILE) && cd ..
+
+make_module: make_core
+	cd module && nmake /f $(MAKEFILE) && cd ..
+
+make_server: make_core
+	cd server && nmake /f $(MAKEFILE) && cd ..
+
+make_client: make_core
+	cd client && nmake /f $(MAKEFILE) && cd ..
+
+install:
+	-mkdir ..\bin
+	cd core && nmake /f $(MAKEFILE) install && cd ..
+	cd module && nmake /f $(MAKEFILE) install && cd ..
+	cd server && nmake /f $(MAKEFILE) install && cd ..
+	cd client && nmake /f $(MAKEFILE) install && cd ..
+	@rem install configuration
+	-mkdir ..\bin\config
+	-mkdir ..\bin\config\common
+	copy /y config\*.conf ..\bin\config
+	copy /y config\common\*.conf ..\bin\config\common
+
+clean:
+	cd core && nmake /f $(MAKEFILE) clean && cd ..
+	cd module && nmake /f $(MAKEFILE) clean && cd ..
+	cd server && nmake /f $(MAKEFILE) clean && cd ..
+	cd client && nmake /f $(MAKEFILE) clean && cd ..
+

@@ -1,0 +1,12 @@
+
+all: module
+
+module: $(OBJS)
+	$(MAKEMODULE)
+
+install: module
+	cp *.$(EXT) ../../../bin/mod/
+
+clean:
+	rm -f *.o *.obj *.dll *.dylib *.so
+

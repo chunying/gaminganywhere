@@ -1,0 +1,13 @@
+
+all: module
+
+module: $(OBJS)
+	$(MAKEMODULE)
+
+install: module
+	-mkdir ..\..\..\bin\mod
+	copy /y *.$(EXT) ..\..\..\bin\mod\
+
+clean:
+	-del /f /q *.o *.obj *.lib *.exp *.dll *.dylib *.so
+

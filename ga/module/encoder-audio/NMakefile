@@ -1,0 +1,8 @@
+
+!include <..\NMakefile.common>
+
+OBJS	= encoder-audio.obj
+TARGET	= encoder-audio.$(EXT)
+
+!include <..\NMakefile.build>
+

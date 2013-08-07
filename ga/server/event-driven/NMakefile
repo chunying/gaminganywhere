@@ -1,0 +1,32 @@
+
+!include <..\NMakefile.def>
+
+CXX_FLAGS	= $(CXX_FLAGS) -I"C:\Microsoft DirectX SDK\Include"
+LIB_PATH	= $(LIB_PATH) /libpath:..\..\core /libpath:"C:\Microsoft DirectX SDK\Lib\x86"
+LIBS		= $(LIB_SYSTEM) $(LIB_SDL) $(LIB_FFMPEG) $(LIB_PTHREAD) \
+		  libga.lib $(LIB_D3D)
+#LDFLAGS	= -rdynamic -L../../core -Wl,--whole-archive -lga -Wl,--no-whole-archive $(AVCLD) $(SDLLD)
+LDFLAGS		= $(LIB_PATH) /libpath:..\..\core $(LIBS) /opt:noref
+
+TARGET		= ga-server-event-driven.exe ga-hook.dll
+
+all: $(TARGET)
+
+.cpp.obj:
+	$(CXX) /c -I..\..\core /MD $(CXX_FLAGS) -DGA_SERVER -DGA_MODULE $<
+
+ga-hook.dll: ga-hook.obj ga-hook-common.obj ga-hook-sdl.obj hook-function.obj ctrl-sdl.obj
+	$(CXX) /LD /MD $** $(LIBS) /link /DLL $(LIB_PATH) detours.lib detoured.lib opengl32.lib glu32.lib /opt:noref
+
+ga-server-event-driven.exe: ga-server-event-driven.obj
+	$(CXX) /MD $** $(LIBS) /link $(LIB_PATH) /opt:noref
+#	link /out:$@ $(LDFLAGS) $**
+
+install:
+	-mkdir ..\..\..\bin
+	copy /y *.exe ..\..\..\bin
+	copy /y *.dll ..\..\..\bin
+
+clean:
+	-del /f /q $(TARGET) *.obj *.lib *.exp *~
+

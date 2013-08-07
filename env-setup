@@ -1,0 +1,4 @@
+#!/bin/sh
+export GADEPS=$HOME/myprog/gaminganywhere/deps.posix
+export PKG_CONFIG_PATH=$GADEPS/lib/pkgconfig:/opt/local/lib/pkgconfig:/usr/lib/i386-linux-gnu/pkgconfig/:/usr/lib/pkgconfig
+export PATH=$GADEPS/bin:$PATH

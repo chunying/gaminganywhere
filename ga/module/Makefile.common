@@ -1,0 +1,23 @@
+
+include ../Makefile.def
+
+EXT		= so
+CFLAGS		= -O2 -fPIC -g -Wall -I$(GADEPS)/include $(EXTRACFLAGS) -I../../core -DPIPELINE_FILTER \
+		  $(AVCCF) $(L5CF) $(SDLCF)
+#		-D__STDC_CONSTANT_MACROS
+LDFLAGS		= #-L../../core -lga #$(AVCLD) $(SDLLD)
+
+MAKEMODULE	= $(CXX) -o $(TARGET) -shared $^ $(LDFLAGS)
+
+ifeq ($(OS), Darwin)
+EXT		= dylib
+MAKEMODULE	= $(CXX) -o $(TARGET) -dynamiclib -Wl,-undefined,dynamic_lookup $^ $(LDFLAGS)
+endif
+
+.cpp.o:
+	$(CXX) -c -g $(CFLAGS) $<
+
+.m.o:
+	$(CXX) -c -g $(CFLAGS) $<
+
+

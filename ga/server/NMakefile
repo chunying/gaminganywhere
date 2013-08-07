@@ -1,0 +1,15 @@
+
+MAKEFILE=NMakefile
+
+all:
+	cd periodic && nmake /f $(MAKEFILE) && cd ..
+	cd event-driven && nmake /f $(MAKEFILE) && cd ..
+
+install:
+	cd periodic && nmake /f $(MAKEFILE) install && cd ..
+	cd event-driven && nmake /f $(MAKEFILE) install && cd ..
+
+clean:
+	cd periodic && nmake /f $(MAKEFILE) clean && cd ..
+	cd event-driven && nmake /f $(MAKEFILE) clean && cd ..
+

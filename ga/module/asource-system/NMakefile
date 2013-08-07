@@ -1,0 +1,8 @@
+
+!include <..\NMakefile.common>
+
+OBJS	= asource-system.obj ga-win32-wasapi.obj
+TARGET	= asource-system.$(EXT)
+
+!include <..\NMakefile.build>
+

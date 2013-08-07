@@ -1,0 +1,30 @@
+
+!include <..\NMakefile.def>
+
+EXT		= dll
+TARGET		= libga.$(EXT)
+LIBS		= $(LIB_SYSTEM) $(LIB_FFMPEG) $(LIB_PTHREAD)
+LDFLAGS		= $(LIB_PATH) $(LIBS)
+#MAKEMODULE	= link /out:$@ /DLL $(LDFLAGS) $**
+MAKEMODULE	= cl /LD /MD $** $(LIBS) /link /DLL $(LIB_PATH) /opt:noref
+
+OBJS	= libga.obj \
+	  ga-common.obj ga-conf.obj ga-confvar.obj ga-module.obj ga-avcodec.obj ga-win32.obj rtspconf.obj \
+	  pipeline.obj vconverter.obj vsource.obj asource.obj encoder-common.obj \
+	  controller.obj server.obj rtspserver.obj
+
+all: $(TARGET)
+
+.cpp.obj:
+	$(CXX) -c /MD $(CXX_FLAGS) -DGA_LIB -DUSE_GA_WIN32_MACRO $<
+
+libga.$(EXT): $(OBJS)
+	$(MAKEMODULE)
+
+install:
+	-mkdir ..\..\bin
+	copy /y $(TARGET) ..\..\bin
+
+clean:
+	-del /f /q $(TARGET) *.obj *.lib *.exp *.dll *~
+

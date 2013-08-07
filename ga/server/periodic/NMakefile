@@ -1,0 +1,25 @@
+
+!include <..\NMakefile.def>
+
+LIBS		= $(LIB_SYSTEM) $(LIB_SDL) $(LIB_FFMPEG) $(LIB_PTHREAD) libga.lib
+#LDFLAGS	= -rdynamic -L../../core -Wl,--whole-archive -lga -Wl,--no-whole-archive $(AVCLD) $(SDLLD)
+LDFLAGS		= $(LIB_PATH) /libpath:..\..\core $(LIBS) /opt:noref
+
+TARGET		= ga-server-periodic.exe
+
+all: $(TARGET)
+
+.cpp.obj:
+	$(CXX) /c -I..\..\core /MD $(CXX_FLAGS) -DGA_SERVER $<
+
+ga-server-periodic.exe: ga-server-periodic.obj
+	$(CXX) /MD $** $(LIBS) /link $(LIB_PATH) /libpath:..\..\core /opt:noref
+#	link /out:$@ $(LDFLAGS) $**
+
+install:
+	-mkdir ..\..\..\bin
+	copy /y $(TARGET) ..\..\..\bin
+
+clean:
+	-del /f /q $(TARGET) *.obj *~
+

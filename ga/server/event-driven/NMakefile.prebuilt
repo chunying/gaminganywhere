@@ -1,0 +1,12 @@
+
+TARGET		= ga-server-event-driven.exe ga-hook.dll
+
+all:
+
+install:
+	-mkdir ..\..\..\bin
+	copy /y *.exe ..\..\..\bin
+	copy /y *.dll ..\..\..\bin
+
+clean:
+

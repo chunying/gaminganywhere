@@ -70,7 +70,7 @@ theora:
 
 vpx:
 	$(TBZUNPACK) $(VPX)
-	cd $(VPXDIR); ./configure --prefix=$(GADEPS) --disable-examples --enable-pic
+	cd $(VPXDIR); ./configure --prefix=$(GADEPS) --enable-shared --enable-pic
 	make -C $(VPXDIR) -j5
 	make -C $(VPXDIR) install
 	rm -rf $(VPXDIR)
@@ -92,7 +92,7 @@ xvid:
 ffmpeg:
 	$(TBZUNPACK) $(FFMPEG)
 	cd $(FFMPEGDIR); ./configure --prefix=$(GADEPS) \
-		--enable-pic \
+		--enable-shared --enable-pic \
 		--enable-libmp3lame \
 		--enable-libtheora --enable-libvorbis \
 		--enable-libx264 --enable-libvpx \

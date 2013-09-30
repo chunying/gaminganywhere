@@ -14,7 +14,7 @@ X11CF	=
 X11LD	= -lX11 -lXext -lXtst
 
 AVCCF	= -D__STDC_CONSTANT_MACROS $(shell pkg-config --cflags libswscale libswresample libpostproc libavdevice libavfilter libavcodec libavformat)
-AVCLD	= $(shell pkg-config --libs libswscale libswresample libpostproc libavdevice libavfilter libavcodec libavformat)
+AVCLD	= $(shell pkg-config --libs libswscale libswresample libpostproc libavdevice libavfilter libavcodec libavformat libavutil)
 
 SDLCF	= $(shell pkg-config sdl2 SDL2_ttf --cflags)
 SDLLD	= $(shell pkg-config sdl2 SDL2_ttf --libs)

@@ -36,7 +36,10 @@ int ffio_open_dyn_packet_buf(AVIOContext **, int);
 }
 #endif
 
-#define	RTSP_CHANNEL_MAX	8
+#define	HOLE_PUNCHING		// enable self-implemented hole-punching
+
+#define	RTSP_CHANNEL_MAX	8	// must be at least IMAGE_SOURCE_CHANNEL_MAX+1
+#define	RTSP_CHANNEL_MAXx2	16	// must be RTSP_CHANNEL_MAX * 2
 
 enum RTSPServerState {
 	SERVER_STATE_IDLE = 0,
@@ -52,6 +55,7 @@ struct RTSPContext {
 #else
 	int fd;
 #endif
+	struct sockaddr_in client;
 	//
 	int state;
 	int hasVideo;
@@ -80,12 +84,28 @@ struct RTSPContext {
 	AVStream *stream[RTSP_CHANNEL_MAX];
 	AVCodecContext *encoder[RTSP_CHANNEL_MAX];
 	// streaming
+	int mtu;
 	URLContext *rtp[RTSP_CHANNEL_MAX];	// RTP over UDP
 	pthread_mutex_t rtsp_writer_mutex;	// RTP over RTSP/TCP
+#ifdef HOLE_PUNCHING
+	int streamCount;
+#ifdef WIN32
+	SOCKET rtpSocket[RTSP_CHANNEL_MAXx2];
+#else
+	int rtpSocket[RTSP_CHANNEL_MAXx2];
+#endif
+	unsigned short rtpLocalPort[RTSP_CHANNEL_MAXx2];
+	unsigned short rtpPeerPort[RTSP_CHANNEL_MAXx2];
+	char rtpPortChecked[RTSP_CHANNEL_MAXx2];
+#endif
 };
 
 EXPORT void rtsp_cleanup(RTSPContext *rtsp, int retcode);
 EXPORT int rtsp_write_bindata(RTSPContext *ctx, int streamid, uint8_t *buf, int buflen);
 EXPORT void* rtspserver(void *arg);
+#ifdef HOLE_PUNCHING
+EXPORT int rtp_open_ports(RTSPContext *ctx, int streamid);
+EXPORT int rtp_write_bindata(RTSPContext *ctx, int streamid, uint8_t *buf, int buflen);
+#endif
 
 #endif

@@ -39,6 +39,7 @@ struct queuemsg {
 };
 
 EXPORT	int			ctrl_queue_init(int size, int maxunit);
+EXPORT	void			ctrl_queue_free();
 EXPORT	struct queuemsg *	ctrl_queue_read_msg();
 EXPORT	void			ctrl_queue_release_msg();
 EXPORT	int			ctrl_queue_write_msg(void *msg, int msgsize);

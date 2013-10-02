@@ -20,7 +20,10 @@
 #include <stdio.h>
 #include <string.h>
 #ifndef WIN32
+#include <sys/socket.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
+#include <netdb.h>
 #endif
 
 #include "rtspconf.h"
@@ -63,7 +66,7 @@ rtspconf_global() {
 	return &globalConf;
 }
 
-static int
+int
 rtspconf_init(struct RTSPConf *conf) {
 	if(conf == NULL)
 		return -1;
@@ -97,7 +100,7 @@ rtspconf_init(struct RTSPConf *conf) {
 
 static int
 rtspconf_load_codec(const char *key, const char *value,
-	char **names, AVCodec **codec, AVCodec *(*finder)(char **, enum AVCodecID)) {
+	const char **names, AVCodec **codec, AVCodec *(*finder)(const char **, enum AVCodecID)) {
 	//
 	int idx = 0;
 	char buf[1024], *saveptr;
@@ -191,32 +194,36 @@ rtspconf_parse(struct RTSPConf *conf) {
 	// video-encoder, audio-encoder, video-decoder, and audio-decoder
 	if((ptr = ga_conf_readv("video-encoder", buf, sizeof(buf))) != NULL) {
 		if(rtspconf_load_codec("video-encoder", ptr,
-			(char**) conf->video_encoder_name,
+			(const char**) conf->video_encoder_name,
 			&conf->video_encoder_codec,
 			ga_avcodec_find_encoder) < 0)
 			return -1;
 	}
+#if 0
 	if((ptr = ga_conf_readv("video-decoder", buf, sizeof(buf))) != NULL) {
 		if(rtspconf_load_codec("video-decoder", ptr,
-			(char**) conf->video_decoder_name,
+			(const char**) conf->video_decoder_name,
 			&conf->video_decoder_codec,
 			ga_avcodec_find_decoder) < 0)
 			return -1;
 	}
+#endif
 	if((ptr = ga_conf_readv("audio-encoder", buf, sizeof(buf))) != NULL) {
 		if(rtspconf_load_codec("audio-encoder", ptr,
-			(char**) conf->audio_encoder_name,
+			(const char**) conf->audio_encoder_name,
 			&conf->audio_encoder_codec,
 			ga_avcodec_find_encoder) < 0)
 			return -1;
 	}
+#if 0
 	if((ptr = ga_conf_readv("audio-decoder", buf, sizeof(buf))) != NULL) {
 		if(rtspconf_load_codec("audio-decoder", ptr,
-			(char**) conf->audio_decoder_name,
+			(const char**) conf->audio_decoder_name,
 			&conf->audio_decoder_codec,
 			ga_avcodec_find_decoder) < 0)
 			return -1;
 	}
+#endif
 	//
 	v = ga_conf_readint("video-fps");
 	if(v <= 0 || v > 120) {
@@ -307,5 +314,20 @@ rtspconf_parse(struct RTSPConf *conf) {
 		}
 	}
 	return 0;
+}
+
+void
+rtspconf_resolve_server(struct RTSPConf *conf, const char *servername) {
+	struct in_addr addr;
+	struct hostent *hostEnt;
+	if((addr.s_addr = inet_addr(servername)) == INADDR_NONE) {
+		if((hostEnt = gethostbyname(servername)) == NULL) {
+			bzero(&conf->sin.sin_addr, sizeof(conf->sin.sin_addr));
+			return;
+		}
+		bcopy(hostEnt->h_addr, (char *) &addr.s_addr, hostEnt->h_length);
+	}
+	conf->sin.sin_addr = addr;
+	return;
 }
 

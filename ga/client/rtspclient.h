@@ -19,15 +19,21 @@
 #ifndef __RTSPCLIENT_H__
 #define __RTSPCLIENT_H__
 
+#ifdef ANDROID
+#include <jni.h>
+#else
 #ifdef GA_EMCC
 #include <SDL/SDL.h>
 #else
 #include <SDL2/SDL.h>
 #endif /* GA_EMCC */
+#endif
 #include <pthread.h>
 
 #include "rtspconf.h"
+#ifndef ANDROID
 #include "vsource.h"
+#endif
 #include "pipeline.h"
 
 #define	SDL_USEREVENT_CREATE_OVERLAY	0x0001
@@ -39,14 +45,29 @@
 
 extern int image_rendered;
 
+#define	RTSP_VIDEOSTATE_NULL	0
+ 
+#ifdef ANDROID
+#define	IMAGE_SOURCE_CHANNEL_MAX	2
+#endif
+
 struct RTSPThreadParam {
 	const char *url;
 	bool running;
+#ifdef ANDROID
+	bool rtpOverTCP;
+#endif
 	char quitLive555;
 	// video
 	int width[IMAGE_SOURCE_CHANNEL_MAX];
 	int height[IMAGE_SOURCE_CHANNEL_MAX];
 	PixelFormat format[IMAGE_SOURCE_CHANNEL_MAX];
+#ifdef ANDROID
+	JNIEnv *jnienv;
+	pthread_mutex_t surfaceMutex[IMAGE_SOURCE_CHANNEL_MAX];
+	struct SwsContext *swsctx[IMAGE_SOURCE_CHANNEL_MAX];
+	pipeline *pipe[IMAGE_SOURCE_CHANNEL_MAX];
+#else
 	pthread_mutex_t surfaceMutex[IMAGE_SOURCE_CHANNEL_MAX];
 #if SDL_VERSION_ATLEAST(2,0,0)
 	unsigned int windowId[IMAGE_SOURCE_CHANNEL_MAX];
@@ -62,6 +83,8 @@ struct RTSPThreadParam {
 	// audio
 	pthread_mutex_t audioMutex;
 	bool audioOpened;
+#endif
+	int videostate;
 };
 
 extern struct RTSPConf *rtspconf;
@@ -70,6 +93,11 @@ void rtsperror(const char *fmt, ...);
 void * rtsp_thread(void *param);
 
 /* internal use only */
-void audio_fill_buffer(void *userdata, unsigned char *stream, int ssize);
+int audio_buffer_fill(void *userdata, unsigned char *stream, int ssize);
+void audio_buffer_fill_sdl(void *userdata, unsigned char *stream, int ssize);
+#ifdef ANDROID
+void setRTSPThreadParam(struct RTSPThreadParam *param);
+struct RTSPThreadParam * getRTSPThreadParam();
+#endif
 
 #endif

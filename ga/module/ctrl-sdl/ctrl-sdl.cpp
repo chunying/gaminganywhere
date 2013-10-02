@@ -22,6 +22,7 @@
 #include <Carbon/Carbon.h>	// for Events.h
 #include <ApplicationServices/ApplicationServices.h>
 #elif defined ANDROID
+#include <arpa/inet.h>
 #else	// X11
 #include <arpa/inet.h>
 #include <X11/keysym.h>
@@ -520,9 +521,11 @@ sdlmsg_replay_native(struct sdlmsg *msg) {
 			XSync(display, True);
 			XTestGrabControl(display, False);
 		}
+#if 0
 		ga_error("sdl replayer: received key scan=%u(%04x) key=%u(%04x) mod=%u(%04x) pressed=%d\n",
 			msg->scancode, msg->scancode, msg->sdlkey, msg->sdlkey, msg->sdlmod, msg->sdlmod,
 			msg->is_pressed);
+#endif
 		//////////////////
 		} else {
 		////////////////

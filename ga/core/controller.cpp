@@ -17,10 +17,13 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <errno.h>
 #include <string.h>
 #include <pthread.h>
 #ifndef WIN32
+#include <strings.h>
+#include <unistd.h>
 #include <netdb.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -80,11 +83,26 @@ ctrl_queue_init(int size, int maxunit) {
 	return 0;
 }
 
+void
+ctrl_queue_free() {
+	pthread_mutex_lock(&queue_mutex);
+	if(qbuffer != NULL)
+		free(qbuffer);
+	qbuffer = NULL;
+	qhead = qtail = qsize = 0;
+	pthread_mutex_unlock(&queue_mutex);
+}
+
 struct queuemsg *
 ctrl_queue_read_msg() {
 	struct queuemsg *msg;
 	//
 	pthread_mutex_lock(&queue_mutex);
+	if(qbuffer == NULL) {
+		pthread_mutex_unlock(&queue_mutex);
+		ga_error("controller queue: buffer released.\n");
+		return NULL;
+	}
 	if(qtail == qhead) {
 		// queue is empty
 		msg = NULL;
@@ -100,6 +118,11 @@ void
 ctrl_queue_release_msg(struct queuemsg *msg) {
 	struct queuemsg *currmsg;
 	pthread_mutex_lock(&queue_mutex);
+	if(qbuffer == NULL) {
+		pthread_mutex_unlock(&queue_mutex);
+		ga_error("controller queue: buffer released.\n");
+		return;
+	}
 	if(qhead == qtail) {
 		// queue is empty
 		pthread_mutex_unlock(&queue_mutex);
@@ -128,6 +151,11 @@ ctrl_queue_write_msg(void *msg, int msgsize) {
 		return 0;
 	}
 	pthread_mutex_lock(&queue_mutex);
+	if(qbuffer == NULL) {
+		pthread_mutex_unlock(&queue_mutex);
+		ga_error("controller queue: buffer released.\n");
+		return 0;
+	}
 	//
 	nextpos = qtail + qunit;
 	if(nextpos == qsize) {
@@ -140,7 +168,8 @@ ctrl_queue_write_msg(void *msg, int msgsize) {
 	} else {
 		qmsg = (struct queuemsg*) (qbuffer + qtail);
 		qmsg->msgsize = msgsize;
-		bcopy(msg, qmsg->msg, msgsize);
+		if(msgsize > 0)
+			bcopy(msg, qmsg->msg, msgsize);
 		qtail = nextpos;
 	}
 	pthread_mutex_unlock(&queue_mutex);
@@ -192,8 +221,10 @@ ctrl_socket_init(struct RTSPConf *conf) {
 
 int
 ctrl_client_init(struct RTSPConf *conf, const char *ctrlid) {
-	if(ctrl_socket_init(conf) < 0)
+	if(ctrl_socket_init(conf) < 0) {
+		conf->ctrlenable = 0;
 		return -1;
+	}
 	if(conf->ctrlproto == IPPROTO_TCP) {
 		struct ctrlhandshake hh;
 		// connect to the server
@@ -213,6 +244,7 @@ ctrl_client_init(struct RTSPConf *conf, const char *ctrlid) {
 	}
 	return 0;
 error:
+	conf->ctrlenable = 0;
 	ctrlenabled = false;
 	ga_error("controller client: controller disabled.\n");
 	close(ctrlsocket);
@@ -223,6 +255,9 @@ error:
 void*
 ctrl_client_thread(void *rtspconf) {
 	struct RTSPConf *conf = (struct RTSPConf*) rtspconf;
+#ifdef ANDROID
+	static int drop = 0;
+#endif
 
 	if(ctrl_client_init(conf, CTRL_CURRENT_VERSION) < 0) {
 		ga_error("controller client-thread: init failed, thread terminated.\n");
@@ -239,21 +274,42 @@ ctrl_client_thread(void *rtspconf) {
 		//
 		while((qm = ctrl_queue_read_msg()) != NULL) {
 			int wlen;
+			if(qm->msgsize == 0) {
+				ga_error("controller client: null messgae received, terminate the thread.\n");
+				goto quit;
+			}
+#ifdef ANDROID
+			if(drop > 0)
+				continue;
+#endif
 			if(conf->ctrlproto == IPPROTO_TCP) {
 				if((wlen = send(ctrlsocket, (char*) qm->msg, qm->msgsize, 0)) < 0) {
 					ga_error("controller client-send(tcp): %s\n", strerror(errno));
+#ifdef ANDROID
+					drop = 1;
+#else
 					exit(-1);
+#endif
 				}
 			} else if(conf->ctrlproto == IPPROTO_UDP) {
 				if((wlen = sendto(ctrlsocket, (char*) qm->msg, qm->msgsize, 0, (struct sockaddr*) &ctrlsin, sizeof(ctrlsin))) < 0) {
 					ga_error("controller client-send(udp): %s\n", strerror(errno));
+#ifdef ANDROID
+					drop = 1;
+#else
 					exit(-1);
+#endif
 				}
 			}
 			ctrl_queue_release_msg(qm);
 			//ga_error("controller client-debug: send msg (%d bytes)\n", wlen);
 		}
 	}
+
+quit:
+	close(ctrlsocket);
+	ctrlsocket = -1;
+	ga_error("controller client-thread terminated: tid=%ld.\n", ga_gettid());
 
 	return NULL;
 }

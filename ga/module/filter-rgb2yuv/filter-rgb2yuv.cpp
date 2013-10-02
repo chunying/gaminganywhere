@@ -83,7 +83,7 @@ filter_RGB2YUV_init(void *arg) {
 	if(ga_conf_readints("output-resolution", resolution, 2) == 2) {
 		outputW = resolution[0];
 		outputH = resolution[1];
-		ga_error("RGB2YUV filter: output-resoultion specified: %dx%d\n",
+		ga_error("RGB2YUV filter: output-resolution specified: %dx%d\n",
 			outputW, outputH);
 	}
 	// create default converters

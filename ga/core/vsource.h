@@ -26,7 +26,7 @@
 #include "pipeline.h"
 
 #define	MAX_STRIDE			4
-#define	IMAGE_SOURCE_CHANNEL_MAX	8
+#define	IMAGE_SOURCE_CHANNEL_MAX	4
 //#define	ISOURCE_PIPEFORMAT		"image-source-%d"
 
 struct vsource_frame {

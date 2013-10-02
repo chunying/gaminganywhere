@@ -155,6 +155,9 @@ encoder_unregister_client(RTSPContext *rtsp) {
 
 int
 encoder_send_packet(const char *prefix, RTSPContext *rtsp, int channelId, AVPacket *pkt, int64_t encoderPts) {
+	int iolen;
+	uint8_t *iobuf;
+	//
 	if(rtsp->fmtctx[channelId] == NULL) {
 		// not initialized - disabled?
 		return 0;
@@ -164,9 +167,34 @@ encoder_send_packet(const char *prefix, RTSPContext *rtsp, int channelId, AVPack
 				rtsp->encoder[channelId]->time_base,
 				rtsp->stream[channelId]->time_base);
 	}
+#ifdef HOLE_PUNCHING
+	if(ffio_open_dyn_packet_buf(&rtsp->fmtctx[channelId]->pb, rtsp->mtu) < 0) {
+		ga_error("%s: buffer allocation failed.\n", prefix);
+		return -1;
+	}
+	if(av_write_frame(rtsp->fmtctx[channelId], pkt) != 0) {
+		ga_error("%s: write failed.\n", prefix);
+		return -1;
+	}
+	iolen = avio_close_dyn_buf(rtsp->fmtctx[channelId]->pb, &iobuf);
+	if(rtsp->lower_transport[channelId] == RTSP_LOWER_TRANSPORT_TCP) {
+		if(rtsp_write_bindata(rtsp, channelId, iobuf, iolen) < 0) {
+			av_free(iobuf);
+			ga_error("%s: RTSP write failed.\n", prefix);
+			return -1;
+		}
+	} else {
+		if(rtp_write_bindata(rtsp, channelId, iobuf, iolen) < 0) {
+			av_free(iobuf);
+			ga_error("%s: RTP write failed.\n", prefix);
+			return -1;
+		}
+	}
+	av_free(iobuf);
+#else
 	if(rtsp->lower_transport[channelId] == RTSP_LOWER_TRANSPORT_TCP) {
 		//if(avio_open_dyn_buf(&rtsp->fmtctx[channelId]->pb) < 0)
-		if(ffio_open_dyn_packet_buf(&rtsp->fmtctx[channelId]->pb, RTSP_TCP_MAX_PACKET_SIZE) < 0) {
+		if(ffio_open_dyn_packet_buf(&rtsp->fmtctx[channelId]->pb, rtsp->mtu) < 0) {
 			ga_error("%s: buffer allocation failed.\n", prefix);
 			return -1;
 		}
@@ -186,6 +214,7 @@ encoder_send_packet(const char *prefix, RTSPContext *rtsp, int channelId, AVPack
 		}
 		av_free(iobuf);
 	}
+#endif
 	return 0;
 }
 

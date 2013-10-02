@@ -17,8 +17,10 @@
  */
 
 #include <stdio.h>
-#include <strings.h>
 #include <stdlib.h>
+#ifndef WIN32
+#include <strings.h>
+#endif
 
 #include "ga-common.h"
 #include "minih264.h"

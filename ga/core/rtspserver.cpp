@@ -44,11 +44,19 @@
 
 #include "ga-common.h"
 #include "ga-avcodec.h"
+#include "ga-conf.h"
 
 #define	RTSP_STREAM_FORMAT	"streamid=%d"
 #define	RTSP_STREAM_FORMAT_MAXLEN	64
 
 static struct RTSPConf *rtspconf = NULL;
+
+#ifndef NIPQUAD
+#define NIPQUAD(x)	((unsigned char*)&(x))[0],	\
+			((unsigned char*)&(x))[1],	\
+			((unsigned char*)&(x))[2],	\
+			((unsigned char*)&(x))[3]
+#endif
 
 void
 rtsp_cleanup(RTSPContext *rtsp, int retcode) {
@@ -118,6 +126,115 @@ rtsp_write_bindata(RTSPContext *ctx, int streamid, uint8_t *buf, int buflen) {
 	}
 	return i;
 }
+
+#ifdef HOLE_PUNCHING
+static int
+rtp_open_internal(unsigned short *port) {
+#ifdef WIN32
+	SOCKET s;
+#else
+	int s;
+#endif
+	struct sockaddr_in sin;
+#ifdef WIN32
+	int sinlen;
+#else
+	socklen_t sinlen;
+#endif
+	bzero(&sin, sizeof(sin));
+	if((s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0)
+		return -1;
+	sin.sin_family = AF_INET;
+	if(bind(s, (struct sockaddr*) &sin, sizeof(sin)) < 0) {
+		close(s);
+		return -1;
+	}
+	sinlen = sizeof(sin);
+	if(getsockname(s, (struct sockaddr*) &sin, &sinlen) < 0) {
+		close(s);
+		return -1;
+	}
+	*port = ntohs(sin.sin_port);
+	return s;
+}
+
+int
+rtp_open_ports(RTSPContext *ctx, int streamid) {
+	if(streamid < 0)
+		return -1;
+	if(streamid+1 > ctx->streamCount) {
+		ctx->streamCount = streamid+1;
+	}
+	streamid *= 2;
+	// initialized?
+	if(ctx->rtpSocket[streamid] != 0)
+		return 0;
+	//
+	if((ctx->rtpSocket[streamid] = rtp_open_internal(&ctx->rtpLocalPort[streamid])) < 0)
+		return -1;
+	if((ctx->rtpSocket[streamid+1] = rtp_open_internal(&ctx->rtpLocalPort[streamid+1])) < 0) {
+		close(ctx->rtpSocket[streamid]);
+		return -1;
+	}
+	ga_error("RTP: port opened for stream %d, min=%d (fd=%d), max=%d (fd=%d)\n",
+		streamid/2,
+		(unsigned int) ctx->rtpLocalPort[streamid],
+		(int) ctx->rtpSocket[streamid],
+		(unsigned int) ctx->rtpLocalPort[streamid+1],
+		(int) ctx->rtpSocket[streamid+1]);
+	return 0;
+}
+
+int
+rtp_close_ports(RTSPContext *ctx, int streamid) {
+	streamid *= 2;
+	if(ctx->rtpSocket[streamid] != 0)
+		close(ctx->rtpSocket[streamid]);
+	if(ctx->rtpSocket[streamid+1] != 0)
+		close(ctx->rtpSocket[streamid+1]);
+	ctx->rtpSocket[streamid] = 0;
+	ctx->rtpSocket[streamid+1] = 0;
+	return 0;
+}
+
+int
+rtp_write_bindata(RTSPContext *ctx, int streamid, uint8_t *buf, int buflen) {
+	int i, pktlen;
+	struct sockaddr_in sin;
+	if(ctx->rtpSocket[streamid*2] == 0)
+		return -1;
+	if(buf==NULL)
+		return 0;
+	if(buflen < 4)
+		return buflen;
+	bcopy(&ctx->client, &sin, sizeof(sin));
+	sin.sin_port = ctx->rtpPeerPort[streamid*2];
+	// XXX: buffer is the reuslt from avio_open_dyn_buf.
+	// Multiple RTP packets can be placed in a single buffer.
+	// Format == 4-bytes (big-endian) packet size + packet-data
+	i = 0;
+	while(i < buflen) {
+		pktlen  = (buf[i+0] << 24);
+		pktlen += (buf[i+1] << 16);
+		pktlen += (buf[i+2] << 8);
+		pktlen += (buf[i+3]);
+		if(pktlen == 0) {
+			i += 4;
+			continue;
+		}
+#if 0
+		ga_error("Pkt: send to %u.%u.%u.%u:%u, size=%d\n",
+			NIPQUAD(ctx->client.sin_addr.s_addr),
+			ntohs(ctx->rtpPeerPort[streamid*2]),
+			buflen);
+#endif
+		sendto(ctx->rtpSocket[streamid*2], (const char*) &buf[i+4], pktlen, 0,
+			(struct sockaddr*) &sin, sizeof(struct sockaddr_in));
+		i += (4+pktlen);
+	}
+	return i;
+}
+#endif
 
 static int
 rtsp_read_internal(RTSPContext *ctx) {
@@ -285,6 +402,9 @@ per_client_init(RTSPContext *ctx) {
 		return -1;
 	}
 #endif
+	if((ctx->mtu = ga_conf_readint("packet-size")) <= 0)
+		ctx->mtu = RTSP_TCP_MAX_PACKET_SIZE;
+	//
 	return 0;
 }
 
@@ -314,8 +434,12 @@ close_av(AVFormatContext *fctx, AVStream *st, AVCodecContext *cctx, enum RTSPLow
 				st = NULL;
 			av_freep(&fctx->streams[i]);
 		}
+#ifdef HOLE_PUNCHING
+		// do nothing?
+#else
 		if(transport==RTSP_LOWER_TRANSPORT_UDP && fctx->pb)
 			avio_close(fctx->pb);
+#endif
 		av_free(fctx);
 	}
 	if(cctx != NULL)
@@ -330,10 +454,18 @@ per_client_deinit(RTSPContext *ctx) {
 	int i;
 	for(i = 0; i < video_source_channels()+1; i++) {
 		close_av(ctx->fmtctx[i], ctx->stream[i], ctx->encoder[i], ctx->lower_transport[i]);
+#ifdef HOLE_PUNCHING
+		if(ctx->lower_transport[i] == RTSP_LOWER_TRANSPORT_UDP)
+			rtp_close_ports(ctx, i);
+#endif
 	}
 	//close_av(ctx->fmtctx[0], ctx->stream[0], ctx->encoder[0], ctx->lower_transport[0]);
 	//close_av(ctx->fmtctx[1], ctx->stream[1], ctx->encoder[1], ctx->lower_transport[1]);
 	//
+#ifdef HOLE_PUNCHING
+	if(ctx->sdp_fmtctx->pb)
+		avio_close(ctx->sdp_fmtctx->pb);
+#endif
 	close_av(ctx->sdp_fmtctx, NULL, NULL, RTSP_LOWER_TRANSPORT_UDP);
 	//
 	if(ctx->rbuffer) {
@@ -507,6 +639,30 @@ rtp_new_av_stream(RTSPContext *ctx, struct sockaddr_in *sin, int streamid, enum 
 		return -1;
 	}
 	fmtctx->oformat = fmt;
+	if(ctx->mtu > 0) {
+		if(fmtctx->packet_size > 0) {
+			fmtctx->packet_size =
+				ctx->mtu < fmtctx->packet_size ? ctx->mtu : fmtctx->packet_size;
+		} else {
+			fmtctx->packet_size = ctx->mtu;
+		}
+		ga_error("RTP: packet size set to %d (configured: %d)\n",
+			fmtctx->packet_size, ctx->mtu);
+	}
+#ifdef HOLE_PUNCHING
+	if(ffio_open_dyn_packet_buf(&fmtctx->pb, ctx->mtu) < 0) {
+		ga_error("cannot open dynamic packet buffer\n");
+		return -1;
+	}
+	ga_error("RTP: Dynamic buffer opened, max_packet_size=%d.\n",
+		(int) fmtctx->pb->max_packet_size);
+	if(ctx->lower_transport[streamid] == RTSP_LOWER_TRANSPORT_UDP) {
+		if(rtp_open_ports(ctx, streamid) < 0) {
+			ga_error("RTP: open ports failed - %s\n", strerror(errno));
+			return -1;
+		}
+	}
+#else
 	if(ctx->lower_transport[streamid] == RTSP_LOWER_TRANSPORT_UDP) {
 		snprintf(fmtctx->filename, sizeof(fmtctx->filename),
 			"rtp://%s:%d", inet_ntoa(sin->sin_addr), ntohs(sin->sin_port));
@@ -518,13 +674,14 @@ rtp_new_av_stream(RTSPContext *ctx, struct sockaddr_in *sin, int streamid, enum 
 			streamid, fmtctx->filename, fmtctx->pb->max_packet_size);
 	} else if(ctx->lower_transport[streamid] == RTSP_LOWER_TRANSPORT_TCP) {
 		// XXX: should we use avio_open_dyn_buf(&fmtctx->pb)?
-		if(ffio_open_dyn_packet_buf(&fmtctx->pb, RTSP_TCP_MAX_PACKET_SIZE) < 0) {
+		if(ffio_open_dyn_packet_buf(&fmtctx->pb, ctx->mtu) < 0) {
 			ga_error("cannot open dynamic packet buffer\n");
 			return -1;
 		}
 		ga_error("RTP/TCP: Dynamic buffer opened, max_packet_size=%d.\n",
-			fmtctx->pb->max_packet_size);
+			(int) fmtctx->pb->max_packet_size);
 	}
+#endif
 	fmtctx->pb->seekable = 0;
 	//
 	if((stream = ga_avformat_new_stream(fmtctx, 0,
@@ -566,12 +723,16 @@ rtp_new_av_stream(RTSPContext *ctx, struct sockaddr_in *sin, int streamid, enum 
 		ga_error("Cannot write stream id %d.\n", streamid);
 		return -1;
 	}
+#ifdef HOLE_PUNCHING
+	avio_close_dyn_buf(ctx->fmtctx[streamid]->pb, &dummybuf);
+	av_free(dummybuf);
+#else
 	if(ctx->lower_transport[streamid] == RTSP_LOWER_TRANSPORT_TCP) {
 		/*int rlen;
 		rlen =*/ avio_close_dyn_buf(ctx->fmtctx[streamid]->pb, &dummybuf);
 		av_free(dummybuf);
 	}
-	//
+#endif
 	return 0;
 }
 
@@ -677,11 +838,19 @@ rtsp_cmd_setup(RTSPContext *ctx, const char *url, RTSPMessageHeader *h) {
 	rtsp_printf(ctx, "Session: %s\r\n", ctx->session_id);
 	switch(th->lower_transport) {
 	case RTSP_LOWER_TRANSPORT_UDP:
+#ifdef HOLE_PUNCHING
+		rtp_port = ctx->rtpLocalPort[streamid*2];
+		rtcp_port = ctx->rtpLocalPort[streamid*2+1];
+		ctx->rtpPeerPort[streamid*2] = htons(th->client_port_min);
+		ctx->rtpPeerPort[streamid*2+1] = htons(th->client_port_max);
+#else
 		rtp_port = ff_rtp_get_local_rtp_port((URLContext*) ctx->fmtctx[streamid]->pb->opaque);
 		rtcp_port = ff_rtp_get_local_rtcp_port((URLContext*) ctx->fmtctx[streamid]->pb->opaque);
-		ga_error("RTP/UDP: client=%d-%d; server=%d-%d\n",
-		       th->client_port_min, th->client_port_max,
-		       rtp_port, rtcp_port);
+#endif
+		ga_error("RTP/UDP: streamid=%d; client=%d-%d; server=%d-%d\n",
+			streamid,
+			th->client_port_min, th->client_port_max,
+			rtp_port, rtcp_port);
 		rtsp_printf(ctx, "Transport: RTP/AVP/UDP;unicast;client_port=%d-%d;server_port=%d-%d\r\n",
 		       th->client_port_min, th->client_port_max,
 		       rtp_port, rtcp_port);
@@ -791,7 +960,7 @@ rtsp_cmd_pause(RTSPContext *ctx, const char *url, RTSPMessageHeader *h) {
 }
 
 static void
-rtsp_cmd_teardown(RTSPContext *ctx, const char *url, RTSPMessageHeader *h) {
+rtsp_cmd_teardown(RTSPContext *ctx, const char *url, RTSPMessageHeader *h, int bruteforce) {
 	char path[4096];
 	//
 	av_url_split(NULL, 0, NULL, 0, NULL, 0, NULL, path, sizeof(path), url);
@@ -805,6 +974,9 @@ rtsp_cmd_teardown(RTSPContext *ctx, const char *url, RTSPMessageHeader *h) {
 	}
 	//
 	ctx->state = SERVER_STATE_TEARDOWN;
+	if(bruteforce != 0)
+		return;
+	// XXX: well, gently response
 	rtsp_reply_header(ctx, RTSP_STATUS_OK);
 	rtsp_printf(ctx, "Session: %s\r\n", ctx->session_id);
 	rtsp_printf(ctx, "\r\n");
@@ -907,6 +1079,7 @@ rtspserver(void *arg) {
 		ga_error("server initialization failed.\n");
 		return NULL;
 	}
+	bcopy(&sin, &ctx.client, sizeof(ctx.client));
 	ctx.state = SERVER_STATE_IDLE;
 	// XXX: hasVideo is used to sync audio/video
 	// This value is increased by 1 for each captured frame until it is gerater than zero
@@ -922,13 +1095,65 @@ rtspserver(void *arg) {
 	ctx.fd = s;
 	//
 	do {
+		int i, fdmax, active;
 		fd_set rfds;
+		struct timeval to;
 		FD_ZERO(&rfds);
 		FD_SET(ctx.fd, &rfds);
-		if(select(ctx.fd+1, &rfds, NULL, NULL, NULL) <=0) {
+		fdmax = ctx.fd;
+#ifdef HOLE_PUNCHING
+		for(i = 0; i < 2*ctx.streamCount; i++) {
+			FD_SET(ctx.rtpSocket[i], &rfds);
+			if(ctx.rtpSocket[i] > fdmax)
+				fdmax = ctx.rtpSocket[i];
+		}
+#endif
+		to.tv_sec = 0;
+		to.tv_usec = 500000;
+		if((active = select(fdmax+1, &rfds, NULL, NULL, &to)) < 0) {
 			ga_error("select() failed: %s\n", strerror(errno));
 			goto quit;
 		}
+		if(active == 0) {
+			// try again!
+			continue;
+		}
+#ifdef HOLE_PUNCHING
+		for(i = 0; i < 2*ctx.streamCount; i++) {
+			struct sockaddr_in xsin;
+#ifdef WIN32
+			int xsinlen = sizeof(xsin);
+#else
+			socklen_t xsinlen = sizeof(xsin);
+#endif
+			if(FD_ISSET(ctx.rtpSocket[i], &rfds) == 0)
+				continue;
+			recvfrom(ctx.rtpSocket[i], buf, sizeof(buf), 0,
+				(struct sockaddr*) &xsin, &xsinlen);
+			if(ctx.rtpPortChecked[i] != 0)
+				continue;
+			// XXX: port should not flip-flop, so check only once
+			if(xsin.sin_addr.s_addr != ctx.client.sin_addr.s_addr) {
+				ga_error("RTP: client address mismatched? %u.%u.%u.%u != %u.%u.%u.%u\n",
+					NIPQUAD(ctx.client.sin_addr.s_addr),
+					NIPQUAD(xsin.sin_addr.s_addr));
+				continue;
+			}
+			if(xsin.sin_port != ctx.rtpPeerPort[i]) {
+				ga_error("RTP: client port reconfigured: %u -> %u\n",
+					(unsigned int) ntohs(ctx.rtpPeerPort[i]),
+					(unsigned int) ntohs(xsin.sin_port));
+				ctx.rtpPeerPort[i] = xsin.sin_port;
+			} else {
+				ga_error("RTP: client is not under an NAT, port %d confirmed\n",
+					(int) ntohs(ctx.rtpPeerPort[i]));
+			}
+			ctx.rtpPortChecked[i] = 1;
+		}
+		// is RTSP connection?
+		if(FD_ISSET(ctx.fd, &rfds) == 0)
+			continue;
+#endif
 		// read commands
 		if((rlen = rtsp_getnext(&ctx, buf, sizeof(buf))) < 0) {
 			goto quit;
@@ -1016,7 +1241,7 @@ rtspserver(void *arg) {
 		else if (!strcmp(cmd, "PAUSE"))
 			rtsp_cmd_pause(&ctx, url, header);
 		else if (!strcmp(cmd, "TEARDOWN"))
-			rtsp_cmd_teardown(&ctx, url, header);
+			rtsp_cmd_teardown(&ctx, url, header, 1);
 		else
 			rtsp_reply_error(&ctx, RTSP_STATUS_METHOD);
 		if(ctx.state == SERVER_STATE_TEARDOWN) {

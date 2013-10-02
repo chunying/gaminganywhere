@@ -35,6 +35,14 @@
 #define	EXPORT
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+#include <libavcodec/avcodec.h>
+#ifdef __cplusplus
+}
+#endif
+
 #include "ga-win32.h"
 
 #define	RGBA_SIZE	4	/* in bytes */
@@ -69,5 +77,9 @@ EXPORT struct gaRect * ga_fillrect(struct gaRect *rect, int left, int top, int r
 EXPORT int	ga_crop_window(struct gaRect *rect, struct gaRect **prect);
 EXPORT void	ga_backtrace();
 EXPORT void	ga_dummyfunc();
+
+EXPORT const char * ga_lookup_mime(const char *key);
+EXPORT const char ** ga_lookup_ffmpeg_decoders(const char *key);
+EXPORT enum AVCodecID ga_lookup_codec_id(const char *key);
 
 #endif

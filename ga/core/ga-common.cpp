@@ -42,7 +42,9 @@
 
 #include "ga-common.h"
 #include "ga-conf.h"
+#ifndef ANDROID_NO_FFMPEG
 #include "ga-avcodec.h"
+#endif
 #include "rtspconf.h"
 
 #ifndef NIPQUAD
@@ -103,6 +105,9 @@ ga_log(const char *fmt, ...) {
 	//
 	gettimeofday(&tv, NULL);
 	va_start(ap, fmt);
+#ifdef ANDROID
+	__android_log_vprint(ANDROID_LOG_INFO, "ga_log.native", fmt, ap);
+#endif
 	vsnprintf(msg, sizeof(msg), fmt, ap);
 	va_end(ap);
 	//
@@ -119,10 +124,9 @@ ga_error(const char *fmt, ...) {
 	gettimeofday(&tv, NULL);
 	va_start(ap, fmt);
 #ifdef ANDROID
-	__android_log_vprint(ANDROID_LOG_INFO, "ga_log", fmt, ap);
-#else
-	vsnprintf(msg, sizeof(msg), fmt, ap);
+	__android_log_vprint(ANDROID_LOG_INFO, "ga_log.native", fmt, ap);
 #endif
+	vsnprintf(msg, sizeof(msg), fmt, ap);
 	va_end(ap);
 	fprintf(stderr, "# [%d] %ld.%06ld %s", getpid(), tv.tv_sec, tv.tv_usec, msg);
 	//
@@ -172,9 +176,11 @@ int
 ga_init(const char *config, const char *url) {
 	srand(time(0));
 	winsock_init();
+#ifndef ANDROID_NO_FFMPEG
 	av_register_all();
 	avcodec_register_all();
 	avformat_network_init();
+#endif
 	if(config != NULL) {
 		if(ga_conf_load(config) < 0) {
 			ga_error("GA: cannot load configuration file '%s'\n", config);
@@ -490,8 +496,65 @@ ga_backtrace() {
 
 void
 ga_dummyfunc() {
+#ifndef ANDROID_NO_FFMPEG
 	// place some required functions - for link purpose
 	swr_alloc_set_opts(NULL, 0, (AVSampleFormat) 0, 0, 0, (AVSampleFormat) 0, 0, 0, NULL);
+#endif
 	return;
+}
+
+struct ga_codec_entry {
+	const char *key;
+	enum AVCodecID id;
+	const char *mime;
+	const char *ffmpeg_decoders[4];
+};
+
+struct ga_codec_entry ga_codec_table[] = {
+	{ "H264", AV_CODEC_ID_H264, "video/avc", { "h264", NULL } },
+	{ "VP8", AV_CODEC_ID_VP8, "video/x-vnd.on2.vp8", { "libvpx", NULL } },
+	{ "MPA", AV_CODEC_ID_MP3, "audio/mpeg", { "mp3", NULL } },
+	{ NULL, AV_CODEC_ID_NONE, NULL, { NULL } } /* END */
+};
+
+static ga_codec_entry *
+ga_lookup_core(const char *key) {
+	int i = 0;
+	while(i >= 0 && ga_codec_table[i].key != NULL) {
+		if(strcasecmp(ga_codec_table[i].key, key) == 0)
+			return &ga_codec_table[i];
+		i++;
+	}
+	return NULL;
+}
+
+const char *
+ga_lookup_mime(const char *key) {
+	struct ga_codec_entry * e = ga_lookup_core(key);
+	if(e==NULL || e->mime==NULL) {
+		ga_error("ga_lookup[%s]: mime not found\n", key);
+		return NULL;
+	}
+	return e->mime;
+}
+
+const char **
+ga_lookup_ffmpeg_decoders(const char *key) {
+	struct ga_codec_entry * e = ga_lookup_core(key);
+	if(e==NULL || e->ffmpeg_decoders==NULL) {
+		ga_error("ga_lookup[%s]: ffmpeg decoders not found\n", key);
+		return NULL;
+	}
+	return e->ffmpeg_decoders;
+}
+
+enum AVCodecID
+ga_lookup_codec_id(const char *key) {
+	struct ga_codec_entry * e = ga_lookup_core(key);
+	if(e==NULL) {
+		ga_error("ga_lookup[%s]: codec id not found\n", key);
+		return AV_CODEC_ID_NONE;
+	}
+	return e->id;
 }
 

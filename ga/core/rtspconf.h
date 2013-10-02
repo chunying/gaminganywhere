@@ -27,6 +27,10 @@ extern "C" {
 }
 #endif
 
+#ifndef WIN32
+#include <netinet/in.h>
+#endif
+
 #include <string>
 #include <vector>
 
@@ -44,6 +48,7 @@ struct RTSPConf {
 	char title[RTSPCONF_TITLE_SIZE];
 	char display[RTSPCONF_DISPLAY_SIZE];
 	char *servername;
+	struct sockaddr_in sin;
 	int serverport;
 	char proto;		// transport layer tcp = 6; udp = 17
 	// for controller
@@ -70,13 +75,18 @@ struct RTSPConf {
 	int64_t audio_device_channel_layout;
 	AVSampleFormat audio_codec_format;
 	int64_t audio_codec_channel_layout;
+#ifdef ANDROID
+	int builtin_video_decoder;
+	int builtin_audio_decoder;
+#endif
 	//std::vector<std::string> *vgo;	// video generic options
 	std::vector<std::string> *vso;	// video specific options
 };
 
 EXPORT struct RTSPConf * rtspconf_global();
-//EXPORT int rtspconf_init(struct RTSPConf *conf);
+EXPORT int rtspconf_init(struct RTSPConf *conf);
 EXPORT int rtspconf_parse(struct RTSPConf *conf);
+EXPORT void rtspconf_resolve_server(struct RTSPConf *conf, const char *servername);
 //EXPORT int rtspconf_load(const char *filename, struct RTSPConf *conf);
 //EXPORT int rtspconf_load_with_URL(const char *filename, struct RTSPConf *conf, const char *rtspURL);
 

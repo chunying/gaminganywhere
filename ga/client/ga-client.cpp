@@ -29,6 +29,11 @@
 #include <SDL2/SDL_ttf.h>
 #endif /* ! ANDROID */
 #endif /* GA_EMCC */
+#ifndef WIN32
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#endif /* ! WIN32 */
 #if ! defined WIN32 && ! defined __APPLE__ && ! defined ANDROID
 #include <X11/Xlib.h>
 #endif
@@ -233,7 +238,7 @@ open_audio(struct RTSPThreadParam *rtspParam, AVCodecContext *adecoder) {
 	wanted.channels = rtspconf->audio_channels;
 	wanted.silence = 0;
 	wanted.samples = SDL_AUDIO_BUFFER_SIZE;
-	wanted.callback = audio_fill_buffer;
+	wanted.callback = audio_buffer_fill_sdl;
 	wanted.userdata = adecoder;
 	//
 	pthread_mutex_lock(&rtspParam->audioMutex);
@@ -633,7 +638,11 @@ main(int argc, char *argv[]) {
 	}
 #endif
 	//
-	rtsperror("Remote server @ %s:%d\n", rtspconf->servername, rtspconf->serverport);
+	rtspconf_resolve_server(rtspconf, rtspconf->servername);
+	rtsperror("Remote server @ %s[%s]:%d\n",
+		rtspconf->servername,
+		inet_ntoa(rtspconf->sin.sin_addr),
+		rtspconf->serverport);
 	//
 	if(SDL_Init(SDL_INIT_EVERYTHING) < 0) {
 		rtsperror("SDL init failed: %s\n", SDL_GetError());

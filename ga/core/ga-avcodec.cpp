@@ -120,7 +120,7 @@ ga_avformat_new_stream(AVFormatContext *ctx, int id, AVCodec *codec) {
 }
 
 AVCodec*
-ga_avcodec_find_encoder(char **names, enum AVCodecID cid) {
+ga_avcodec_find_encoder(const char **names, enum AVCodecID cid) {
 	AVCodec *codec = NULL;
 	if(names != NULL) {
 		while(*names != NULL) {
@@ -135,7 +135,7 @@ ga_avcodec_find_encoder(char **names, enum AVCodecID cid) {
 }
 
 AVCodec*
-ga_avcodec_find_decoder(char **names, enum AVCodecID cid) {
+ga_avcodec_find_decoder(const char **names, enum AVCodecID cid) {
 	AVCodec *codec = NULL;
 	if(names != NULL) {
 		while(*names != NULL) {

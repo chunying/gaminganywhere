@@ -1,0 +1,189 @@
+
+GADEPS		?= $(HOME)/myprog/gaminganywhere/deps.android
+MACHINE		= $(shell uname -m)
+
+TBZUNPACK	= tar xjf
+TGZUNPACK	= tar xzf
+
+TOOLCHAIN_ABI	= armeabi-v7a
+LINKSTL		= shared
+HAS_NEON	= yes
+TARGET_PLATFORM	= android-9
+NDK_ROOT	= $(HOME)/android/android-ndk/.
+
+TARGET		= arm-linux
+TARGET_VPX	= armv7-android-gcc
+
+include Makefile.packages
+include Makefile.ndk
+
+CROSSCOMPILE = --host=$(TARGET) CC=$(CC) CXX=$(CXX) \
+	CFLAGS="$(ANDROID_CFLAGS) -I$(GADEPS)/include" \
+	CPPFLAGS="$(ANDROID_CXXFLAGS) -I$(GADEPS)/include" \
+	LDFLAGS="$(ANDROID_LDFLAGS) -L$(GADEPS)/lib"
+
+.PHONY: ffmpeg
+
+all: sdl2 yasm lame ogg vorbis theora vpx x264 ffmpeg live555
+
+sdl2:
+	$(TGZUNPACK) $(SDL2)
+	-cd $(SDL2DIR); ln -sf . jni
+	cd $(SDL2DIR); V=1 ndk-build -j5 LOCAL_ARM_MODE=arm LOCAL_ARM_NEON=true \
+		APP_ABI=armeabi-v7a TARGET_CPU_ABI=armeabi-v7a TARGET_PLATFORM=$(TARGET_PLATFORM)
+	mkdir -p $(GADEPS)/lib $(GADEPS)/include/SDL2
+	cp $(SDL2DIR)/libs/armeabi-v7a/libSDL2.so $(GADEPS)/lib/
+	cp $(SDL2DIR)/include/*.h $(GADEPS)/include/SDL2/
+	# generate sdl2-config
+	mkdir -p $(GADEPS)/bin
+	cat $(SDL2DIR)/sdl2-config.in | sed \
+		-e 's,@SDL_VERSION@,2.0.12,g' \
+		-e 's,@prefix@,$(GADEPS),g' \
+		-e 's,@exec_prefix@,$(GADEPS),g' \
+		-e 's,@libdir@,$(GADEPS)/lib,g' \
+		-e 's,@includedir@,$(GADEPS)/include,g' \
+		-e 's,@SDL_CFLAGS@,,g' \
+		-e 's,@SDL_RLD_FLAGS@,,g' \
+		-e 's,@SDL_LIBS@,,g' \
+		-e 's,@SDL_STATIC_LIBS@,,g' \
+		-e 's,@ENABLE_STATIC_FALSE@,,g' \
+		-e 's,@ENABLE_STATIC_TRUE@,#,g' \
+		-e 's,@ENABLE_SHARED_FALSE@,#,g' \
+		-e 's,@ENABLE_SHARED_TRUE@,,g' > $(GADEPS)/bin/sdl2-config
+	chmod 755 $(GADEPS)/bin/sdl2-config
+	#
+	rm -rf $(SDL2DIR)
+
+sdl2_ttf:
+	# XXX: we need freetype
+	$(TBZUNPACK) $(SDL2_TTF)
+	mkdir -p $(SDL2_TTFDIR)/mybuild
+	cd $(SDL2_TTFDIR)/mybuild; ../configure --prefix=$(GADEPS) --with-sdl-prefix=$(GADEPS) $(CROSSCOMPILE)
+	make -C $(SDL2_TTFDIR)/mybuild -j5
+	make -C $(SDL2_TTFDIR)/mybuild install
+	rm -rf $(SDL2_TTFDIR)
+
+#### note: yasm only support x86/x86_64 platform
+yasm:
+	$(TGZUNPACK) $(YASM)
+	cd $(YASMDIR); ./configure --prefix=$(GADEPS)
+	make -C $(YASMDIR) -j5
+	make -C $(YASMDIR) install
+	rm -rf $(YASMDIR)
+
+lame:
+	$(TGZUNPACK) $(LAME)
+	-./patches/ltmain-avoid-version.sh $(LAMEDIR)/ltmain.sh
+	cd $(LAMEDIR); cat ../patches/android-lame-*.diff | patch -p1
+	cd $(LAMEDIR); ./configure --prefix=$(GADEPS) $(CROSSCOMPILE)
+	-cd $(LAMEDIR)/libmp3lame; ln -s $(ANDROID_LIBPATH)/crtbegin_so.o .
+	-cd $(LAMEDIR)/libmp3lame; ln -s $(ANDROID_LIBPATH)/crtend_so.o .
+	make -C $(LAMEDIR) -j5
+	make -C $(LAMEDIR) install
+	rm -rf $(LAMEDIR)
+
+ogg:
+	$(TGZUNPACK) $(OGG)
+	-./patches/ltmain-avoid-version.sh $(OGGDIR)/ltmain.sh
+	cd $(OGGDIR); ./configure --prefix=$(GADEPS) $(CROSSCOMPILE)
+	make -C $(OGGDIR) -j5
+	make -C $(OGGDIR) install
+	rm -rf $(OGGDIR)
+
+vorbis:
+	$(TGZUNPACK) $(VORBIS)
+	-./patches/ltmain-avoid-version.sh $(VORBISDIR)/ltmain.sh
+	cd $(VORBISDIR); ./configure --prefix=$(GADEPS) --build=$(MACHINE) $(CROSSCOMPILE)
+	make -C $(VORBISDIR) -j5
+	make -C $(VORBISDIR) install
+	rm -rf $(VORBISDIR)
+
+theora:
+	$(TBZUNPACK) $(THEORA)
+	-cd $(THEORADIR)/lib; ln -s $(ANDROID_LIBPATH)/crtbegin_so.o .
+	-cd $(THEORADIR)/lib; ln -s $(ANDROID_LIBPATH)/crtend_so.o .
+	# disable PKG_CONFIG because it detects local png library
+	cd $(THEORADIR); ./configure --prefix=$(GADEPS) \
+		--enable-static --disable-shared PKG_CONFIG="" \
+		$(CROSSCOMPILE)
+	make -C $(THEORADIR) -j5
+	make -C $(THEORADIR) install
+	rm -rf $(THEORADIR)
+
+vpx:
+	$(TBZUNPACK) $(VPX)
+	cd $(VPXDIR); ./configure --prefix=$(GADEPS) --disable-examples \
+		--target=$(TARGET_VPX) --sdk-path=$(NDK_ROOT) \
+		--libc=$(NDK_ROOT)/platforms/$(TARGET_PLATFORM)/arch-arm \
+		--disable-runtime-cpu-detect
+	# patch to disable runtime-cpu-detect on linux
+	mv $(VPXDIR)/vpx_config.h $(VPXDIR)/vpx_config.h.old
+	cat $(VPXDIR)/vpx_config.h.old | sed -e 's,CONFIG_RUNTIME_CPU_DETECT 1,CONFIG_RUNTIME_CPU_DETECT 0,' > $(VPXDIR)/vpx_config.h
+	#
+	make -C $(VPXDIR) -j5
+	make -C $(VPXDIR) install
+	rm -rf $(VPXDIR)
+
+x264:
+	$(TBZUNPACK) $(X264)
+	# enable android pthread
+	cd $(X264DIR); cat ../patches/android-x264-*.diff | patch -p1
+	# disable so versioning
+	mv $(X264DIR)/configure $(X264DIR)/configure.old
+	cat $(X264DIR)/configure.old | sed -e 's,SONAME=libx264.so.$$API,SONAME=libx264.so,g' > $(X264DIR)/configure
+	chmod 755 $(X264DIR)/configure
+	#
+	cd $(X264DIR); ./configure --prefix=$(GADEPS) --enable-shared \
+		--enable-pic \
+		--cross-prefix=$(CCPREFIX)  --host=$(TARGET) \
+		--extra-cflags="$(ANDROID_CFLAGS) -I$(GADEPS)/include" \
+		--extra-ldflags="$(ANDROID_LDFLAGS) -L$(GADEPS)/lib"
+	make -C $(X264DIR) -j5
+	make -C $(X264DIR) install
+	rm -rf $(X264DIR)
+
+ANDROID_EXTRA_HEADERS = \
+	-I$(GADEPS)/include/android/system/core \
+	-I$(GADEPS)/include/android/frameworks/av \
+	-I$(GADEPS)/include/android/frameworks/native \
+	-I$(GADEPS)/include/android/frameworks/native/media/openmax \
+	-I$(GADEPS)/include/android/libhardware
+
+ffmpeg:
+	$(TBZUNPACK) $(FFMPEG)
+	# XXX: install stagefright headers:
+	# include/binder,cutils,utils,multimedia/stagefright
+	cd $(FFMPEGDIR); cat ../patches/android-ffmpeg-*.diff | patch -p1
+	#tar -C $(GADEPS)/ -xjf $(STAGEFRIGHT).tbz
+	#
+	cd $(FFMPEGDIR); ./configure --prefix=$(GADEPS) \
+		--enable-pic \
+		--enable-libmp3lame \
+		--enable-libtheora --enable-libvorbis \
+		--enable-libx264 --enable-libvpx \
+		--enable-gpl --enable-nonfree --disable-outdev=sdl \
+		--disable-doc \
+		--enable-cross-compile --cross-prefix=$(CCPREFIX) \
+		--target-os=linux --arch=armv7 --cpu=cortex-a8 \
+		--enable-asm --enable-neon --disable-runtime-cpudetect \
+		--extra-cflags="$(ANDROID_CFLAGS) -I$(GADEPS)/include $(ANDROID_EXTRA_HEADERS)" \
+		--extra-cxxflags="$(ANDROID_CFLAGS) -I$(GADEPS)/include $(ANDROID_EXTRA_HEADERS)"\
+		--extra-ldflags="$(ANDROID_LDFLAGS) -L$(GADEPS)/lib -Wl,--allow-shlib-undefined -Wl,-rpath-link=$(GADEPS)/lib"
+	make -C $(FFMPEGDIR) -j5
+	make -C $(FFMPEGDIR) install
+	rm -rf $(FFMPEGDIR)
+
+#		--enable-libstagefright-h264 \
+#		--disable-armv5te --disable-armv6 --disable-armv6t2 \
+
+live555:
+	$(TGZUNPACK) $(LIVE555)
+	cp patches/android-live555-config.android $(LIVE555DIR)/config.android
+	cd $(LIVE555DIR); ./genMakefiles android
+	make -C $(LIVE555DIR) -j5
+	find $(LIVE555DIR) -name '*.a' -exec cp -f {} $(GADEPS)/lib \;
+	-mkdir $(GADEPS)/include/live555
+	find $(LIVE555DIR) -name '*.hh' -exec cp -f {} $(GADEPS)/include/live555 \;
+	cp -f $(LIVE555DIR)/groupsock/include/NetCommon.h $(GADEPS)/include/live555
+	rm -rf $(LIVE555DIR)
+

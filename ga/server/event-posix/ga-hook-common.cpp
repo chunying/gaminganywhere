@@ -218,7 +218,11 @@ init_modules() {
 	char hook_audio[64] = "";
 	//
 	if(conf->ctrlenable && no_default_controller==0) {
-		ga_init_single_module_or_quit("controller", m_ctrl, (void*) prect);
+		if(ga_init_single_module("controller", m_ctrl, (void*) prect) < 0) {
+			ga_error("******** Init controller module failed, controller disabled.\n");
+			conf->ctrlenable = 0;
+			no_default_controller = 1;
+		}
 	}
 	// controller server is built-in - no need to init
 	ga_init_single_module_or_quit("filter", m_filter, (void*) filterpipe);
@@ -370,7 +374,10 @@ ga_hook_video_rate_control() {
 		gettimeofday(&lastCounter, NULL);
 #endif
 		ga_error("[token_bucket] interval=%d, fill=%d, max=%d (%d)\n",
-			server_token_fill_interval, server_num_token_to_fill, server_max_tokens, max_tokens);
+			(int) server_token_fill_interval,
+			(int) server_num_token_to_fill,
+			(int) server_max_tokens,
+			(int) max_tokens);
 		initialized = 1;
 		return -1;
 	}

@@ -114,7 +114,7 @@ pulse_hook_symbols() {
 	old_pa_stream_write = (t_pa_stream_write)
 				ga_hook_lookup_or_quit(hPulse, "pa_stream_write");
 	// register via dlsym?
-	if((ptr = getenv("LIBAUDIO")) == NULL)
+	if((ptr = getenv("HOOKAUDIO")) == NULL)
 		goto quit;
 	strncpy(soname, ptr, sizeof(soname));
 	// hook directly
@@ -131,6 +131,7 @@ pulse_hook_symbols() {
 	hook_lib_generic(soname, handle, "pa_stream_set_write_callback", (void*) hook_pa_stream_set_write_callback);
 	hook_lib_generic(soname, handle, "pa_stream_write", (void*) hook_pa_stream_write);
 	//////////////////////////////////////////////////
+	ga_error("hook-pulse: hooked into %s\n", soname);
 	}
 	// hook via libdl
 	register_dlsym_hooks("pa_simple_new", (void*) hook_pa_simple_new);
@@ -145,10 +146,10 @@ pulse_hook_symbols() {
 	register_dlsym_hooks("pa_stream_write", (void*) hook_pa_stream_write);
 	// redirect specific libraries
 	if(hook_libdl(soname) < 0) {
-		ga_error("dlsym hook failed.\n");
+		ga_error("hook-pulse: dlsym hook failed.\n");
 		exit(-1);
 	} else {
-		ga_error("dlsym hook for %s successfully\n", soname);
+		ga_error("hook-pulse: dlsym hook for %s successfully\n", soname);
 	}
 	//
 quit:

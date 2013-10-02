@@ -32,6 +32,7 @@
 
 #include "ga-hook-common.h"
 #include "ga-hook-gl.h"
+#include "ga-hook-lib.h"
 
 #include <map>
 using namespace std;
@@ -71,7 +72,7 @@ gl_hook_symbols() {
 #ifndef WIN32
 	void *handle = NULL;
 	char *ptr, soname[2048];
-	if((ptr = getenv("LIBGL_SO")) == NULL) {
+	if((ptr = getenv("LIBVIDEO")) == NULL) {
 		strncpy(soname, "libGL.so.1", sizeof(soname));
 	} else {
 		strncpy(soname, ptr, sizeof(soname));
@@ -83,6 +84,16 @@ gl_hook_symbols() {
 	// for hooking
 	old_glFlush = (t_glFlush)
 				ga_hook_lookup_or_quit(handle, "glFlush");
+	ga_error("hook-gl: hooked.\n");
+	// indirect hook
+	if((ptr = getenv("HOOKVIDEO")) == NULL)
+		goto quit;
+	strncpy(soname, ptr, sizeof(soname));
+	if((handle = dlopen(soname, RTLD_LAZY)) != NULL) {
+		hook_lib_generic(soname, handle, "glFlush", (void*) hook_glFlush);
+	}
+	ga_error("hook-gl: hooked into %s.\n", soname);
+quit:
 #endif
 	return;
 }
@@ -137,8 +148,9 @@ hook_glFlush() {
 		gettimeofday(&captureTv, NULL);
 	}
 	//
-	if (enable_server_rate_control && ga_hook_video_rate_control() < 0)
+	if (enable_server_rate_control && ga_hook_video_rate_control() < 0) {
 		return;
+	}
 	//
 	do {
 		unsigned char *src, *dst;

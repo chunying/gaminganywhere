@@ -191,6 +191,7 @@ no_load_env:
 				cmd += "\"";
 			}
 			ga_error("CMD: %s\n", cmd.c_str());
+			fprintf(stderr, "===================================================\n\n");
 			system(cmd.c_str());
 			exit(0);
 		}

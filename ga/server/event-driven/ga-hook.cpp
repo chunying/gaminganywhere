@@ -32,6 +32,7 @@
 #include "hook-function.h"
 #include "ga-hook-common.h"
 #include "ga-hook-sdl.h"
+#include "ga-hook-sdlaudio.h"
 #include "detours.h"
 
 // DLL share segment

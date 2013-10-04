@@ -23,7 +23,6 @@
 #include "sdl12-event.h"
 #include "sdl12-video.h"
 #include "sdl12-mouse.h"
-#include "sdl12-audio.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -42,9 +41,6 @@ typedef int	(*t_SDL_PollEvent)(SDL12_Event *);
 typedef int	(*t_SDL_PushEvent)(SDL12_Event *);
 typedef int	(*t_SDL_WaitEvent)(SDL12_Event *);
 typedef int	(*t_SDL_PeepEvents)(SDL12_Event *, int, SDL12_eventaction, uint32_t);
-typedef int	(*t_SDL_OpenAudio)(SDL12_AudioSpec *, SDL12_AudioSpec *);
-typedef void	(*t_SDL_PauseAudio)(int);
-typedef void	(*t_SDL_CloseAudio)();
 #ifdef __cplusplus
 }
 #endif
@@ -63,9 +59,6 @@ extern t_SDL_PollEvent		old_SDL_PollEvent;
 extern t_SDL_PushEvent		old_SDL_PushEvent;
 extern t_SDL_WaitEvent		old_SDL_WaitEvent;
 extern t_SDL_PeepEvents		old_SDL_PeepEvents;
-extern t_SDL_OpenAudio		old_SDL_OpenAudio;
-extern t_SDL_PauseAudio		old_SDL_PauseAudio;
-extern t_SDL_CloseAudio		old_SDL_CloseAudio;
 
 int sdl_hook_init();
 
@@ -80,9 +73,6 @@ void hook_SDL_GL_SwapBuffers();
 int hook_SDL_PollEvent(SDL12_Event *event);
 int hook_SDL_WaitEvent(SDL12_Event *event);
 int hook_SDL_PeepEvents(SDL12_Event *event, int numevents, SDL12_eventaction action, uint32_t mask);
-int hook_SDL_OpenAudio(SDL12_AudioSpec *desired, SDL12_AudioSpec *obtained);
-void hook_SDL_PauseAudio(int pause_on);
-void hook_SDL_CloseAudio();
 
 void sdl12_mapinit();
 void sdl_hook_replay_callback(void *msg, int msglen);

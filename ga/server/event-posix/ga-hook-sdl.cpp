@@ -35,6 +35,7 @@
 
 #include "ga-hook-common.h"
 #include "ga-hook-sdl.h"
+#include "ga-hook-lib.h"
 
 #include <GL/glu.h>
 
@@ -57,9 +58,6 @@ void SDL_GL_SwapBuffers();
 int SDL_PollEvent(SDL12_Event *event);
 int SDL_WaitEvent(SDL12_Event *event);
 int SDL_PeepEvents(SDL12_Event *event, int numevents, SDL12_eventaction action, uint32_t mask);
-int SDL_OpenAudio(SDL12_AudioSpec *desired, SDL12_AudioSpec *obtained);
-void SDL_PauseAudio(int pause_on);
-void SDL_CloseAudio();
 #ifdef __cplusplus
 }
 #endif
@@ -77,9 +75,6 @@ t_SDL_GL_SwapBuffers	old_SDL_GL_SwapBuffers = NULL;
 t_SDL_PollEvent		old_SDL_PollEvent = NULL;
 t_SDL_WaitEvent		old_SDL_WaitEvent = NULL;
 t_SDL_PeepEvents	old_SDL_PeepEvents = NULL;
-t_SDL_OpenAudio		old_SDL_OpenAudio = NULL;
-t_SDL_PauseAudio	old_SDL_PauseAudio = NULL;
-t_SDL_CloseAudio	old_SDL_CloseAudio = NULL;
 // for internal use
 t_SDL_CreateRGBSurface	old_SDL_CreateRGBSurface = NULL;
 t_SDL_PushEvent		old_SDL_PushEvent = NULL;
@@ -162,12 +157,6 @@ sdl_hook_symbols() {
 				ga_hook_lookup_or_quit(handle, "SDL_WaitEvent");
 	old_SDL_PeepEvents = (t_SDL_PeepEvents)
 				ga_hook_lookup_or_quit(handle, "SDL_PeepEvents");
-	old_SDL_OpenAudio = (t_SDL_OpenAudio)
-				ga_hook_lookup_or_quit(handle, "SDL_OpenAudio");
-	old_SDL_PauseAudio = (t_SDL_PauseAudio)
-				ga_hook_lookup_or_quit(handle, "SDL_PauseAudio");
-	old_SDL_CloseAudio = (t_SDL_CloseAudio)
-				ga_hook_lookup_or_quit(handle, "SDL_CloseAudio");
 	// for internal use
 	old_SDL_CreateRGBSurface = (t_SDL_CreateRGBSurface)
 				ga_hook_lookup_or_quit(handle, "SDL_CreateRGBSurface");
@@ -175,6 +164,32 @@ sdl_hook_symbols() {
 				ga_hook_lookup_or_quit(handle, "SDL_FreeSurface");
 	old_SDL_PushEvent = (t_SDL_PushEvent)
 				ga_hook_lookup_or_quit(handle, "SDL_PushEvent");
+	//
+	if((ptr = getenv("HOOKVIDEO")) == NULL)
+		goto quit;
+	strncpy(soname, ptr, sizeof(soname));
+	// hook indirectly
+	if((handle = dlopen(soname, RTLD_LAZY)) != NULL) {
+	//////////////////////////////////////////////////
+	hook_lib_generic(soname, handle, "SDL_Init", (void*) hook_SDL_Init);
+	hook_lib_generic(soname, handle, "SDL_SetVideoMode", (void*) hook_SDL_SetVideoMode);
+	// BlitSurface!?
+	if(old_SDL_BlitSurface != old_SDL_UpperBlit) {
+		hook_lib_generic(soname, handle, "SDL_BlitSurface", (void*) hook_SDL_BlitSurface);
+	} else {
+		hook_lib_generic(soname, handle, "SDL_UpperBlit", (void*) hook_SDL_BlitSurface);
+	}
+	hook_lib_generic(soname, handle, "SDL_Flip", (void*) hook_SDL_Flip);
+	hook_lib_generic(soname, handle, "SDL_UpdateRect", (void*) hook_SDL_UpdateRect);
+	hook_lib_generic(soname, handle, "SDL_UpdateRects", (void*) hook_SDL_UpdateRects);
+	hook_lib_generic(soname, handle, "SDL_GL_SwapBuffers", (void*) hook_SDL_GL_SwapBuffers);
+	hook_lib_generic(soname, handle, "SDL_PollEvent", (void*) hook_SDL_PollEvent);
+	hook_lib_generic(soname, handle, "SDL_WaitEvent", (void*) hook_SDL_WaitEvent);
+	hook_lib_generic(soname, handle, "SDL_PeepEvents", (void*) hook_SDL_PeepEvents);
+	//
+	ga_error("hook-sdl: hooked into %s\n", soname);
+	}
+quit:
 #endif
 	return;
 }
@@ -604,7 +619,7 @@ sdl12_hook_replay(struct sdlmsg *msg) {
 		sdl12evt.key.which = 0;
 		sdl12evt.key.state =
 			msg->is_pressed ? SDL_PRESSED : SDL_RELEASED;
-		sdl12evt.key.keysym.scancode = 0;
+		sdl12evt.key.keysym.scancode = msg->scancode/*0*/;
 		sdl12evt.key.keysym.sym = (SDL12Key) mi->second;
 		sdl12evt.key.keysym.mod = (SDL_Keymod) msg->sdlmod;
 		if(msg->unicode == 0) {
@@ -1020,169 +1035,6 @@ hook_SDL_PeepEvents(SDL12_Event *event, int numevents, SDL12_eventaction action,
 	return ret;
 }
 
-static void
-sdl_dump_audiospec(SDL12_AudioSpec *spec) {
-	ga_error("SDL_OpenAudio: freq=%d format=%x channels=%d silence=%d samples=%d padding=%d size=%d callback=%p userdata=%p\n",
-		spec->freq, spec->format, spec->channels, spec->silence,
-		spec->samples, spec->padding, spec->size,
-		spec->callback, spec->userdata);
-	return;
-}
-
-static struct SwrContext *swrctx = NULL;
-static unsigned char *audio_buf = NULL;
-static struct SDL12_AudioSpec audio_spec;
-static int audio_buf_samples = 0;
-
-static void (*old_audio_callback)(void *, uint8_t *, int) = NULL;
-static void
-hook_SDL_audio_callback(void *userdata, uint8_t *stream, int len) {
-	const unsigned char *srcplanes[SWR_CH_MAX];
-	unsigned char *dstplanes[SWR_CH_MAX];
-#if 0
-	ga_error("audio-callback: userdata=%p stream=%p len=%d\n",
-			userdata, stream, len);
-#endif
-	if(old_audio_callback != NULL)
-		old_audio_callback(userdata, stream, len);
-	// pipe to the encoder
-	if(swrctx == NULL || audio_buf == NULL)
-		goto quit;
-	srcplanes[0] = stream;
-	srcplanes[1] = NULL;
-	dstplanes[0] = audio_buf;
-	dstplanes[1] = NULL;
-	swr_convert(swrctx,
-			dstplanes, audio_buf_samples,
-			srcplanes, audio_spec.samples);
-	audio_source_buffer_fill(audio_buf, audio_buf_samples);
-quit:
-	// silence local outputs
-	bzero(stream, len);
-	return;
-}
-
-static enum AVSampleFormat
-SDL2SWR_format(uint16_t format) {
-	switch(format) {
-	case SDL12_AUDIO_U8:
-		return AV_SAMPLE_FMT_U8;
-	case SDL12_AUDIO_S16:
-		return AV_SAMPLE_FMT_S16;
-	default:
-		ga_error("SDL2SWR: format %x is not supported.\n", format);
-		exit(-1);
-	}
-	return AV_SAMPLE_FMT_NONE;
-}
-
-static int64_t
-SDL2SWR_chlayout(uint8_t channels) {
-	if(channels == 1)
-		return AV_CH_LAYOUT_MONO;
-	if(channels == 2)
-		return AV_CH_LAYOUT_STEREO;
-	ga_error("SDL2SWR: channel layout (%d) is not supported.\n", channels);
-	exit(-1);
-}
-
-int
-hook_SDL_OpenAudio(SDL12_AudioSpec *desired, SDL12_AudioSpec *obtained) {
-	int ret;
-	if(old_SDL_OpenAudio == NULL) {
-		sdl_hook_symbols();
-	}
-	//
-	sdl_dump_audiospec(desired);
-	if(desired->callback != NULL) {
-		old_audio_callback = desired->callback;
-		desired->callback = hook_SDL_audio_callback;
-	}
-	//
-	ret = old_SDL_OpenAudio(desired, obtained);
-	//
-	if(ret != -1) {
-		struct RTSPConf *rtspconf = rtspconf_global();
-		int bufreq = 0;
-		//
-		obtained->callback = old_audio_callback;
-		// release everything
-		if(swrctx != NULL)
-			swr_free(&swrctx);
-		if(audio_buf != NULL)
-			free(audio_buf);
-		// create resample context
-		swrctx = swr_alloc_set_opts(NULL,
-				rtspconf->audio_device_channel_layout,
-				rtspconf->audio_device_format,
-				rtspconf->audio_samplerate,
-				SDL2SWR_chlayout(obtained->channels),
-				SDL2SWR_format(obtained->format),
-				obtained->freq,
-				0, NULL);
-		if(swrctx == NULL) {
-			ga_error("SDL_OpenAudio: cannot create resample context.\n");
-			exit(-1);
-		} else {
-			ga_error("SDL_OpenAudio: resample context (%x,%d,%d) -> (%x,%d,%d)\n",
-				(int) SDL2SWR_chlayout(obtained->channels),
-				(int) SDL2SWR_format(obtained->format),
-				(int) obtained->freq,
-				(int) rtspconf->audio_device_channel_layout,
-				(int) rtspconf->audio_device_format,
-				(int) rtspconf->audio_samplerate);
-		}
-		if(swr_init(swrctx) < 0) {
-			ga_error("SDL_OpenAudio: resample context init failed.\n");
-			exit(-1);
-		}
-		// allocate resample buffer
-		audio_buf_samples = av_rescale_rnd(obtained->samples,
-					rtspconf->audio_samplerate,
-					obtained->freq, AV_ROUND_UP);
-		bufreq = av_samples_get_buffer_size(NULL,
-				rtspconf->audio_channels,
-				audio_buf_samples*2,
-				rtspconf->audio_device_format,
-				1/*no-alignment*/);
-		if((audio_buf = (unsigned char*) malloc(bufreq)) == NULL) {
-			ga_error("SDL_OpenAudio: cannot allocate resample memory.\n");
-			exit(-1);
-		}
-		ga_error("SDL_OpenAudio: %d samples with %d byte(s) resample buffer allocated.\n",
-				audio_buf_samples, bufreq);
-		// setup GA audio source
-		if(audio_source_setup(bufreq, rtspconf->audio_samplerate,
-				/* XXX: We support only U8 and S16 now */
-				obtained->format == SDL12_AUDIO_S16 ? 16 : 8,
-				rtspconf->audio_channels) < 0) {
-			ga_error("SDL_OpenAudio: audio source setup failed.\n");
-			exit(-1);
-		}
-		//
-		bcopy(obtained, &audio_spec, sizeof(audio_spec));
-	}
-	return ret;
-}
-
-void
-hook_SDL_PauseAudio(int pause_on) {
-	if(old_SDL_PauseAudio == NULL) {
-		sdl_hook_symbols();
-	}
-	ga_error("SDL_PauseAudio: pause_on = %d\n", pause_on);
-	return old_SDL_PauseAudio(pause_on);
-}
-
-void
-hook_SDL_CloseAudio() {
-	if(old_SDL_CloseAudio == NULL) {
-		sdl_hook_symbols();
-	}
-	ga_error("SDL_CloseAudio\n");
-	return old_SDL_CloseAudio();
-}
-
 #ifndef WIN32	/* POSIX interfaces */
 int
 SDL_Init(unsigned int flags) {
@@ -1239,23 +1091,6 @@ SDL_WaitEvent(SDL12_Event *event) {
 int
 SDL_PeepEvents(SDL12_Event *event, int numevents, SDL12_eventaction action, uint32_t mask) {
 	return hook_SDL_PeepEvents(event, numevents, action, mask);
-}
-
-int
-SDL_OpenAudio(SDL12_AudioSpec *desired, SDL12_AudioSpec *obtained) {
-	return hook_SDL_OpenAudio(desired, obtained);
-}
-
-void
-SDL_PauseAudio(int pause_on) {
-	hook_SDL_PauseAudio(pause_on);
-	return;
-}
-
-void
-SDL_CloseAudio() {
-	hook_SDL_CloseAudio();
-	return;
 }
 
 __attribute__((constructor))

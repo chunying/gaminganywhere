@@ -117,7 +117,7 @@ pulse_hook_symbols() {
 	if((ptr = getenv("HOOKAUDIO")) == NULL)
 		goto quit;
 	strncpy(soname, ptr, sizeof(soname));
-	// hook directly
+	// hook indirectly
 	if((handle = dlopen(soname, RTLD_LAZY)) != NULL) {
 	//////////////////////////////////////////////////
 	hook_lib_generic(soname, handle, "pa_simple_new", (void*) hook_pa_simple_new);

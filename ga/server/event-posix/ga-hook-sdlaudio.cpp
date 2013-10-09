@@ -180,7 +180,9 @@ hook_SDL_OpenAudio(SDL12_AudioSpec *desired, SDL12_AudioSpec *obtained) {
 		struct RTSPConf *rtspconf = rtspconf_global();
 		int bufreq = 0;
 		//
-		obtained->callback = old_audio_callback;
+		//obtained->callback = old_audio_callback;
+		if(obtained == NULL)
+			obtained = desired;
 		// release everything
 		if(swrctx != NULL)
 			swr_free(&swrctx);

@@ -68,6 +68,7 @@ EXPORT int	ga_error(const char *fmt, ...);
 //	*ptr+*alignment = start at an aligned address with size s
 EXPORT int	ga_malloc(int size, void **ptr, int *alignment);
 EXPORT long	ga_gettid();
+EXPORT void	ga_dump_codecs();
 EXPORT int	ga_init(const char *config, const char *url);
 EXPORT void	ga_deinit();
 EXPORT void	ga_openlog();

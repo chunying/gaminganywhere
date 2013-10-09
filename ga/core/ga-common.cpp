@@ -172,6 +172,25 @@ winsock_init() {
 	return 0;
 }
 
+void
+ga_dump_codecs() {
+	int n, count;
+	char buf[8192], *ptr;
+	AVCodec *c = NULL;
+	n = snprintf(buf, sizeof(buf), "Registered codecs: ");
+	ptr = &buf[n];
+	count = 0;
+	for(c = av_codec_next(NULL); c != NULL; c = av_codec_next(c)) {
+		n = snprintf(ptr, sizeof(buf)-(ptr-buf), "%s ",
+				c->name);
+		ptr += n;
+		count++;
+	}
+	snprintf(ptr, sizeof(buf)-(ptr-buf), "(%d)\n", count);
+	ga_error(buf);
+	return;
+}
+
 int
 ga_init(const char *config, const char *url) {
 	srand(time(0));
@@ -180,6 +199,7 @@ ga_init(const char *config, const char *url) {
 	av_register_all();
 	avcodec_register_all();
 	avformat_network_init();
+	//ga_dump_codecs();
 #endif
 	if(config != NULL) {
 		if(ga_conf_load(config) < 0) {

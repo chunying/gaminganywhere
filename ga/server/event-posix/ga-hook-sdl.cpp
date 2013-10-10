@@ -58,6 +58,7 @@ void SDL_GL_SwapBuffers();
 int SDL_PollEvent(SDL12_Event *event);
 int SDL_WaitEvent(SDL12_Event *event);
 int SDL_PeepEvents(SDL12_Event *event, int numevents, SDL12_eventaction action, uint32_t mask);
+void SDL_SetEventFilter(SDL12_EventFilter filter);
 #ifdef __cplusplus
 }
 #endif
@@ -75,6 +76,7 @@ t_SDL_GL_SwapBuffers	old_SDL_GL_SwapBuffers = NULL;
 t_SDL_PollEvent		old_SDL_PollEvent = NULL;
 t_SDL_WaitEvent		old_SDL_WaitEvent = NULL;
 t_SDL_PeepEvents	old_SDL_PeepEvents = NULL;
+t_SDL_SetEventFilter	old_SDL_SetEventFilter = NULL;
 // for internal use
 t_SDL_CreateRGBSurface	old_SDL_CreateRGBSurface = NULL;
 t_SDL_PushEvent		old_SDL_PushEvent = NULL;
@@ -82,6 +84,7 @@ t_SDL_FreeSurface	old_SDL_FreeSurface = NULL;
 
 static SDL12_Surface	*screensurface = NULL;
 static SDL12_Surface	*dupsurface = NULL;
+static SDL12_EventFilter local_filter = NULL;
 
 static map<int,int> sdl_keymap;
 static map<int,unsigned short> sdl_unicodemap;
@@ -157,6 +160,8 @@ sdl_hook_symbols() {
 				ga_hook_lookup_or_quit(handle, "SDL_WaitEvent");
 	old_SDL_PeepEvents = (t_SDL_PeepEvents)
 				ga_hook_lookup_or_quit(handle, "SDL_PeepEvents");
+	old_SDL_SetEventFilter = (t_SDL_SetEventFilter)
+				ga_hook_lookup_or_quit(handle, "SDL_SetEventFilter");
 	// for internal use
 	old_SDL_CreateRGBSurface = (t_SDL_CreateRGBSurface)
 				ga_hook_lookup_or_quit(handle, "SDL_CreateRGBSurface");
@@ -186,6 +191,7 @@ sdl_hook_symbols() {
 	hook_lib_generic(soname, handle, "SDL_PollEvent", (void*) hook_SDL_PollEvent);
 	hook_lib_generic(soname, handle, "SDL_WaitEvent", (void*) hook_SDL_WaitEvent);
 	hook_lib_generic(soname, handle, "SDL_PeepEvents", (void*) hook_SDL_PeepEvents);
+	hook_lib_generic(soname, handle, "SDL_SetEventFilter", (void*) hook_SDL_SetEventFilter);
 	//
 	ga_error("hook-sdl: hooked into %s\n", soname);
 	}
@@ -643,7 +649,12 @@ sdl12_hook_replay(struct sdlmsg *msg) {
 		}
 		sdl12evt.key.keysym.unicode = msg->unicode;
 		//
-		old_SDL_PushEvent(&sdl12evt);
+		if(local_filter == NULL) {
+			old_SDL_PushEvent(&sdl12evt);
+		} else {
+			if(local_filter(&sdl12evt) != 0)
+				old_SDL_PushEvent(&sdl12evt);
+		}
 		//ga_error("XXX: PushEvent\n");
 		break;
 	case SDL_EVENT_MSGTYPE_MOUSEKEY:
@@ -654,7 +665,12 @@ sdl12_hook_replay(struct sdlmsg *msg) {
 		sdl12evt.button.state = msg->is_pressed ? SDL_PRESSED : SDL_RELEASED;
 		sdl12evt.button.x = msg->mousex * scaleX;
 		sdl12evt.button.y = msg->mousey * scaleY;
-		old_SDL_PushEvent(&sdl12evt);
+		if(local_filter == NULL) {
+			old_SDL_PushEvent(&sdl12evt);
+		} else {
+			if(local_filter(&sdl12evt) != 0)
+				old_SDL_PushEvent(&sdl12evt);
+		}
 		//ga_error("XXX: PushEvent: x=%d*%.2f, y=%dx%.2f\n", msg->mousex, scaleX, msg->mousey, scaleY);
 		break;
 	case SDL_EVENT_MSGTYPE_MOUSEWHEEL:
@@ -666,12 +682,22 @@ sdl12_hook_replay(struct sdlmsg *msg) {
 		sdl12evt.button.state = SDL_PRESSED;
 		sdl12evt.button.x = msg->mousex * scaleX;
 		sdl12evt.button.y = msg->mousey * scaleY;
-		old_SDL_PushEvent(&sdl12evt);
+		if(local_filter == NULL) {
+			old_SDL_PushEvent(&sdl12evt);
+		} else {
+			if(local_filter(&sdl12evt) != 0)
+				old_SDL_PushEvent(&sdl12evt);
+		}
 		//ga_error("XXX: PushEvent: x=%d*%.2f, y=%dx%.2f\n", msg->mousex, scaleX, msg->mousey, scaleY);
 		//
 		sdl12evt.button.type = SDL12_MOUSEBUTTONUP;
 		sdl12evt.button.state = SDL_RELEASED;
-		old_SDL_PushEvent(&sdl12evt);
+		if(local_filter == NULL) {
+			old_SDL_PushEvent(&sdl12evt);
+		} else {
+			if(local_filter(&sdl12evt) != 0)
+				old_SDL_PushEvent(&sdl12evt);
+		}
 		//ga_error("XXX: PushEvent\n");
 		break;
 	case SDL_EVENT_MSGTYPE_MOUSEMOTION:
@@ -681,7 +707,12 @@ sdl12_hook_replay(struct sdlmsg *msg) {
 		sdl12evt.motion.y = msg->mousey * scaleY;
 		sdl12evt.motion.xrel = ((short) msg->mouseRelX) * scaleX;
 		sdl12evt.motion.yrel = ((short) msg->mouseRelY) * scaleY;
-		old_SDL_PushEvent(&sdl12evt);
+		if(local_filter == NULL) {
+			old_SDL_PushEvent(&sdl12evt);
+		} else {
+			if(local_filter(&sdl12evt) != 0)
+				old_SDL_PushEvent(&sdl12evt);
+		}
 		//ga_error("XXX: PushEvent: x=%d*%.2f, y=%dx%.2f\n", msg->mousex, scaleX, msg->mousey, scaleY);
 		break;
 	}
@@ -768,11 +799,21 @@ hook_SDL_SetVideoMode(int width, int height, int bpp, uint32_t flags) {
 				| SDL_APPINPUTFOCUS
 				| SDL_APPACTIVE;
 			evt.active.gain = 1;
-			old_SDL_PushEvent(&evt);
+			if(local_filter == NULL) {
+				old_SDL_PushEvent(&evt);
+			} else {
+				if(local_filter(&evt) != 0)
+					old_SDL_PushEvent(&evt);
+			}
 			// move mouse to (0,0)
 			bzero(&evt, sizeof(evt));
 			evt.motion.type = SDL12_MOUSEMOTION;
-			old_SDL_PushEvent(&evt);
+			if(local_filter == NULL) {
+				old_SDL_PushEvent(&evt);
+			} else {
+				if(local_filter(&evt) != 0)
+					old_SDL_PushEvent(&evt);
+			}
 		} while(0);
 #endif
 	}
@@ -1035,6 +1076,16 @@ hook_SDL_PeepEvents(SDL12_Event *event, int numevents, SDL12_eventaction action,
 	return ret;
 }
 
+void
+hook_SDL_SetEventFilter(SDL12_EventFilter filter) {
+	if(old_SDL_SetEventFilter == NULL) {
+		sdl_hook_symbols();
+	}
+	local_filter = filter;
+	old_SDL_SetEventFilter(filter);
+	return;
+}
+
 #ifndef WIN32	/* POSIX interfaces */
 int
 SDL_Init(unsigned int flags) {
@@ -1091,6 +1142,11 @@ SDL_WaitEvent(SDL12_Event *event) {
 int
 SDL_PeepEvents(SDL12_Event *event, int numevents, SDL12_eventaction action, uint32_t mask) {
 	return hook_SDL_PeepEvents(event, numevents, action, mask);
+}
+
+void
+SDL_SetEventFilter(SDL12_EventFilter filter) {
+	hook_SDL_SetEventFilter(filter);
 }
 
 __attribute__((constructor))

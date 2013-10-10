@@ -411,4 +411,8 @@ typedef union SDL12_Event {
 	*/
 } SDL12_Event;
 
+#define	SDL12_ALLEVENTS	0xFFFFFFFF
+
+typedef int (*SDL12_EventFilter)(const SDL12_Event *event);
+
 #endif

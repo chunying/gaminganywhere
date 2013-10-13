@@ -1,6 +1,13 @@
 
 GADEPS		?= $(HOME)/myprog/gaminganywhere/deps.posix
 MACHINE		= $(shell uname -m)
+SYSTEM		= $(shell uname -s)
+
+ifeq ($(SYSTEM),Darwin)
+VPX_EXTRA_CONFIG =
+else
+VPX_EXTRA_CONFIG = --enable-shared
+endif
 
 TBZUNPACK	= tar xjf
 TGZUNPACK	= tar xzf
@@ -70,7 +77,7 @@ theora:
 
 vpx:
 	$(TBZUNPACK) $(VPX)
-	cd $(VPXDIR); ./configure --prefix=$(GADEPS) --enable-shared --enable-pic
+	cd $(VPXDIR); ./configure --prefix=$(GADEPS) $(VPX_EXTRA_CONFIG) --enable-pic
 	make -C $(VPXDIR) -j5
 	make -C $(VPXDIR) install
 	rm -rf $(VPXDIR)

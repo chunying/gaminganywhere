@@ -22,11 +22,7 @@
 #ifdef ANDROID
 #include <jni.h>
 #else
-#ifdef GA_EMCC
-#include <SDL/SDL.h>
-#else
 #include <SDL2/SDL.h>
-#endif /* GA_EMCC */
 #endif
 #include <pthread.h>
 
@@ -69,14 +65,11 @@ struct RTSPThreadParam {
 	pipeline *pipe[IMAGE_SOURCE_CHANNEL_MAX];
 #else
 	pthread_mutex_t surfaceMutex[IMAGE_SOURCE_CHANNEL_MAX];
-#if SDL_VERSION_ATLEAST(2,0,0)
+#if 1	// only support SDL2
 	unsigned int windowId[IMAGE_SOURCE_CHANNEL_MAX];
 	SDL_Window *surface[IMAGE_SOURCE_CHANNEL_MAX];
 	SDL_Renderer *renderer[IMAGE_SOURCE_CHANNEL_MAX];
 	SDL_Texture *overlay[IMAGE_SOURCE_CHANNEL_MAX];
-#else
-	SDL_Surface *surface[IMAGE_SOURCE_CHANNEL_MAX];
-	SDL_Overlay *overlay[IMAGE_SOURCE_CHANNEL_MAX];
 #endif
 	struct SwsContext *swsctx[IMAGE_SOURCE_CHANNEL_MAX];
 	pipeline *pipe[IMAGE_SOURCE_CHANNEL_MAX];

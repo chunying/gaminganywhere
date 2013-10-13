@@ -35,7 +35,9 @@
 
 #include "ga-hook-common.h"
 #include "ga-hook-sdl.h"
+#ifndef WIN32
 #include "ga-hook-lib.h"
+#endif
 
 #include <GL/glu.h>
 
@@ -608,46 +610,48 @@ sdl12_mapinit() {
 }
 
 static void
-sdl12_hook_replay(struct sdlmsg *msg) {
+sdl12_hook_replay(sdlmsg_t *msg) {
 	SDL12_Event sdl12evt;
 	map<int,int>::iterator mi;
 	double scaleX, scaleY;
+	sdlmsg_keyboard_t *msgk = (sdlmsg_keyboard_t*) msg;
+	sdlmsg_mouse_t *msgm = (sdlmsg_mouse_t*) msg;
 	//
 	ctrl_server_get_scalefactor(&scaleX, &scaleY);
 	//
 	bzero(&sdl12evt, sizeof(sdl12evt));
 	switch(msg->msgtype) {
 	case SDL_EVENT_MSGTYPE_KEYBOARD:
-		if((mi = sdl_keymap.find(msg->sdlkey)) == sdl_keymap.end())
+		if((mi = sdl_keymap.find(msgk->sdlkey)) == sdl_keymap.end())
 			break;
 		sdl12evt.key.type =
-			msg->is_pressed ? SDL12_KEYDOWN : SDL12_KEYUP;
+			msgk->is_pressed ? SDL12_KEYDOWN : SDL12_KEYUP;
 		sdl12evt.key.which = 0;
 		sdl12evt.key.state =
-			msg->is_pressed ? SDL_PRESSED : SDL_RELEASED;
-		sdl12evt.key.keysym.scancode = msg->scancode/*0*/;
+			msgk->is_pressed ? SDL_PRESSED : SDL_RELEASED;
+		sdl12evt.key.keysym.scancode = msgk->scancode/*0*/;
 		sdl12evt.key.keysym.sym = (SDL12Key) mi->second;
-		sdl12evt.key.keysym.mod = (SDL_Keymod) msg->sdlmod;
-		if(msg->unicode == 0) {
+		sdl12evt.key.keysym.mod = (SDL_Keymod) msgk->sdlmod;
+		if(msgk->unicode == 0) {
 			map<int,unsigned short>::iterator mu;
 			map<unsigned short,unsigned short>::iterator ms;
 			//
-			if((mu = sdl_unicodemap.find(msg->sdlkey)) != sdl_unicodemap.end()) {
-				msg->unicode = mu->second;
+			if((mu = sdl_unicodemap.find(msgk->sdlkey)) != sdl_unicodemap.end()) {
+				msgk->unicode = mu->second;
 				//
-				if((msg->sdlmod & KMOD_SHIFT)
+				if((msgk->sdlmod & KMOD_SHIFT)
 				&&((ms = sdl_shiftmap.find(mu->second)) != sdl_shiftmap.end())) {
-					msg->unicode = ms->second;
+					msgk->unicode = ms->second;
 				}
 				if(mu->second >= 'a' && mu->second <= 'z') {
-					if(msg->sdlmod & KMOD_CAPS)
-						msg->unicode = mu->second & 0x0df;
-					if(msg->sdlmod & KMOD_SHIFT)
-						msg->unicode = mu->second ^ 0x020;
+					if(msgk->sdlmod & KMOD_CAPS)
+						msgk->unicode = mu->second & 0x0df;
+					if(msgk->sdlmod & KMOD_SHIFT)
+						msgk->unicode = mu->second ^ 0x020;
 				}
 			}
 		}
-		sdl12evt.key.keysym.unicode = msg->unicode;
+		sdl12evt.key.keysym.unicode = msgk->unicode;
 		//
 		if(local_filter == NULL) {
 			old_SDL_PushEvent(&sdl12evt);
@@ -659,12 +663,12 @@ sdl12_hook_replay(struct sdlmsg *msg) {
 		break;
 	case SDL_EVENT_MSGTYPE_MOUSEKEY:
 		sdl12evt.button.type =
-			msg->is_pressed ? SDL12_MOUSEBUTTONDOWN : SDL12_MOUSEBUTTONUP;
+			msgm->is_pressed ? SDL12_MOUSEBUTTONDOWN : SDL12_MOUSEBUTTONUP;
 		sdl12evt.button.button =
-			msg->mousebutton > 5 ? msg->mousebutton - 2 : msg->mousebutton;
-		sdl12evt.button.state = msg->is_pressed ? SDL_PRESSED : SDL_RELEASED;
-		sdl12evt.button.x = msg->mousex * scaleX;
-		sdl12evt.button.y = msg->mousey * scaleY;
+			msgm->mousebutton > 5 ? msgm->mousebutton - 2 : msgm->mousebutton;
+		sdl12evt.button.state = msgm->is_pressed ? SDL_PRESSED : SDL_RELEASED;
+		sdl12evt.button.x = msgm->mousex * scaleX;
+		sdl12evt.button.y = msgm->mousey * scaleY;
 		if(local_filter == NULL) {
 			old_SDL_PushEvent(&sdl12evt);
 		} else {
@@ -674,14 +678,14 @@ sdl12_hook_replay(struct sdlmsg *msg) {
 		//ga_error("XXX: PushEvent: x=%d*%.2f, y=%dx%.2f\n", msg->mousex, scaleX, msg->mousey, scaleY);
 		break;
 	case SDL_EVENT_MSGTYPE_MOUSEWHEEL:
-		if(msg->mousey == 0)
+		if(msgm->mousey == 0)
 			break;
 		sdl12evt.button.type = SDL12_MOUSEBUTTONDOWN;
 		sdl12evt.button.button =
-			(((short) msg->mousey) > 0) ? SDL12_BUTTON_WHEELDOWN : SDL12_BUTTON_WHEELUP;
+			(((short) msgm->mousey) > 0) ? SDL12_BUTTON_WHEELDOWN : SDL12_BUTTON_WHEELUP;
 		sdl12evt.button.state = SDL_PRESSED;
-		sdl12evt.button.x = msg->mousex * scaleX;
-		sdl12evt.button.y = msg->mousey * scaleY;
+		sdl12evt.button.x = msgm->mousex * scaleX;
+		sdl12evt.button.y = msgm->mousey * scaleY;
 		if(local_filter == NULL) {
 			old_SDL_PushEvent(&sdl12evt);
 		} else {
@@ -702,11 +706,11 @@ sdl12_hook_replay(struct sdlmsg *msg) {
 		break;
 	case SDL_EVENT_MSGTYPE_MOUSEMOTION:
 		sdl12evt.motion.type = SDL12_MOUSEMOTION;
-		sdl12evt.motion.state = msg->mousestate;
-		sdl12evt.motion.x = msg->mousex * scaleX;
-		sdl12evt.motion.y = msg->mousey * scaleY;
-		sdl12evt.motion.xrel = ((short) msg->mouseRelX) * scaleX;
-		sdl12evt.motion.yrel = ((short) msg->mouseRelY) * scaleY;
+		sdl12evt.motion.state = msgm->mousestate;
+		sdl12evt.motion.x = msgm->mousex * scaleX;
+		sdl12evt.motion.y = msgm->mousey * scaleY;
+		sdl12evt.motion.xrel = ((short) msgm->mouseRelX) * scaleX;
+		sdl12evt.motion.yrel = ((short) msgm->mouseRelY) * scaleY;
 		if(local_filter == NULL) {
 			old_SDL_PushEvent(&sdl12evt);
 		} else {
@@ -721,7 +725,7 @@ sdl12_hook_replay(struct sdlmsg *msg) {
 
 void
 sdl_hook_replay_callback(void *msg, int msglen) {
-	struct sdlmsg *smsg = (struct sdlmsg*) msg;
+	sdlmsg_t *smsg = (sdlmsg_t*) msg;
 	sdlmsg_ntoh(smsg);
 	sdl12_hook_replay(smsg);
 	return;

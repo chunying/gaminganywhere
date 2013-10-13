@@ -20,15 +20,10 @@
 #include <string.h>
 
 #include <pthread.h>
-#ifdef GA_EMCC
-#include <SDL/SDL.h>
-#include <SDL/SDL_ttf.h>
-#else
 #include <SDL2/SDL.h>
 #ifndef ANDROID
 #include <SDL2/SDL_ttf.h>
 #endif /* ! ANDROID */
-#endif /* GA_EMCC */
 #ifndef WIN32
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -81,14 +76,11 @@ static void
 create_overlay(struct RTSPThreadParam *rtspParam, int ch) {
 	int w, h;
 	PixelFormat format;
-#if SDL_VERSION_ATLEAST(2,0,0)
+#if 1	// only support SDL2
 	unsigned int renderer_flags = SDL_RENDERER_SOFTWARE;
 	SDL_Window *surface = NULL;
 	SDL_Renderer *renderer = NULL;
 	SDL_Texture *overlay = NULL;
-#else
-	SDL_Surface *surface = NULL;
-	SDL_Overlay *overlay = NULL;
 #endif
 	struct SwsContext *swsctx = NULL;
 	pipeline *pipe = NULL;
@@ -129,7 +121,7 @@ create_overlay(struct RTSPThreadParam *rtspParam, int ch) {
 	}
 	// sdl
 	int wflag = 0;
-#if SDL_VERSION_ATLEAST(2,0,0)
+#if 1	// only support SDL2
 #ifdef	ANDROID
 	wflag = SDL_WINDOW_FULLSCREEN | SDL_WINDOW_BORDERLESS;
 #else
@@ -143,18 +135,13 @@ create_overlay(struct RTSPThreadParam *rtspParam, int ch) {
 			w, h, wflag);
 	windowSizeX[ch] = w;
 	windowSizeY[ch] = h;
-#else
-	if(ga_conf_readbool("fullscreen", 0) != 0) {
-		wflag |= SDL_FULLSCREEN;
-	}
-	surface = SDL_SetVideoMode(w, h, 32, wflag);
 #endif
 	if(surface == NULL) {
 		rtsperror("ga-client: set video mode (create window) failed.\n");
 		exit(-1);
 	}
 	// move mouse to center
-#if SDL_VERSION_ATLEAST(2,0,0)
+#if 1	// only support SDL2
 	SDL_WarpMouseInWindow(surface, w/2, h/2);
 #endif
 	if(relativeMouseMode != 0) {
@@ -164,7 +151,7 @@ create_overlay(struct RTSPThreadParam *rtspParam, int ch) {
 		ga_error("ga-client: relative mouse mode enabled.\n");
 	}
 	//
-#if SDL_VERSION_ATLEAST(2,0,0)
+#if 1	// only support SDL2
 	do {	// choose SW or HW renderer?
 		// XXX: Windows crashed if there is not a HW renderer!
 		int i, n = SDL_GetNumRenderDrivers();
@@ -195,8 +182,6 @@ create_overlay(struct RTSPThreadParam *rtspParam, int ch) {
 			SDL_PIXELFORMAT_YV12,
 			SDL_TEXTUREACCESS_STREAMING,
 			w, h);
-#else
-	overlay = SDL_CreateYUVOverlay(w, h, SDL_YV12_OVERLAY, surface);
 #endif
 	if(overlay == NULL) {
 		rtsperror("ga-client: create overlay (textuer) failed.\n");
@@ -207,7 +192,7 @@ create_overlay(struct RTSPThreadParam *rtspParam, int ch) {
 	rtspParam->pipe[ch] = pipe;
 	rtspParam->swsctx[ch] = swsctx;
 	rtspParam->overlay[ch] = overlay;
-#if SDL_VERSION_ATLEAST(2,0,0)
+#if 1	// only support SDL2
 	rtspParam->renderer[ch] = renderer;
 	rtspParam->windowId[ch] = SDL_GetWindowID(surface);
 #endif
@@ -314,7 +299,7 @@ render_image(struct RTSPThreadParam *rtspParam, int ch) {
 	struct pooldata *data;
 	AVPicture *vframe;
 	SDL_Rect rect;
-#if SDL_VERSION_ATLEAST(2,0,0)
+#if 1	// only support SDL2
 	unsigned char *pixels;
 	int pitch;
 #endif
@@ -324,7 +309,7 @@ render_image(struct RTSPThreadParam *rtspParam, int ch) {
 	}
 	vframe = (AVPicture*) data->ptr;
 	//
-#if SDL_VERSION_ATLEAST(2,0,0)
+#if 1	// only support SDL2
 	if(SDL_LockTexture(rtspParam->overlay[ch], NULL, (void**) &pixels, &pitch) == 0) {
 		bcopy(vframe->data[0], pixels, rtspParam->width[ch] * rtspParam->height[ch]);
 		bcopy(vframe->data[1], pixels+((pitch*rtspParam->height[ch]*5)>>2), rtspParam->width[ch] * rtspParam->height[ch] / 4);
@@ -333,23 +318,15 @@ render_image(struct RTSPThreadParam *rtspParam, int ch) {
 	} else {
 		rtsperror("ga-client: lock textture failed - %s\n", SDL_GetError());
 	}
-#else
-	bcopy(vframe->data[0], rtspParam->overlay[ch]->pixels[0], rtspParam->width[ch] * rtspParam->height[ch]);
-	bcopy(vframe->data[1], rtspParam->overlay[ch]->pixels[2], rtspParam->width[ch] * rtspParam->height[ch] / 4);
-	bcopy(vframe->data[2], rtspParam->overlay[ch]->pixels[1], rtspParam->width[ch] * rtspParam->height[ch] / 4);
-	SDL_LockYUVOverlay(rtspParam->overlay[ch]);
-	SDL_UnlockYUVOverlay(rtspParam->overlay[ch]);
 #endif
 	rtspParam->pipe[ch]->release_data(data);
 	rect.x = 0;
 	rect.y = 0;
 	rect.w = rtspParam->width[ch];
 	rect.h = rtspParam->height[ch];
-#if SDL_VERSION_ATLEAST(2,0,0)
+#if 1	// only support SDL2
 	SDL_RenderCopy(rtspParam->renderer[ch], rtspParam->overlay[ch], NULL, NULL);
 	SDL_RenderPresent(rtspParam->renderer[ch]);
-#else
-	SDL_DisplayYUVOverlay(rtspParam->overlay[ch], &rect);
 #endif
 	//
 	image_rendered = 1;
@@ -360,7 +337,8 @@ render_image(struct RTSPThreadParam *rtspParam, int ch) {
 
 void
 ProcessEvent(SDL_Event *event) {
-	struct sdlmsg m;
+	sdlmsg_t m;
+	//
 	switch(event->type) {
 	case SDL_KEYUP:
 		if(event->key.keysym.sym == SDLK_BACKQUOTE
@@ -381,7 +359,7 @@ ProcessEvent(SDL_Event *event) {
 			event->key.keysym.sym,
 			event->key.keysym.mod,
 			0/*event->key.keysym.unicode*/);
-		ctrl_client_sendmsg(&m, sizeof(m));
+		ctrl_client_sendmsg(&m, sizeof(sdlmsg_keyboard_t));
 		}
 		break;
 	case SDL_KEYDOWN:
@@ -391,19 +369,19 @@ ProcessEvent(SDL_Event *event) {
 			event->key.keysym.sym,
 			event->key.keysym.mod,
 			0/*event->key.keysym.unicode*/);
-		ctrl_client_sendmsg(&m, sizeof(m));
+		ctrl_client_sendmsg(&m, sizeof(sdlmsg_keyboard_t));
 		}
 		break;
 	case SDL_MOUSEBUTTONUP:
 		if(rtspconf->ctrlenable) {
 		sdlmsg_mousekey(&m, 0, event->button.button, event->button.x, event->button.y);
-		ctrl_client_sendmsg(&m, sizeof(m));
+		ctrl_client_sendmsg(&m, sizeof(sdlmsg_mouse_t));
 		}
 		break;
 	case SDL_MOUSEBUTTONDOWN:
 		if(rtspconf->ctrlenable) {
 		sdlmsg_mousekey(&m, 1, event->button.button, event->button.x, event->button.y);
-		ctrl_client_sendmsg(&m, sizeof(m));
+		ctrl_client_sendmsg(&m, sizeof(sdlmsg_mouse_t));
 		}
 		break;
 	case SDL_MOUSEMOTION:
@@ -415,14 +393,14 @@ ProcessEvent(SDL_Event *event) {
 				event->motion.yrel,
 				event->motion.state,
 				relativeMouseMode == 0 ? 0 : 1);
-			ctrl_client_sendmsg(&m, sizeof(m));
+			ctrl_client_sendmsg(&m, sizeof(sdlmsg_mouse_t));
 		}
 		break;
-#if SDL_VERSION_ATLEAST(2,0,0)
+#if 1	// only support SDL2
 	case SDL_MOUSEWHEEL:
 		if(rtspconf->ctrlenable && rtspconf->sendmousemotion) {
 			sdlmsg_mousewheel(&m, event->motion.x, event->motion.y);
-			ctrl_client_sendmsg(&m, sizeof(m));
+			ctrl_client_sendmsg(&m, sizeof(sdlmsg_mouse_t));
 		}
 		break;
 #ifdef ANDROID
@@ -439,10 +417,10 @@ ProcessEvent(SDL_Event *event) {
 		mapx = (unsigned short) (1.0 * (windowSizeX[0]-1) * event->tfinger.x / 32767.0);
 		mapy = (unsigned short) (1.0 * (windowSizeY[0]-1) * event->tfinger.y / 32767.0);
 		sdlmsg_mousemotion(&m, mapx, mapy, 0, 0, 0, 0);
-		ctrl_client_sendmsg(&m, sizeof(m));
+		ctrl_client_sendmsg(&m, sizeof(sdlmsg_mouse_t));
 		//
 		sdlmsg_mousekey(&m, 1, SDL_BUTTON_LEFT, mapx, mapy);
-		ctrl_client_sendmsg(&m, sizeof(m));
+		ctrl_client_sendmsg(&m, sizeof(sdlmsg_mouse_t));
 		}
 		break;
 	case SDL_FINGERUP:
@@ -455,10 +433,10 @@ ProcessEvent(SDL_Event *event) {
 		mapx = (unsigned short) (1.0 * (windowSizeX[0]-1) * event->tfinger.x / 32767.0);
 		mapy = (unsigned short) (1.0 * (windowSizeY[0]-1) * event->tfinger.y / 32767.0);
 		sdlmsg_mousemotion(&m, mapx, mapy, 0, 0, 0, 0);
-		ctrl_client_sendmsg(&m, sizeof(m));
+		ctrl_client_sendmsg(&m, sizeof(sdlmsg_mouse_t));
 		//
 		sdlmsg_mousekey(&m, 0, SDL_BUTTON_LEFT, mapx, mapy);
-		ctrl_client_sendmsg(&m, sizeof(m));
+		ctrl_client_sendmsg(&m, sizeof(sdlmsg_mouse_t));
 		}
 		break;
 	case SDL_FINGERMOTION:
@@ -471,7 +449,7 @@ ProcessEvent(SDL_Event *event) {
 		mapx = (unsigned short) (1.0 * (windowSizeX[0]-1) * event->tfinger.x / 32767.0);
 		mapy = (unsigned short) (1.0 * (windowSizeY[0]-1) * event->tfinger.y / 32767.0);
 		sdlmsg_mousemotion(&m, mapx, mapy, 0, 0, 0, 0);
-		ctrl_client_sendmsg(&m, sizeof(m));
+		ctrl_client_sendmsg(&m, sizeof(sdlmsg_mouse_t));
 		}
 		break;
 #undef	DEBUG_FINGER
@@ -513,12 +491,7 @@ ProcessEvent(SDL_Event *event) {
 			break;
 		}
 		break;
-#else /* DL_VERSION_ATLEAST(2,0,0) */
-	case SDL_VIDEORESIZE:
-		rtsperror("event video resize w=%d h=%d\n",
-			event->resize.w, event->resize.h);
-		break;
-#endif /* DL_VERSION_ATLEAST(2,0,0) */
+#endif /* SDL_VERSION_ATLEAST(2,0,0) */
 	case SDL_QUIT:
 		rtspThreadParam.running = false;
 		return;
@@ -559,9 +532,7 @@ watchdog_thread(void *args) {
 				//
 				bzero(&evt, sizeof(evt));
 				evt.user.type = SDL_USEREVENT;
-#if SDL_VERSION_ATLEAST(2,0,0)
 				evt.user.timestamp = time(0);
-#endif
 				evt.user.code = SDL_USEREVENT_RENDER_TEXT;
 				evt.user.data1 = idlemsg;
 				evt.user.data2 = NULL;
@@ -648,13 +619,13 @@ main(int argc, char *argv[]) {
 		rtsperror("SDL init failed: %s\n", SDL_GetError());
 		return -1;
 	}
-#if ! SDL_VERSION_ATLEAST(2,0,0)
+#if 0	// only support SDL2
 	// enable keyboard repeat?
 	SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY, SDL_DEFAULT_REPEAT_INTERVAL);
 #endif
 	// launch controller?
 	do if(rtspconf->ctrlenable) {
-		if(ctrl_queue_init(32768, sizeof(struct sdlmsg)) < 0) {
+		if(ctrl_queue_init(32768, sizeof(sdlmsg_t)) < 0) {
 			rtsperror("Cannot initialize controller queue, controller disabled.\n");
 			rtspconf->ctrlenable = 0;
 			break;

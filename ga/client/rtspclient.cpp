@@ -358,9 +358,7 @@ play_video_priv(int ch/*channel*/, unsigned char *buffer, int bufsize, struct ti
 				pthread_mutex_unlock(&rtspParam->surfaceMutex[ch]);
 				bzero(&evt, sizeof(evt));
 				evt.user.type = SDL_USEREVENT;
-#if SDL_VERSION_ATLEAST(2,0,0)
 				evt.user.timestamp = time(0);
-#endif
 				evt.user.code = SDL_USEREVENT_CREATE_OVERLAY;
 				evt.user.data1 = rtspParam;
 				evt.user.data2 = (void*) ch;
@@ -387,9 +385,7 @@ play_video_priv(int ch/*channel*/, unsigned char *buffer, int bufsize, struct ti
 #else
 			bzero(&evt, sizeof(evt));
 			evt.user.type = SDL_USEREVENT;
-#if SDL_VERSION_ATLEAST(2,0,0)
 			evt.user.timestamp = time(0);
-#endif
 			evt.user.code = SDL_USEREVENT_RENDER_IMAGE;
 			evt.user.data1 = rtspParam;
 			evt.user.data2 = (void*) ch;
@@ -711,9 +707,7 @@ play_audio(unsigned char *buffer, int bufsize, struct timeval pts) {
 		union SDL_Event evt;
 		bzero(&evt, sizeof(evt));
 		evt.user.type = SDL_USEREVENT;
-#if SDL_VERSION_ATLEAST(2,0,0)
 		evt.user.timestamp = time(0);
-#endif
 		evt.user.code = SDL_USEREVENT_OPEN_AUDIO;
 		evt.user.data1 = rtspParam;
 		evt.user.data2 = adecoder;

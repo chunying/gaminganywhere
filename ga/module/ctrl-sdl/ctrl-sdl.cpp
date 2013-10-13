@@ -61,19 +61,16 @@ static int screenNumber = 0;
 
 static bool keymap_initialized = false;
 static void SDLKeyToKeySym_init();
-#if SDL_VERSION_ATLEAST(2,0,0)
+#if 1	// only support SDL2
 static map<int, KeySym> keymap;
 static KeySym SDLKeyToKeySym(int sdlkey);
-#else
-static map<unsigned short, KeySym> keymap;
-static KeySym SDLKeyToKeySym(unsigned short sdlkey);
 #endif
 
 static struct gaRect *prect = NULL;
 static struct gaRect croprect;
 
-#if SDL_VERSION_ATLEAST(2,0,0)
-// remake key codes 1.2 -> 2.0
+#if 1
+// only support SDL2: remap key codes 1.2 -> 2.0
 #define	SDLK_KP0	SDLK_KP_0
 #define	SDLK_KP1	SDLK_KP_1
 #define	SDLK_KP2	SDLK_KP_2
@@ -96,87 +93,102 @@ static struct gaRect croprect;
 #define SDLK_BREAK	SDLK_PRINTSCREEN
 #endif
 
-struct sdlmsg *
-sdlmsg_ntoh(struct sdlmsg *msg) {
-#if SDL_VERSION_ATLEAST(2,0,0)
+sdlmsg_t *
+sdlmsg_ntoh(sdlmsg_t *msg) {
+	sdlmsg_keyboard_t *msgk = (sdlmsg_keyboard_t*) msg;
+	sdlmsg_mouse_t *msgm = (sdlmsg_mouse_t*) msg;
+	if(msg == NULL)
+		return NULL;
+	switch(msg->msgtype) {
+	case SDL_EVENT_MSGTYPE_KEYBOARD:
+		if(msgk->scancode)	msgk->scancode = ntohs(msgk->scancode);
+		if(msgk->sdlkey)	msgk->sdlkey = (int) ntohl(msgk->sdlkey);
+		if(msgk->unicode)	msgk->unicode = ntohl(msgk->unicode);
+		if(msgk->sdlmod)	msgk->sdlmod = ntohs(msgk->sdlmod);
+		break;
+	case SDL_EVENT_MSGTYPE_MOUSEKEY:
+	case SDL_EVENT_MSGTYPE_MOUSEMOTION:
+	case SDL_EVENT_MSGTYPE_MOUSEWHEEL:
+		if(msgm->mousex)	msgm->mousex = ntohs(msgm->mousex);
+		if(msgm->mousey)	msgm->mousey = ntohs(msgm->mousey);
+		if(msgm->mouseRelX)	msgm->mouseRelX = ntohs(msgm->mouseRelX);
+		if(msgm->mouseRelY)	msgm->mouseRelY = ntohs(msgm->mouseRelY);
+		break;
+	}
+#if 0
+#if 1	// only support SDL2
 	if(msg->scancode)	msg->scancode = ntohs(msg->scancode);
 	if(msg->sdlkey)		msg->sdlkey = (int) ntohl(msg->sdlkey);
 	if(msg->unicode)	msg->unicode = ntohl(msg->unicode);
-#else
-	if(msg->sdlkey)		msg->sdlkey = ntohs(msg->sdlkey);
-	if(msg->unicode)	msg->unicode = ntohs(msg->unicode);
 #endif
 	if(msg->sdlmod)		msg->sdlmod = ntohs(msg->sdlmod);
 	if(msg->mousex)		msg->mousex = ntohs(msg->mousex);
 	if(msg->mousey)		msg->mousey = ntohs(msg->mousey);
 	if(msg->mouseRelX)	msg->mouseRelX = ntohs(msg->mouseRelX);
 	if(msg->mouseRelY)	msg->mouseRelY = ntohs(msg->mouseRelY);
+#endif
 	return msg;
 }
 
-struct sdlmsg *
-#if SDL_VERSION_ATLEAST(2,0,0)
-sdlmsg_keyboard(struct sdlmsg *msg, unsigned char pressed, unsigned short scancode, SDL_Keycode key, unsigned short mod, unsigned int unicode)
-#else
-sdlmsg_keyboard(struct sdlmsg *msg, unsigned char pressed, unsigned char scancode, SDLKey key, SDLMod mod, unsigned short unicode)
-#endif
+sdlmsg_t *
+sdlmsg_keyboard(sdlmsg_t *msg, unsigned char pressed, unsigned short scancode, SDL_Keycode key, unsigned short mod, unsigned int unicode)
 {
+	sdlmsg_keyboard_t *msgk = (sdlmsg_keyboard_t*) msg;
 	//ga_error("sdl client: key event code=%x key=%x mod=%x pressed=%u\n", scancode, key, mod, pressed);
-	bzero(msg, sizeof(struct sdlmsg));
-	msg->msgsize = htons(sizeof(struct sdlmsg));
-	msg->msgtype = SDL_EVENT_MSGTYPE_KEYBOARD;
-	msg->is_pressed = pressed;
-#if SDL_VERSION_ATLEAST(2,0,0)
-	msg->scancode = htons(scancode);
-	msg->sdlkey = htonl(key);
-	msg->unicode = htonl(unicode);
-#else
-	msg->scancode = scancode;
-	msg->sdlkey = htons(key);
-	msg->unicode = htons(unicode);
+	bzero(msg, sizeof(sdlmsg_keyboard_t));
+	msgk->msgsize = htons(sizeof(sdlmsg_keyboard_t));
+	msgk->msgtype = SDL_EVENT_MSGTYPE_KEYBOARD;
+	msgk->is_pressed = pressed;
+#if 1	// only support SDL2
+	msgk->scancode = htons(scancode);
+	msgk->sdlkey = htonl(key);
+	msgk->unicode = htonl(unicode);
 #endif
-	msg->sdlmod = htons(mod);
+	msgk->sdlmod = htons(mod);
 	return msg;
 }
 
-struct sdlmsg *
-sdlmsg_mousekey(struct sdlmsg *msg, unsigned char pressed, unsigned char button, unsigned short x, unsigned short y) {
+sdlmsg_t *
+sdlmsg_mousekey(sdlmsg_t *msg, unsigned char pressed, unsigned char button, unsigned short x, unsigned short y) {
+	sdlmsg_mouse_t *msgm = (sdlmsg_mouse_t*) msg;
 	//ga_error("sdl client: button event btn=%u pressed=%u\n", button, pressed);
-	bzero(msg, sizeof(struct sdlmsg));
-	msg->msgsize = htons(sizeof(struct sdlmsg));
-	msg->msgtype = SDL_EVENT_MSGTYPE_MOUSEKEY;
-	msg->is_pressed = pressed;
-	msg->mousex = htons(x);
-	msg->mousey = htons(y);
-	msg->mousebutton = button;
+	bzero(msg, sizeof(sdlmsg_mouse_t));
+	msgm->msgsize = htons(sizeof(sdlmsg_mouse_t));
+	msgm->msgtype = SDL_EVENT_MSGTYPE_MOUSEKEY;
+	msgm->is_pressed = pressed;
+	msgm->mousex = htons(x);
+	msgm->mousey = htons(y);
+	msgm->mousebutton = button;
 	return msg;
 }
 
-#if SDL_VERSION_ATLEAST(2,0,0)
-struct sdlmsg *
-sdlmsg_mousewheel(struct sdlmsg *msg, unsigned short mousex, unsigned short mousey) {
+#if 1	// only support SDL2
+sdlmsg_t *
+sdlmsg_mousewheel(sdlmsg_t *msg, unsigned short mousex, unsigned short mousey) {
+	sdlmsg_mouse_t *msgm = (sdlmsg_mouse_t*) msg;
 	//ga_error("sdl client: motion event x=%u y=%u\n", mousex, mousey);
-	bzero(msg, sizeof(struct sdlmsg));
-	msg->msgsize = htons(sizeof(struct sdlmsg));
-	msg->msgtype = SDL_EVENT_MSGTYPE_MOUSEWHEEL;
-	msg->mousex = htons(mousex);
-	msg->mousey = htons(mousey);
+	bzero(msg, sizeof(sdlmsg_mouse_t));
+	msgm->msgsize = htons(sizeof(sdlmsg_mouse_t));
+	msgm->msgtype = SDL_EVENT_MSGTYPE_MOUSEWHEEL;
+	msgm->mousex = htons(mousex);
+	msgm->mousey = htons(mousey);
 	return msg;
 }
 #endif
 
-struct sdlmsg *
-sdlmsg_mousemotion(struct sdlmsg *msg, unsigned short mousex, unsigned short mousey, unsigned short relx, unsigned short rely, unsigned char state, int relativeMouseMode) {
+sdlmsg_t *
+sdlmsg_mousemotion(sdlmsg_t *msg, unsigned short mousex, unsigned short mousey, unsigned short relx, unsigned short rely, unsigned char state, int relativeMouseMode) {
+	sdlmsg_mouse_t *msgm = (sdlmsg_mouse_t*) msg;
 	//ga_error("sdl client: motion event x=%u y=%u\n", mousex, mousey);
-	bzero(msg, sizeof(struct sdlmsg));
-	msg->msgsize = htons(sizeof(struct sdlmsg));
-	msg->msgtype = SDL_EVENT_MSGTYPE_MOUSEMOTION;
-	msg->mousestate = state;
-	msg->mousex = htons(mousex);
-	msg->mousey = htons(mousey);
-	msg->mouseRelX = htons(relx);
-	msg->mouseRelY = htons(rely);
-	msg->relativeMouseMode = (relativeMouseMode != 0) ? 1 : 0;
+	bzero(msg, sizeof(sdlmsg_mouse_t));
+	msgm->msgsize = htons(sizeof(sdlmsg_mouse_t));
+	msgm->msgtype = SDL_EVENT_MSGTYPE_MOUSEMOTION;
+	msgm->mousestate = state;
+	msgm->relativeMouseMode = (relativeMouseMode != 0) ? 1 : 0;
+	msgm->mousex = htons(mousex);
+	msgm->mousey = htons(mousey);
+	msgm->mouseRelX = htons(relx);
+	msgm->mouseRelY = htons(rely);
 	return msg;
 }
 
@@ -203,7 +215,7 @@ sdlmsg_replay_init(void *arg) {
 		prect = NULL;
 	}
 	//
-	ga_error("sdl_replayer: sizeof(sdlmsg) = %d\n", sizeof(sdlmsg));
+	ga_error("sdl_replayer: sizeof(sdlmsg) = %d\n", sizeof(sdlmsg_t));
 	//
 #ifdef WIN32
 	cxsize = GetSystemMetrics(SM_CXSCREEN);
@@ -295,15 +307,17 @@ sdlmsg_replay_deinit(void *arg) {
 
 #ifdef WIN32
 static void
-sdlmsg_replay_native(struct sdlmsg *msg) {
+sdlmsg_replay_native(sdlmsg_t *msg) {
 	INPUT in;
+	sdlmsg_keyboard_t *msgk = (sdlmsg_keyboard_t*) msg;
+	sdlmsg_mouse_t *msgm = (sdlmsg_mouse_t*) msg;
 	//
 	switch(msg->msgtype) {
 	case SDL_EVENT_MSGTYPE_KEYBOARD:
 		bzero(&in, sizeof(in));
 		in.type = INPUT_KEYBOARD;
-		if((in.ki.wVk = SDLKeyToKeySym(msg->sdlkey)) != INVALID_KEY) {
-			if(msg->is_pressed == 0) {
+		if((in.ki.wVk = SDLKeyToKeySym(msgk->sdlkey)) != INVALID_KEY) {
+			if(msgk->is_pressed == 0) {
 				in.ki.dwFlags |= KEYEVENTF_KEYUP;
 			}
 			in.ki.wScan = MapVirtualKey(in.ki.wVk, MAPVK_VK_TO_VSC);
@@ -312,8 +326,9 @@ sdlmsg_replay_native(struct sdlmsg *msg) {
 		} else {
 		////////////////
 		ga_error("sdl replayer: undefined key scan=%u(%04x) key=%u(%04x) mod=%u(%04x) pressed=%d\n",
-			msg->scancode, msg->scancode, msg->sdlkey, msg->sdlkey, msg->sdlmod, msg->sdlmod,
-			msg->is_pressed);
+			msgk->scancode, msgk->scancode,
+			msgk->sdlkey, msgk->sdlkey, msgk->sdlmod, msgk->sdlmod,
+			msgk->is_pressed);
 		////////////////
 		}
 		break;
@@ -321,23 +336,23 @@ sdlmsg_replay_native(struct sdlmsg *msg) {
 		//ga_error("sdl replayer: button event btn=%u pressed=%d\n", msg->mousebutton, msg->is_pressed);
 		bzero(&in, sizeof(in));
 		in.type = INPUT_MOUSE;
-		if(msg->mousebutton == 1 && msg->is_pressed != 0) {
+		if(msgm->mousebutton == 1 && msgm->is_pressed != 0) {
 			in.mi.dwFlags = MOUSEEVENTF_LEFTDOWN;
-		} else if(msg->mousebutton == 1 && msg->is_pressed == 0) {
+		} else if(msgm->mousebutton == 1 && msgm->is_pressed == 0) {
 			in.mi.dwFlags = MOUSEEVENTF_LEFTUP;
-		} else if(msg->mousebutton == 2 && msg->is_pressed != 0) {
+		} else if(msgm->mousebutton == 2 && msgm->is_pressed != 0) {
 			in.mi.dwFlags = MOUSEEVENTF_MIDDLEDOWN;
-		} else if(msg->mousebutton == 2 && msg->is_pressed == 0) {
+		} else if(msgm->mousebutton == 2 && msgm->is_pressed == 0) {
 			in.mi.dwFlags = MOUSEEVENTF_MIDDLEUP;
-		} else if(msg->mousebutton == 3 && msg->is_pressed != 0) {
+		} else if(msgm->mousebutton == 3 && msgm->is_pressed != 0) {
 			in.mi.dwFlags = MOUSEEVENTF_RIGHTDOWN;
-		} else if(msg->mousebutton == 3 && msg->is_pressed == 0) {
+		} else if(msgm->mousebutton == 3 && msgm->is_pressed == 0) {
 			in.mi.dwFlags = MOUSEEVENTF_RIGHTUP;
-		} else if(msg->mousebutton == 4 && msg->is_pressed != 0) {
+		} else if(msgm->mousebutton == 4 && msgm->is_pressed != 0) {
 			// mouse wheel forward
 			in.mi.dwFlags = MOUSEEVENTF_WHEEL;
 			in.mi.mouseData = +WHEEL_DELTA;
-		} else if(msg->mousebutton == 5 && msg->is_pressed != 0) {
+		} else if(msgm->mousebutton == 5 && msgm->is_pressed != 0) {
 			// mouse wheel backward
 			in.mi.dwFlags = MOUSEEVENTF_WHEEL;
 			in.mi.mouseData = -WHEEL_DELTA;
@@ -345,14 +360,14 @@ sdlmsg_replay_native(struct sdlmsg *msg) {
 		SendInput(1, &in, sizeof(in));
 		break;
 	case SDL_EVENT_MSGTYPE_MOUSEWHEEL:
-		if(msg->mousex != 0) {
+		if(msgm->mousex != 0) {
 			bzero(&in, sizeof(in));
 			in.type = INPUT_MOUSE;
-			if(((short) msg->mousex) > 0) {
+			if(((short) msgm->mousex) > 0) {
 				// mouse wheel forward
 				in.mi.dwFlags = MOUSEEVENTF_WHEEL;
 				in.mi.mouseData = +WHEEL_DELTA;
-			} else if(((short) msg->mousex) < 0 ) {
+			} else if(((short) msgm->mousex) < 0 ) {
 				// mouse wheel backward
 				in.mi.dwFlags = MOUSEEVENTF_WHEEL;
 				in.mi.mouseData = -WHEEL_DELTA;
@@ -360,14 +375,14 @@ sdlmsg_replay_native(struct sdlmsg *msg) {
 			SendInput(1, &in, sizeof(in));
 		}
 #if 0
-		if(msg->mousey != 0) {
+		if(msgm->mousey != 0) {
 			bzero(&in, sizeof(in));
 			in.type = INPUT_MOUSE;
-			if(((short) msg->mousey) > 0) {
+			if(((short) msgm->mousey) > 0) {
 				// mouse wheel forward
 				in.mi.dwFlags = MOUSEEVENTF_HWHEEL;
 				in.mi.mouseData = +WHEEL_DELTA;
-			} else if(((short) msg->mousey) < 0 ) {
+			} else if(((short) msgm->mousey) < 0 ) {
 				// mouse wheel backward
 				in.mi.dwFlags = MOUSEEVENTF_HWHEEL;
 				in.mi.mouseData = -WHEEL_DELTA;
@@ -377,26 +392,26 @@ sdlmsg_replay_native(struct sdlmsg *msg) {
 #endif
 		break;
 	case SDL_EVENT_MSGTYPE_MOUSEMOTION:
-		//ga_error("sdl replayer: motion event x=%u y=%d\n", msg->mousex, msg->mousey);
+		//ga_error("sdl replayer: motion event x=%u y=%d\n", msgm->mousex, msgm->mousey);
 		bzero(&in, sizeof(in));
 		in.type = INPUT_MOUSE;
 		// mouse x/y has to be mapped to (0,0)-(65535,65535)
-		if(msg->relativeMouseMode == 0) {
+		if(msgm->relativeMouseMode == 0) {
 			if(prect == NULL) {
 				in.mi.dx = (DWORD)
-					(65536.0 * scaleFactorX * msg->mousex) / cxsize;
+					(65536.0 * scaleFactorX * msgm->mousex) / cxsize;
 				in.mi.dy = (DWORD)
-					(65536.0 * scaleFactorY * msg->mousey) / cysize;
+					(65536.0 * scaleFactorY * msgm->mousey) / cysize;
 			} else {
 				in.mi.dx = (DWORD)
-					(65536.0 * (prect->left + scaleFactorX * msg->mousex)) / cxsize;
+					(65536.0 * (prect->left + scaleFactorX * msgm->mousex)) / cxsize;
 				in.mi.dy = (DWORD)
-					(65536.0 * (prect->top + scaleFactorY * msg->mousey)) / cysize;
+					(65536.0 * (prect->top + scaleFactorY * msgm->mousey)) / cysize;
 			}
 			in.mi.dwFlags = MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE;
 		} else {
-			in.mi.dx = (short) (scaleFactorX * msg->mouseRelX);
-			in.mi.dy = (short) (scaleFactorY * msg->mouseRelY);
+			in.mi.dx = (short) (scaleFactorX * msgm->mouseRelX);
+			in.mi.dy = (short) (scaleFactorY * msgm->mouseRelY);
 			in.mi.dwFlags = MOUSEEVENTF_MOVE;
 		}
 		SendInput(1, &in, sizeof(in));
@@ -408,7 +423,7 @@ sdlmsg_replay_native(struct sdlmsg *msg) {
 }
 #elif defined __APPLE__
 static void
-sdlmsg_replay_native(struct sdlmsg *msg) {
+sdlmsg_replay_native(sdlmsg_t *msg) {
 	// read: CGEventCreateMouseEvent()
 	//	 CGEventCreateKeyboardEvent()
 	//	 CGEventPost()
@@ -417,38 +432,41 @@ sdlmsg_replay_native(struct sdlmsg *msg) {
 	static CGPoint pt = { 0, 0 };
 	CGKeyCode kcode;
 	CGEventRef event = NULL;
+	sdlmsg_keyboard_t *msgk = (sdlmsg_keyboard_t*) msg;
+	sdlmsg_mouse_t *msgm = (sdlmsg_mouse_t*) msg;
 	//
 	switch(msg->msgtype) {
 	case SDL_EVENT_MSGTYPE_KEYBOARD:
 		// key codes: /System/Library/Frameworks/Carbon.framework/Versions/A/Frameworks/HIToolbox.framework/Versions/A/Headers/Events.h
-		if((kcode = SDLKeyToKeySym(msg->sdlkey)) != INVALID_KEY) {
-			event = CGEventCreateKeyboardEvent(NULL, kcode, msg->is_pressed ? true : false);
+		if((kcode = SDLKeyToKeySym(msgk->sdlkey)) != INVALID_KEY) {
+			event = CGEventCreateKeyboardEvent(NULL, kcode, msgk->is_pressed ? true : false);
 		} else {
 		////////////////
 		ga_error("sdl replayer: undefined key scan=%u(%04x) key=%u(%04x) mod=%u(%04x) pressed=%d\n",
-			msg->scancode, msg->scancode, msg->sdlkey, msg->sdlkey, msg->sdlmod, msg->sdlmod,
-			msg->is_pressed);
+			msgk->scancode, msgk->scancode,
+			msgk->sdlkey, msgk->sdlkey, msgk->sdlmod, msgk->sdlmod,
+			msgk->is_pressed);
 		////////////////
 		}
 		break;
 	case SDL_EVENT_MSGTYPE_MOUSEKEY:
 		//ga_error("sdl replayer: button event btn=%u pressed=%d\n", msg->mousebutton, msg->is_pressed);
-		if(msg->mousebutton == 1 && msg->is_pressed != 0) {
+		if(msgm->mousebutton == 1 && msgm->is_pressed != 0) {
 			event = CGEventCreateMouseEvent(NULL, kCGEventLeftMouseDown, pt, kCGMouseButtonLeft);
-		} else if(msg->mousebutton == 1 && msg->is_pressed == 0) {
+		} else if(msgm->mousebutton == 1 && msgm->is_pressed == 0) {
 			event = CGEventCreateMouseEvent(NULL, kCGEventLeftMouseUp, pt, kCGMouseButtonLeft);
-		} else if(msg->mousebutton == 2 && msg->is_pressed != 0) {
+		} else if(msgm->mousebutton == 2 && msgm->is_pressed != 0) {
 			event = CGEventCreateMouseEvent(NULL, kCGEventOtherMouseDown, pt, kCGMouseButtonCenter);
-		} else if(msg->mousebutton == 2 && msg->is_pressed == 0) {
+		} else if(msgm->mousebutton == 2 && msgm->is_pressed == 0) {
 			event = CGEventCreateMouseEvent(NULL, kCGEventOtherMouseUp, pt, kCGMouseButtonCenter);
-		} else if(msg->mousebutton == 3 && msg->is_pressed != 0) {
+		} else if(msgm->mousebutton == 3 && msgm->is_pressed != 0) {
 			event = CGEventCreateMouseEvent(NULL, kCGEventRightMouseDown, pt, kCGMouseButtonRight);
-		} else if(msg->mousebutton == 3 && msg->is_pressed == 0) {
+		} else if(msgm->mousebutton == 3 && msgm->is_pressed == 0) {
 			event = CGEventCreateMouseEvent(NULL, kCGEventRightMouseUp, pt, kCGMouseButtonRight);
-		} else if(msg->mousebutton == 4 && msg->is_pressed != 0) {
+		} else if(msgm->mousebutton == 4 && msgm->is_pressed != 0) {
 			// mouse wheel forward
 			event = CGEventCreateScrollWheelEvent(NULL, kCGScrollEventUnitLine, 1, -5);
-		} else if(msg->mousebutton == 5 && msg->is_pressed != 0) {
+		} else if(msgm->mousebutton == 5 && msgm->is_pressed != 0) {
 			// mouse wheel backward
 			event = CGEventCreateScrollWheelEvent(NULL, kCGScrollEventUnitLine, 1, +5);
 		}
@@ -457,14 +475,14 @@ sdlmsg_replay_native(struct sdlmsg *msg) {
 		do {
 			int deltaX, deltaY;
 			deltaX = deltaY = 0;
-			if(((short) msg->mousex) > 0) {
+			if(((short) msgm->mousex) > 0) {
 				deltaX = -5;	// move wheel forward
-			} else if(((short) msg->mousex) < 0) {
+			} else if(((short) msgm->mousex) < 0) {
 				deltaX = +5;	// move wheel backward
 			}
-			if(((short) msg->mousey) > 0) {
+			if(((short) msgm->mousey) > 0) {
 				deltaY = +5;	// move wheel right
-			} else if(((short) msg->mousey) < 0) {
+			} else if(((short) msgm->mousey) < 0) {
 				deltaY = -5;	// move wheel left
 			}
 			if(deltaX == 0 && deltaY == 0) {
@@ -476,11 +494,11 @@ sdlmsg_replay_native(struct sdlmsg *msg) {
 	case SDL_EVENT_MSGTYPE_MOUSEMOTION:
 		//ga_error("sdl replayer: motion event x=%u y=%d\n", msg->mousex, msg->mousey);
 		if(prect == NULL) {
-			pt.x = scaleFactorX * msg->mousex;
-			pt.y = scaleFactorY * msg->mousey;
+			pt.x = scaleFactorX * msgm->mousex;
+			pt.y = scaleFactorY * msgm->mousey;
 		} else {
-			pt.x = prect->left + scaleFactorX * msg->mousex;
-			pt.y = prect->top + scaleFactorY * msg->mousey;
+			pt.x = prect->left + scaleFactorX * msgm->mousex;
+			pt.y = prect->top + scaleFactorY * msgm->mousey;
 		}
 		event = CGEventCreateMouseEvent(NULL, kCGEventMouseMoved, pt, 0);
 		break;
@@ -497,27 +515,29 @@ sdlmsg_replay_native(struct sdlmsg *msg) {
 }
 #elif defined ANDROID
 static void
-sdlmsg_replay_native(struct sdlmsg *msg) {
+sdlmsg_replay_native(sdlmsg_t *msg) {
 	// server codes do snot support android
 	return;
 }
 #else	// X11
 static void
-sdlmsg_replay_native(struct sdlmsg *msg) {
+sdlmsg_replay_native(sdlmsg_t *msg) {
 	static KeyCode kcode;
 	static KeySym ksym;
+	sdlmsg_keyboard_t *msgk = (sdlmsg_keyboard_t*) msg;
+	sdlmsg_mouse_t *msgm = (sdlmsg_mouse_t*) msg;
 	//
 	switch(msg->msgtype) {
 	case SDL_EVENT_MSGTYPE_KEYBOARD:
 		// read: http://forum.tuts4you.com/topic/23722-gtk-linux-trojan/
 		//	http://www.libsdl.org/docs/html/sdlkey.html
 		// headers: X11/keysym.h, keysymdef.h, SDL/SDK_keysym.h
-		if((ksym = SDLKeyToKeySym(msg->sdlkey)) != INVALID_KEY) {
+		if((ksym = SDLKeyToKeySym(msgk->sdlkey)) != INVALID_KEY) {
 		//////////////////
 		if((kcode = XKeysymToKeycode(display, ksym)) > 0) {
 			XTestGrabControl(display, True);
 			XTestFakeKeyEvent(display, kcode,
-					msg->is_pressed ? True : False, CurrentTime);
+					msgk->is_pressed ? True : False, CurrentTime);
 			XSync(display, True);
 			XTestGrabControl(display, False);
 		}
@@ -530,28 +550,29 @@ sdlmsg_replay_native(struct sdlmsg *msg) {
 		} else {
 		////////////////
 		ga_error("sdl replayer: undefined key scan=%u(%04x) key=%u(%04x) mod=%u(%04x) pressed=%d\n",
-			msg->scancode, msg->scancode, msg->sdlkey, msg->sdlkey, msg->sdlmod, msg->sdlmod,
-			msg->is_pressed);
+			msgk->scancode, msgk->scancode,
+			msgk->sdlkey, msgk->sdlkey, msgk->sdlmod, msgk->sdlmod,
+			msgk->is_pressed);
 		////////////////
 		}
 		break;
 	case SDL_EVENT_MSGTYPE_MOUSEKEY:
 		//ga_error("sdl replayer: button event btn=%u pressed=%d\n", msg->mousebutton, msg->is_pressed);
 		XTestGrabControl(display, True);
-		XTestFakeButtonEvent(display, msg->mousebutton,
-			msg->is_pressed ? True : False, CurrentTime);
+		XTestFakeButtonEvent(display, msgm->mousebutton,
+			msgm->is_pressed ? True : False, CurrentTime);
 		XSync(display, True);
 		XTestGrabControl(display, False);
 		break;
 	case SDL_EVENT_MSGTYPE_MOUSEWHEEL:
-		if(msg->mousex != 0) {
+		if(msgm->mousex != 0) {
 			XTestGrabControl(display, True);
-			if(((short) msg->mousex) > 0) {
+			if(((short) msgm->mousex) > 0) {
 				// mouse wheel forward
 				XTestFakeButtonEvent(display, 4, True, CurrentTime);
 				XSync(display, True);
 				XTestFakeButtonEvent(display, 4, False, CurrentTime);
-			} else if(((short) msg->mousex) < 0 ) {
+			} else if(((short) msgm->mousex) < 0 ) {
 				// mouse wheel backward
 				XTestFakeButtonEvent(display, 5, True, CurrentTime);
 				XSync(display, True);
@@ -566,12 +587,12 @@ sdlmsg_replay_native(struct sdlmsg *msg) {
 		XTestGrabControl(display, True);
 		if(prect == NULL) {
 			XTestFakeMotionEvent(display, screenNumber,
-				(int) (scaleFactorX * msg->mousex),
-				(int) (scaleFactorY * msg->mousey), CurrentTime);
+				(int) (scaleFactorX * msgm->mousex),
+				(int) (scaleFactorY * msgm->mousey), CurrentTime);
 		} else {
 			XTestFakeMotionEvent(display, screenNumber,
-				(int) (prect->left + scaleFactorX * msg->mousex),
-				(int) (prect->top + scaleFactorY * msg->mousey), CurrentTime);
+				(int) (prect->left + scaleFactorX * msgm->mousex),
+				(int) (prect->top + scaleFactorY * msgm->mousey), CurrentTime);
 		}
 		XSync(display, True);
 		XTestGrabControl(display, False);
@@ -584,7 +605,7 @@ sdlmsg_replay_native(struct sdlmsg *msg) {
 #endif
 
 int
-sdlmsg_replay(struct sdlmsg *msg) {
+sdlmsg_replay(sdlmsg_t *msg) {
 	// convert from network byte order to host byte order
 	sdlmsg_ntoh(msg);
 	sdlmsg_replay_native(msg);
@@ -593,10 +614,12 @@ sdlmsg_replay(struct sdlmsg *msg) {
 
 void
 sdlmsg_replay_callback(void *msg, int msglen) {
-	if(msglen != sizeof(struct sdlmsg)) {
-		// ...
+	sdlmsg_t *m = (sdlmsg_t*) msg;
+	if(msglen != ntohs(m->msgsize)/*sizeof(sdlmsg_t)*/) {
+		ga_error("message length mismatched. (%d != %d)\n",
+			msglen, ntohs(m->msgsize));
 	}
-	sdlmsg_replay((struct sdlmsg*) msg);
+	sdlmsg_replay((sdlmsg_t*) msg);
 	return;
 }
 
@@ -725,9 +748,6 @@ SDLKeyToKeySym_init() {
 	//keymap[SDLK_COMPOSE]	= XK_Multi_key;	//		= 314,		/**< Multi-key compose key */
 	/** @name Miscellaneous function keys */
 	keymap[SDLK_HELP]	= VK_HELP;	//		= 315,
-#if ! SDL_VERSION_ATLEAST(2,0,0)
-	keymap[SDLK_PRINT]	= VK_PRINT;	//		= 316,
-#endif
 	//keymap[SDLK_SYSREQ]	= XK_Sys_Req;	//		= 317,
 	keymap[SDLK_BREAK]	= VK_CANCEL;	//		= 318,
 	keymap[SDLK_MENU]	= VK_MENU;	//		= 319,
@@ -992,17 +1012,8 @@ SDLKeyToKeySym_init() {
 	keymap[SDLK_LALT]	= XK_Alt_L;	//		= 308,
 	keymap[SDLK_RMETA]	= XK_Meta_R;	//		= 309,
 	keymap[SDLK_LMETA]	= XK_Meta_L;	//		= 310,
-#if ! SDL_VERSION_ATLEAST(2,0,0)
-	keymap[SDLK_LSUPER]	= XK_Super_L;	//		= 311,		/**< Left "Windows" key */
-	keymap[SDLK_RSUPER]	= XK_Super_R;	//		= 312,		/**< Right "Windows" key */
-	keymap[SDLK_MODE]	= XK_Mode_switch;//		= 313,		/**< "Alt Gr" key */
-	keymap[SDLK_COMPOSE]	= XK_Multi_key;	//		= 314,		/**< Multi-key compose key */
-#endif
 	/** @name Miscellaneous function keys */
 	keymap[SDLK_HELP]	= XK_Help;	//		= 315,
-#if ! SDL_VERSION_ATLEAST(2,0,0)
-	keymap[SDLK_PRINT]	= XK_Print;	//		= 316,
-#endif
 	keymap[SDLK_SYSREQ]	= XK_Sys_Req;	//		= 317,
 	keymap[SDLK_BREAK]	= XK_Break;	//		= 318,
 	keymap[SDLK_MENU]	= XK_Menu;	//		= 319,
@@ -1018,13 +1029,8 @@ SDLKeyToKeySym_init() {
 #endif
 
 static KeySym
-#if SDL_VERSION_ATLEAST(2,0,0)
 SDLKeyToKeySym(int sdlkey) {
 	map<int, KeySym>::iterator mi;
-#else
-SDLKeyToKeySym(unsigned short sdlkey) {
-	map<unsigned short, KeySym>::iterator mi;
-#endif
 	if(keymap_initialized == false) {
 		SDLKeyToKeySym_init();
 	}

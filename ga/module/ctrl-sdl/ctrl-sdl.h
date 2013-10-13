@@ -35,24 +35,24 @@
 #ifdef WIN32
 #pragma pack(push, 1)
 #endif
-struct sdlmsg {
+struct sdlmsg_s {
 	unsigned short msgsize;		// size of this data-structure
 					// every message MUST start from a
 					// unsigned short message size
 					// the size includes the 'msgsize'
 	unsigned char msgtype;
+	unsigned char which;
+	unsigned char padding[60];	// must be large enough to fit
+					// all supported type of messages
+#if 0
 	unsigned char is_pressed;	// for keyboard/mousekey
 	unsigned char mousebutton;	// mouse button
 	unsigned char mousestate;	// mouse state - key combinations for motion
-#if SDL_VERSION_ATLEAST(2,0,0)
+#if 1	// only support SDL2
 	unsigned char unused1;		// padding - 3+1 chars
 	unsigned short scancode;	// keyboard scan code
 	int sdlkey;			// SDLKey value
 	unsigned int unicode;		// unicode or ASCII value
-#else
-	unsigned char scancode;		// keyboard scan code
-	unsigned short sdlkey;		// SDLKey value
-	unsigned short unicode;		// unicode or ASCII value
 #endif
 	unsigned short sdlmod;		// SDLMod value
 	unsigned short mousex;		// mouse position (big-endian)
@@ -61,6 +61,7 @@ struct sdlmsg {
 	unsigned short mouseRelY;	// mouse relative position (big-endian)
 	unsigned char relativeMouseMode;// relative mouse mode?
 	unsigned char padding[8];	// reserved padding
+#endif
 }
 #ifdef WIN32
 #pragma pack(pop)
@@ -68,21 +69,70 @@ struct sdlmsg {
 __attribute__((__packed__))
 #endif
 ;
+typedef struct sdlmsg_s			sdlmsg_t;
 
-struct sdlmsg* sdlmsg_ntoh(struct sdlmsg *msg);
-
-#if SDL_VERSION_ATLEAST(2,0,0)
-struct sdlmsg* sdlmsg_keyboard(struct sdlmsg *msg, unsigned char pressed, unsigned short scancode, SDL_Keycode key, unsigned short mod, unsigned int unicode);
-struct sdlmsg* sdlmsg_mousewheel(struct sdlmsg *msg, unsigned short mousex, unsigned short mousey);
-#else
-struct sdlmsg* sdlmsg_keyboard(struct sdlmsg *msg, unsigned char pressed, unsigned char scancode, SDLKey key, SDLMod mod, unsigned short unicode);
+// keyboard event
+#ifdef WIN32
+#pragma pack(push, 1)
 #endif
-struct sdlmsg* sdlmsg_mousekey(struct sdlmsg *msg, unsigned char pressed, unsigned char button, unsigned short x, unsigned short y);
-struct sdlmsg* sdlmsg_mousemotion(struct sdlmsg *msg, unsigned short mousex, unsigned short mousey, unsigned short relx, unsigned short rely, unsigned char state, int relativeMouseMode);
+struct sdlmsg_keyboard_s {
+	unsigned short msgsize;
+	unsigned char msgtype;		// SDL_EVENT_MSGTYPE_KEYBOARD
+	unsigned char which;
+	unsigned char is_pressed;
+	unsigned char unused0;
+	unsigned short scancode;	// scancode
+	int sdlkey;			// SDLKey
+	unsigned int unicode;		// unicode or ASCII value
+	unsigned short sdlmod;		// SDLMod
+}
+#ifdef WIN32
+#pragma pack(pop)
+#else
+__attribute__((__packed__))
+#endif
+;
+typedef struct sdlmsg_keyboard_s	sdlmsg_keyboard_t;
+
+// mouse event
+#ifdef WIN32
+#pragma pack(push, 1)
+#endif
+struct sdlmsg_mouse_s {
+	unsigned short msgsize;
+	unsigned char msgtype;		// SDL_EVENT_MSGTYPE_MOUSEKEY
+					// SDL_EVENT_MSGTYPE_MOUSEMOTION
+					// SDL_EVENT_MSGTYPE_MOUSEWHEEL
+	unsigned char which;
+	unsigned char is_pressed;	// for mouse button
+	unsigned char mousebutton;	// mouse button
+	unsigned char mousestate;	// mouse stat
+	unsigned char relativeMouseMode;
+	unsigned short mousex;
+	unsigned short mousey;
+	unsigned short mouseRelX;
+	unsigned short mouseRelY;
+}
+#ifdef WIN32
+#pragma pack(pop)
+#else
+__attribute__((__packed__))
+#endif
+;
+typedef struct sdlmsg_mouse_s		sdlmsg_mouse_t;
+
+sdlmsg_t* sdlmsg_ntoh(sdlmsg_t *msg);
+
+#if 1	// only support SDL2
+sdlmsg_t* sdlmsg_keyboard(sdlmsg_t *msg, unsigned char pressed, unsigned short scancode, SDL_Keycode key, unsigned short mod, unsigned int unicode);
+sdlmsg_t* sdlmsg_mousewheel(sdlmsg_t *msg, unsigned short mousex, unsigned short mousey);
+#endif
+sdlmsg_t* sdlmsg_mousekey(sdlmsg_t *msg, unsigned char pressed, unsigned char button, unsigned short x, unsigned short y);
+sdlmsg_t* sdlmsg_mousemotion(sdlmsg_t *msg, unsigned short mousex, unsigned short mousey, unsigned short relx, unsigned short rely, unsigned char state, int relativeMouseMode);
 
 MODULE MODULE_EXPORT int sdlmsg_replay_init(void *arg);
 MODULE MODULE_EXPORT void sdlmsg_replay_deinit(void *arg);
-int sdlmsg_replay(struct sdlmsg *msg);
+int sdlmsg_replay(sdlmsg_t *msg);
 void sdlmsg_replay_callback(void *msg, int msglen);
 
 #endif /* __CTRL_SDL_H__ */

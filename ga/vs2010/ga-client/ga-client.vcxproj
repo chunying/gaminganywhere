@@ -75,10 +75,14 @@
     <ClCompile Include="..\..\client\ctrl-sdl.cpp" />
     <ClCompile Include="..\..\client\ga-client.cpp" />
     <ClCompile Include="..\..\client\rtspclient.cpp" />
+    <ClCompile Include="..\..\client\minih264.cpp" />
+    <ClCompile Include="..\..\client\minivp8.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\client\ctrl-sdl.h" />
     <ClInclude Include="..\..\client\rtspclient.h" />
+    <ClInclude Include="..\..\client\minih264.h" />
+    <ClInclude Include="..\..\client\minivp8.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

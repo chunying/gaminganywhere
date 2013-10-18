@@ -29,6 +29,8 @@ hook_and_launch(const char *ga_root, const char *config_path, const char *app_ex
 	HINSTANCE hDLL;
 	int (*install_hook)(const char *, const char *, const char *);
 	int (*uninstall_hook)();
+	char cmdline[32768];
+	int cmdpos, cmdspace = sizeof(cmdline);
 
 	// load ga-hook.dll
 	if((hDLL = LoadLibrary("ga-hook.dll")) == NULL) {
@@ -51,11 +53,32 @@ hook_and_launch(const char *ga_root, const char *config_path, const char *app_ex
 
 	install_hook(ga_root, config_path, app_exe);
 
+	cmdpos = snprintf(cmdline, cmdspace, "%s", app_exe);
+	if(ga_conf_mapsize("game-argv") > 0) {
+		int n;
+		char buf[1024], *ptr;
+		ga_conf_mapreset("game-argv");
+		for(	ptr = ga_conf_mapkey("game-argv", buf, sizeof(buf));
+			ptr != NULL && cmdpos < cmdspace;
+			ptr = ga_conf_mapnextkey("game-argv", buf, sizeof(buf))) {
+			//
+			char *val, valbuf[1024];
+			val = ga_conf_mapvalue("game-argv", valbuf, sizeof(valbuf));
+			if(val == NULL)
+				continue;
+			ga_error("Game arg: %s\n", val);
+			n = snprintf(cmdline+cmdpos, cmdspace-cmdpos, " \"%s\"",
+				val);
+			cmdpos += n;
+		}
+	}
+	fprintf(stderr, "cmdline: %s\n", cmdline);
+
 	// launch the app
 	ZeroMemory(&procInfo, sizeof(PROCESS_INFORMATION));
 	ZeroMemory(&startupInfo, sizeof(STARTUPINFO));
 
-	if (CreateProcess(app_exe, NULL, NULL, NULL, FALSE,
+	if (CreateProcess(app_exe, cmdline, NULL, NULL, FALSE,
 		NORMAL_PRIORITY_CLASS, NULL, NULL, 
 		&startupInfo, &procInfo) == 0) {
 		//

@@ -93,6 +93,7 @@ hook_SDL_UpperBlit(SDL12_Surface *src, SDL12_Rect *srcrect, SDL12_Surface *dst, 
 static int
 hook_sdl12(const char *hook_type, const char *hook_method) {
 	HMODULE hMod;
+	char hook_audio[64] = "";
 	//
 	if((hMod = GetModuleHandle("SDL.dll")) == NULL) {
 		if((hMod = LoadLibrary("SDL.dll")) == NULL) {
@@ -100,6 +101,8 @@ hook_sdl12(const char *hook_type, const char *hook_method) {
 			return -1;
 		}
 	}
+	if(ga_conf_readv("hook-audio", hook_audio, sizeof(hook_audio)) == NULL)
+		hook_audio[0] = '\0';
 	//
 	//load_hook_function(hMod, t_SDL_Init, old_SDL_Init, "SDL_Init");
 	load_hook_function(hMod, t_SDL_Init, old_SDL_Init, "SDL_Init");
@@ -114,9 +117,15 @@ hook_sdl12(const char *hook_type, const char *hook_method) {
 	load_hook_function(hMod, t_SDL_PollEvent, old_SDL_PollEvent, "SDL_PollEvent");
 	load_hook_function(hMod, t_SDL_WaitEvent, old_SDL_WaitEvent, "SDL_WaitEvent");
 	load_hook_function(hMod, t_SDL_PeepEvents, old_SDL_PeepEvents, "SDL_PeepEvents");
+	load_hook_function(hMod, t_SDL_SetEventFilter, old_SDL_SetEventFilter, "SDL_SetEventFilter");
+	if(strcmp("sdlaudio", hook_audio) == 0) {
+	/////////////////////////////////////////
 	load_hook_function(hMod, t_SDL_OpenAudio, old_SDL_OpenAudio, "SDL_OpenAudio");
 	load_hook_function(hMod, t_SDL_PauseAudio, old_SDL_PauseAudio, "SDL_PauseAudio");
 	load_hook_function(hMod, t_SDL_CloseAudio, old_SDL_CloseAudio, "SDL_CloseAudio");
+	ga_error("hook: sdlaudio enabled.\n");
+	/////////////////////////////////////////
+	}
 	// for internal use
 	load_hook_function(hMod, t_SDL_CreateRGBSurface, old_SDL_CreateRGBSurface, "SDL_CreateRGBSurface");
 	load_hook_function(hMod, t_SDL_FreeSurface, old_SDL_FreeSurface, "SDL_FreeSurface");
@@ -133,14 +142,20 @@ hook_sdl12(const char *hook_type, const char *hook_method) {
 	SDL_DO_HOOK(SDL_Flip);
 	SDL_DO_HOOK(SDL_UpdateRect);
 	SDL_DO_HOOK(SDL_UpdateRects);
-	//SDL_DO_HOOK(SDL_GL_SwapBuffers);
-	//SDL_DO_HOOK(SDL_PollEvent);
 	SDL_DO_HOOK(SDL_WaitEvent);
 	SDL_DO_HOOK(SDL_PeepEvents);
+	SDL_DO_HOOK(SDL_SetEventFilter);
+	if(strcmp("sdlaudio", hook_audio) == 0) {
+	/////////////////////////////////////////
 	SDL_DO_HOOK(SDL_OpenAudio);
 	SDL_DO_HOOK(SDL_PauseAudio);
 	SDL_DO_HOOK(SDL_CloseAudio);
-	//
+	/////////////////////////////////////////
+	}
+#if 1
+	SDL_DO_HOOK(SDL_GL_SwapBuffers);
+	SDL_DO_HOOK(SDL_PollEvent);
+#else
 	DetourTransactionBegin();
 	DetourUpdateThread(GetCurrentThread());
 	DetourAttach(&(PVOID&)old_SDL_GL_SwapBuffers, hook_SDL_GL_SwapBuffers);
@@ -150,6 +165,7 @@ hook_sdl12(const char *hook_type, const char *hook_method) {
 	DetourUpdateThread(GetCurrentThread());
 	DetourAttach(&(PVOID&)old_SDL_PollEvent, hook_SDL_PollEvent);
 	DetourTransactionCommit();
+#endif
 #undef	SDL_DO_HOOK
 	ga_error("hook_sdl12: done\n");
 	//

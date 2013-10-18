@@ -72,6 +72,7 @@
   <ItemGroup>
     <ClCompile Include="..\..\server\event-driven\ctrl-sdl.cpp" />
     <ClCompile Include="..\..\server\event-driven\ga-hook-common.cpp" />
+    <ClCompile Include="..\..\server\event-driven\ga-hook-sdlaudio.cpp" />
     <ClCompile Include="..\..\server\event-driven\ga-hook-sdl.cpp" />
     <ClCompile Include="..\..\server\event-driven\ga-hook.cpp" />
     <ClCompile Include="..\..\server\event-driven\hook-function.cpp" />
@@ -79,11 +80,14 @@
   <ItemGroup>
     <ClInclude Include="..\..\server\event-driven\ctrl-sdl.h" />
     <ClInclude Include="..\..\server\event-driven\ga-hook-common.h" />
+    <ClInclude Include="..\..\server\event-driven\ga-hook-sdlaudio.h" />
     <ClInclude Include="..\..\server\event-driven\ga-hook-sdl.h" />
     <ClInclude Include="..\..\server\event-driven\hook-common.h" />
     <ClInclude Include="..\..\server\event-driven\hook-function.h" />
+    <ClInclude Include="..\..\server\event-driven\sdl12-audio.h" />
     <ClInclude Include="..\..\server\event-driven\sdl12-event.h" />
     <ClInclude Include="..\..\server\event-driven\sdl12-mouse.h" />
+    <ClInclude Include="..\..\server\event-driven\sdl12-video.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -20,7 +20,7 @@ SDLCF	= $(shell pkg-config sdl2 SDL2_ttf --cflags)
 SDLLD	= $(shell pkg-config sdl2 SDL2_ttf --libs)
 
 L5CF	= -I$(GADEPS)/include/live555
-L5LD	= -lliveMedia -lBasicUsageEnvironment -lUsageEnvironment -lgroupsock
+L5LD	= -L$(GADEPS)/lib -lliveMedia -lBasicUsageEnvironment -lUsageEnvironment -lgroupsock
 
 ASNDCF	=
 ASNDLD	= -lasound

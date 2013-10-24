@@ -39,7 +39,11 @@
 #include "ga-hook-lib.h"
 #endif
 
+#ifdef __APPLE__
+#include <OpenGL/glu.h>
+#else
 #include <GL/glu.h>
+#endif
 
 #include <map>
 using namespace std;

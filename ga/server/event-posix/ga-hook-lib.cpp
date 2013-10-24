@@ -23,12 +23,71 @@
 
 #include "ga-common.h"
 #include "ga-hook-lib.h"
+#ifdef __APPLE__
+#include "mach_hook.h"
+#else
 #include "elf_hook.h"
+#endif
 
 struct hookentry {
 	const char *name;
 	void *function;
 };
+
+#ifdef __APPLE__
+#define	LIBRARY_ADDRESS_BY_HANDLE(x)	NULL
+
+static void *
+elf_hook(char const *libpath, void const *unused, char const *name, void const *func) {
+#if 1
+	return NULL;
+#else
+	void *libaddr, *handle, *first;
+	char *ptr;
+	Dl_info info;
+	FILE *fp;
+	char cmd[1024];
+	// find one function from libpath
+	snprintf(cmd, sizeof(cmd), "nm %s | grep ' T ' | head -n 2", libpath);
+	if((fp = popen(cmd, "r")) == NULL)
+		return NULL;
+	if(fgets(cmd, sizeof(cmd), fp) == NULL) {
+		pclose(fp);
+		return NULL;
+	}
+	pclose(fp);
+	// move to end
+	for(ptr = cmd; *ptr; ptr++)
+		;
+	// seek for the last ' ' or '\t'
+	for(--ptr; ptr >= cmd; ptr--) {
+		if(*ptr==0x0d || *ptr==0x0a) {
+			*ptr = '\0';
+		}
+		if(*ptr==' ' || *ptr=='\t') {
+			*ptr++ = '\0';
+			if(*ptr == '_')
+				*ptr++ = '\0';
+			break;
+		}
+	}
+	// get the function address
+	ga_error("Retrieve base address via function '%s' from %s\n",
+		ptr, libpath);
+	if((handle = dlopen(libpath, RTLD_LAZY)) == NULL)
+		return NULL;
+	if((first = dlsym(handle, ptr)) == NULL)
+		return NULL;
+	//
+	if(dladdr((void const *) first, &info) == 0)
+		return NULL;
+	libaddr = mach_hook_init(libpath, info.dli_fbase);
+	if(libaddr == NULL)
+		return NULL;
+	return (void*) mach_hook(libaddr, name, (mach_substitution) func);
+#endif
+}
+#endif
 
 #define	MAX_HOOKS	1024
 static int nhooks = 0;

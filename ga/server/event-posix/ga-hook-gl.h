@@ -19,7 +19,11 @@
 #ifndef __GA_HOOK_GL_H__
 #define __GA_HOOK_GL_H__
 
+#ifdef __APPLE__
+#include <OpenGL/gl.h>
+#else
 #include <GL/gl.h>
+#endif
 
 #ifdef __cplusplus
 extern "C" {

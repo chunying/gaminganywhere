@@ -2,9 +2,15 @@
 GADEPS		?= $(HOME)/myprog/gaminganywhere/deps.posix
 MACHINE		= $(shell uname -m)
 SYSTEM		= $(shell uname -s)
+PACKAGES	= sdl2 sdl2_ttf yasm lame opus ogg vorbis theora vpx \
+		  x264 xvid ffmpeg live555
 
 ifeq ($(SYSTEM),Darwin)
 VPX_EXTRA_CONFIG =
+HAS_BREW	= $(shell if which -s brew; then echo 1; else echo 0; fi)
+ifeq ($(HAS_BREW),1)
+PACKAGES	= osx_brew live555
+endif
 else
 VPX_EXTRA_CONFIG = --enable-shared
 endif
@@ -14,7 +20,13 @@ TGZUNPACK	= tar xzf
 
 include Makefile.packages
 
-all: sdl2 sdl2_ttf yasm lame opus ogg vorbis theora vpx x264 xvid ffmpeg live555
+all: $(PACKAGES)
+
+osx_brew:
+	brew install sdl2 sdl2_ttf yasm lame opus libogg libvorbis theora \
+		libvpx x264 xvid
+	brew install --with-libvorbis --with-libvpx --with-opus \
+		--with-theora --with-tools ffmpeg
 
 sdl2:
 	$(TGZUNPACK) $(SDL2)
@@ -91,7 +103,7 @@ x264:
 
 xvid:
 	$(TBZUNPACK) $(XVID)
-	cd $(XVIDDIR)/build/generic; ./configure --prefix=$(GADEPS) --enable-shared
+	cd $(XVIDDIR)/build/generic; ./configure --prefix=$(GADEPS)
 	make -C $(XVIDDIR)/build/generic -j5
 	make -C $(XVIDDIR)/build/generic install
 	rm -rf $(XVIDDIR)
@@ -122,8 +134,9 @@ live555:
 	#
 	cd $(LIVE555DIR); ./genMakefiles $(shell uname -s | tr A-Z a-z | sed -e 's,darwin,macosx,' -e 's,cygwin.*,cygwin,')
 	make -C $(LIVE555DIR) -j5
+	-mkdir -p $(GADEPS)/lib
 	find $(LIVE555DIR) -name '*.a' -exec cp -f {} $(GADEPS)/lib \;
-	-mkdir $(GADEPS)/include/live555
+	-mkdir -p $(GADEPS)/include/live555
 	find $(LIVE555DIR) -name '*.hh' -exec cp -f {} $(GADEPS)/include/live555 \;
 	cp -f $(LIVE555DIR)/groupsock/include/NetCommon.h $(GADEPS)/include/live555
 	rm -rf $(LIVE555DIR)

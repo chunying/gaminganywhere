@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">GAClient</string>
+    <string name="action_settings">Settings</string>
+
+    <string-array name="protocol_main">
+        <item>rtsp</item>
+    </string-array>
+    <string-array name="protocol_transport">
+        <item>udp</item>
+        <item>tcp</item>
+    </string-array>
+    <string-array name="codec_video">
+        <item>h264</item>
+        <item>libvpx</item>
+    </string-array>
+    <string-array name="codec_audio">
+        <item>aac</item>
+        <item>mp3</item>
+        <item>opus</item><item>vorbis</item>
+        
+    </string-array>
+    <string-array name="audio_samplerate">
+        <item>22050</item>
+        <item>44100</item>
+        <item>48000</item>
+    </string-array>
+    <string-array name="audio_channels">
+        <item>1</item>
+        <item>2</item>
+    </string-array>
+
+    <string name="title_activity_player">PlayerActivity</string>
+    <string name="dummy_button">Dummy Button</string>
+    <string name="dummy_content">DUMMY\nCONTENT</string>
+
+</resources>

@@ -1,0 +1,8 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android" >
+    <item android:id="@+id/action_connect" android:orderInCategory="200" android:showAsAction="never" android:title="Connect"></item>
+    <item android:id="@+id/action_new" android:orderInCategory="300" android:title="New profile" android:showAsAction="never"></item>
+    <item android:id="@+id/action_edit" android:orderInCategory="400" android:title="Edit profile" android:showAsAction="never"></item><item android:id="@+id/action_rename" android:title="Rename profile" android:orderInCategory="500"></item><item android:id="@+id/action_delete" android:orderInCategory="600" android:title="Delete profile" android:showAsAction="never"></item>
+    
+    
+
+</menu>

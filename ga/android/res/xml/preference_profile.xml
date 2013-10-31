@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android" android:key="pref_settings">
+    <EditTextPreference android:key="pref_title" android:title="Profile name"/>
+    <PreferenceCategory android:title="Server Configuration" android:key="pref_cat_server">
+        <ListPreference android:entries="@array/protocol_main" android:title="Protocol" android:key="pref_protocol" android:entryValues="@array/protocol_main" android:defaultValue="rtsp" android:summary="rtsp"/>
+        <EditTextPreference android:key="pref_host" android:title="Host"/>
+        <EditTextPreference android:key="pref_port" android:title="Port number" android:defaultValue="8554" android:summary="8554"/>
+        <EditTextPreference android:title="Object path" android:key="pref_object" android:defaultValue="/desktop" android:summary="/desktop"/>
+        <CheckBoxPreference android:title="RTP over TCP" android:key="pref_rtpovertcp" android:defaultValue="false"/>
+    </PreferenceCategory>
+    <PreferenceCategory android:title="Controller Configuration" android:key="pref_cat_control">
+        <CheckBoxPreference android:key="pref_ctrlenable" android:title="Enable" android:defaultValue="true"/>
+        <ListPreference android:entries="@array/protocol_transport" android:title="Protocol" android:key="pref_ctrlprotocol" android:entryValues="@array/protocol_transport" android:defaultValue="udp" android:summary="udp"/>
+        <EditTextPreference android:key="pref_ctrlport" android:title="Port number" android:defaultValue="8555" android:summary="8555"/>
+        <CheckBoxPreference android:key="pref_ctrlrelative" android:title="Relative mouse mode" android:defaultValue="true"/>
+    </PreferenceCategory><PreferenceCategory android:title="Audio" android:key="pref_cat_audio">
+    <ListPreference android:key="pref_audio_channels" android:title="Channels" android:defaultValue="2" android:summary="2" android:entryValues="@array/audio_channels" android:entries="@array/audio_channels"/>
+    <ListPreference android:key="pref_audio_samplerate" android:defaultValue="44100" android:title="Sample rate" android:summary="44100" android:entryValues="@array/audio_samplerate" android:entries="@array/audio_samplerate"/>
+</PreferenceCategory>
+</PreferenceScreen>

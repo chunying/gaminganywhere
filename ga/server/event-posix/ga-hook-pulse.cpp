@@ -199,7 +199,7 @@ PA2SWR_format(pa_sample_format_t format) {
 	case PA_SAMPLE_S16BE:
 		return AV_SAMPLE_FMT_S16;
 	default:
-		ga_error("SDL2SWR: format %x is not supported.\n", format);
+		ga_error("PA2SWR: format %x is not supported.\n", format);
 		exit(-1);
 	}
 	return AV_SAMPLE_FMT_NONE;

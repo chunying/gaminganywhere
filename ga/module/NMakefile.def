@@ -19,7 +19,8 @@ CXX_FLAGS	= $(INCLUDES) $(cdebug) $(cflags) \
 		  -DPIPELINE_FILTER \
 		  -D_WIN32_WINNT=0x0501 -DNTDDI_VERSION=0x05010000
 
-# WINNT version 0x0501 for HRAWINPUT
+# WINNT version at least 0x0501 for HRAWINPUT
+# WINNT version at least 0x0600 for SetProcessDPIAware
 
 #$(cvarsdll)
 

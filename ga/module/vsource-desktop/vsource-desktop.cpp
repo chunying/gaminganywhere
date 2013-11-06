@@ -95,6 +95,9 @@ vsource_init(void *arg) {
 	}
 	//
 #ifdef WIN32
+	// prevent GetSystemMetrics() get worng numbers
+	// XXX: currently disabled
+	//SetProcessDPIAware();
 	#ifdef D3D_CAPTURE
 	if(ga_win32_D3D_init(image) < 0) {
 		ga_error("WIN32-D3D capture init failed.\n");

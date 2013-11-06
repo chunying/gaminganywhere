@@ -33,6 +33,7 @@
 #include "ga-hook-common.h"
 #include "ga-hook-sdl.h"
 #include "ga-hook-sdlaudio.h"
+#include "ga-hook-coreaudio.h"
 #include "detours.h"
 
 // DLL share segment
@@ -85,6 +86,17 @@ hook_input() {
 	return 0;
 }
 
+static int
+hook_audio(const char *type) {
+	if(type == NULL)
+		return 0;
+	if(*type == '\0')
+		return 0;
+	if(strcmp(type, "coreaudio") == 0)
+		return hook_coreaudio();
+	return 0;
+}
+
 int
 hook_SDL_UpperBlit(SDL12_Surface *src, SDL12_Rect *srcrect, SDL12_Surface *dst, SDL12_Rect *dstrect) {
 	return hook_SDL_BlitSurface(src, srcrect, dst, dstrect);
@@ -93,7 +105,7 @@ hook_SDL_UpperBlit(SDL12_Surface *src, SDL12_Rect *srcrect, SDL12_Surface *dst, 
 static int
 hook_sdl12(const char *hook_type, const char *hook_method) {
 	HMODULE hMod;
-	char hook_audio[64] = "";
+	char audio_type[64] = "";
 	//
 	if((hMod = GetModuleHandle("SDL.dll")) == NULL) {
 		if((hMod = LoadLibrary("SDL.dll")) == NULL) {
@@ -101,8 +113,8 @@ hook_sdl12(const char *hook_type, const char *hook_method) {
 			return -1;
 		}
 	}
-	if(ga_conf_readv("hook-audio", hook_audio, sizeof(hook_audio)) == NULL)
-		hook_audio[0] = '\0';
+	if(ga_conf_readv("hook-audio", audio_type, sizeof(audio_type)) == NULL)
+		audio_type[0] = '\0';
 	//
 	//load_hook_function(hMod, t_SDL_Init, old_SDL_Init, "SDL_Init");
 	load_hook_function(hMod, t_SDL_Init, old_SDL_Init, "SDL_Init");
@@ -118,7 +130,7 @@ hook_sdl12(const char *hook_type, const char *hook_method) {
 	load_hook_function(hMod, t_SDL_WaitEvent, old_SDL_WaitEvent, "SDL_WaitEvent");
 	load_hook_function(hMod, t_SDL_PeepEvents, old_SDL_PeepEvents, "SDL_PeepEvents");
 	load_hook_function(hMod, t_SDL_SetEventFilter, old_SDL_SetEventFilter, "SDL_SetEventFilter");
-	if(strcmp("sdlaudio", hook_audio) == 0) {
+	if(strcmp("sdlaudio", audio_type) == 0) {
 	/////////////////////////////////////////
 	load_hook_function(hMod, t_SDL_OpenAudio, old_SDL_OpenAudio, "SDL_OpenAudio");
 	load_hook_function(hMod, t_SDL_PauseAudio, old_SDL_PauseAudio, "SDL_PauseAudio");
@@ -145,7 +157,7 @@ hook_sdl12(const char *hook_type, const char *hook_method) {
 	SDL_DO_HOOK(SDL_WaitEvent);
 	SDL_DO_HOOK(SDL_PeepEvents);
 	SDL_DO_HOOK(SDL_SetEventFilter);
-	if(strcmp("sdlaudio", hook_audio) == 0) {
+	if(strcmp("sdlaudio", audio_type) == 0) {
 	/////////////////////////////////////////
 	SDL_DO_HOOK(SDL_OpenAudio);
 	SDL_DO_HOOK(SDL_PauseAudio);
@@ -414,6 +426,7 @@ hook_d11(const char *hook_type, const char *hook_method) {
 int
 do_hook(char *hook_type, int hook_type_sz) {
 	char *ptr, app_exe[1024], hook_method[1024];
+	char audio_type[64] = "";
 	int resolution[2];
 	//
 	if(CoInitializeEx(NULL, COINIT_MULTITHREADED) != S_OK) {
@@ -434,10 +447,15 @@ do_hook(char *hook_type, int hook_type_sz) {
 	if((ptr = ga_conf_readv("hook-method", hook_method, sizeof(hook_method))) != NULL) {
 		ga_error("*** hook method specified: %s\n", hook_method);
 	}
+	if((ptr = ga_conf_readv("hook-audio", audio_type, sizeof(audio_type))) != NULL) {
+		ga_error("*** hook audio = %s\n", audio_type);
+	}
 	//
 	ga_error("[start-hook] exe=%s; type=%s\n", app_exe, hook_type);
 	//
 	if(hook_input() < 0)
+		return -1;
+	if(hook_audio(audio_type) < 0)
 		return -1;
 	// ---
 	if(strcasecmp(hook_type, "sdl") == 0) {

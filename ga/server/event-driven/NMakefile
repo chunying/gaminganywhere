@@ -15,7 +15,10 @@ all: $(TARGET)
 .cpp.obj:
 	$(CXX) /c -I..\..\core /MD $(CXX_FLAGS) -DGA_SERVER -DGA_MODULE $<
 
-ga-hook.dll: ga-hook.obj ga-hook-common.obj ga-hook-sdl.obj ga-hook-sdlaudio.obj hook-function.obj ctrl-sdl.obj
+ga-hook.dll:	ga-hook.obj ga-hook-common.obj \
+		ga-hook-sdl.obj ga-hook-sdlaudio.obj \
+		ga-hook-coreaudio.obj \
+		hook-function.obj ctrl-sdl.obj
 	$(CXX) /LD /MD $** $(LIBS) /link /DLL $(LIB_PATH) detours.lib detoured.lib opengl32.lib glu32.lib /opt:noref
 
 ga-server-event-driven.exe: ga-server-event-driven.obj

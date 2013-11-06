@@ -217,10 +217,21 @@ vsource_threadproc(void *arg) {
 #else
 		frame->pixelformat = PIX_FMT_BGRA;
 #endif
+		if(prect == NULL) {
+		////////////////////////////////////////
 		frame->realwidth = screenwidth;
 		frame->realheight = screenheight;
 		frame->realstride = screenwidth<<2;
 		frame->realsize = screenheight * frame->realstride;
+		////////////////////////////////////////
+		} else {
+		////////////////////////////////////////
+		frame->realwidth = prect->width;
+		frame->realheight = prect->height;
+		frame->realstride = prect->width<<2;
+		frame->realsize = prect->height * frame->realstride;
+		////////////////////////////////////////
+		}
 		frame->linesize[0] = frame->realstride/*frame->stride*/;
 #ifdef WIN32
 		QueryPerformanceCounter(&captureTv);

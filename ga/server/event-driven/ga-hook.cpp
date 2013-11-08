@@ -106,10 +106,14 @@ static int
 hook_sdl12(const char *hook_type, const char *hook_method) {
 	HMODULE hMod;
 	char audio_type[64] = "";
+	const char *sdlpath = getenv("LIBSDL_SO");
+	const char *def_sdlpath = "SDL.dll";
+	if(sdlpath == NULL)
+		sdlpath = def_sdlpath;
 	//
-	if((hMod = GetModuleHandle("SDL.dll")) == NULL) {
-		if((hMod = LoadLibrary("SDL.dll")) == NULL) {
-			ga_error("Load SDL.dll failed.\n");
+	if((hMod = GetModuleHandle(sdlpath)) == NULL) {
+		if((hMod = LoadLibrary(sdlpath)) == NULL) {
+			ga_error("Load %s failed.\n", sdlpath);
 			return -1;
 		}
 	}
@@ -555,25 +559,10 @@ hook_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 MODULE MODULE_EXPORT int
 install_hook(const char *ga_root, const char *config, const char *app_exe)
 {
-	char s_drive[_MAX_DRIVE], s_dir[_MAX_DIR], s_fname[_MAX_FNAME];
-	
 	if(ga_root == NULL || config == NULL) {
 		ga_error("[install_hook] no ga-root nor configuration were specified.\n");
 		return -1;
 	}
-	
-	_splitpath(app_exe, s_drive, s_dir, s_fname, NULL);
-#if 0
-	if(strncpy(g_appexe, s_fname, sizeof(g_appexe)) < 0)
-		return -1;
-	if(strncpy(g_root, ga_root, sizeof(g_root)) < 0)
-		return -1;
-	if(strncpy(g_confpath, config, sizeof(g_confpath)) < 0)
-		return -1;
-#endif
-	_putenv_s("GA_APPEXE", s_fname);
-	_putenv_s("GA_ROOT", ga_root);
-	_putenv_s("GA_CONFIG", config);
 	
 	if((gHook = SetWindowsHookEx(WH_CBT, hook_proc, hInst, 0)) == NULL) {
 		ga_error("SetWindowsHookEx filaed (0x%08x)\n", GetLastError());

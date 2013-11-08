@@ -29,8 +29,14 @@ hook_and_launch(const char *ga_root, const char *config_path, const char *app_ex
 	HINSTANCE hDLL;
 	int (*install_hook)(const char *, const char *, const char *);
 	int (*uninstall_hook)();
-	char cmdline[32768];
+	char cmdline[8192];
+	char buf[2048], *ptr;
 	int cmdpos, cmdspace = sizeof(cmdline);
+
+	if(ga_root == NULL || config_path == NULL) {
+		ga_error("[hook_and_launch] no ga-root nor configuration were specified.\n");
+		return -1;
+	}
 
 	// load ga-hook.dll
 	if((hDLL = LoadLibrary("ga-hook.dll")) == NULL) {
@@ -49,14 +55,43 @@ hook_and_launch(const char *ga_root, const char *config_path, const char *app_ex
 		fprintf(stderr, "GetProcAddress(uninstall_hook) failed: 0x%08x\n", GetLastError());
 		return -1;
 	}
-	fprintf(stderr, "GetProcAddress(install_hook) success (0x%p).\n", install_hook);
+	fprintf(stderr, "GetProcAddress() success install=0x%p; uninstall=0x%p.\n",
+		install_hook, uninstall_hook);
 
 	install_hook(ga_root, config_path, app_exe);
+
+	// handle environment variables
+	do {
+		char s_drive[_MAX_DRIVE], s_dir[_MAX_DIR], s_fname[_MAX_FNAME];
+		_splitpath(app_exe, s_drive, s_dir, s_fname, NULL);
+		_putenv_s("GA_APPEXE", s_fname);
+		_putenv_s("GA_ROOT", ga_root);
+		_putenv_s("GA_CONFIG", config_path);
+		// additional custom variables?
+		if(ga_conf_mapsize("game-env") == 0)
+			break;
+		ga_conf_mapreset("game-env");
+		for(	ptr = ga_conf_mapkey("game-env", buf, sizeof(buf));
+			ptr != NULL;
+			ptr = ga_conf_mapnextkey("game-env", buf, sizeof(buf))) {
+			//
+			char *val, *envval, valbuf[2048];
+			val = ga_conf_mapvalue("game-env", valbuf, sizeof(valbuf));
+			if(val == NULL)
+				continue;
+			for(envval = val; *envval && *envval != '='; envval++)
+				;
+			if(*envval != '=')
+				break;
+			*envval++ = '\0';
+			ga_error("Game env: %s=%s\n", val, envval);
+			_putenv_s(val, envval);
+		}
+	} while(0);
 
 	cmdpos = snprintf(cmdline, cmdspace, "%s", app_exe);
 	if(ga_conf_mapsize("game-argv") > 0) {
 		int n;
-		char buf[1024], *ptr;
 		ga_conf_mapreset("game-argv");
 		for(	ptr = ga_conf_mapkey("game-argv", buf, sizeof(buf));
 			ptr != NULL && cmdpos < cmdspace;
@@ -72,8 +107,8 @@ hook_and_launch(const char *ga_root, const char *config_path, const char *app_ex
 			cmdpos += n;
 		}
 	}
-	fprintf(stderr, "cmdline: %s\n", cmdline);
 
+	fprintf(stderr, "cmdline: %s\n", cmdline);
 	// launch the app
 	ZeroMemory(&procInfo, sizeof(PROCESS_INFORMATION));
 	ZeroMemory(&startupInfo, sizeof(STARTUPINFO));

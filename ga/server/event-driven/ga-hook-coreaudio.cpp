@@ -336,6 +336,7 @@ hook_ReleaseBuffer(
 			srcplanes, NumFramesWritten);
 	audio_source_buffer_fill(audio_buf, samples);
 	bzero(buffer_data, NumFramesWritten * ca_bytes_per_sample);
+	dwFlags |= AUDCLNT_BUFFERFLAGS_SILENT;
 	//
 no_capture:
 	buffer_data = NULL;

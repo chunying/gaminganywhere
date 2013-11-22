@@ -1,6 +1,7 @@
 
 GADEPS		?= $(HOME)/myprog/gaminganywhere/deps.android
 MACHINE		= $(shell uname -m)
+PACKAGES	= sdl2 yasm lame opus ogg vorbis theora vpx x264 ffmpeg live555
 
 TBZUNPACK	= tar xjf
 TGZUNPACK	= tar xzf
@@ -24,7 +25,11 @@ CROSSCOMPILE = --host=$(TARGET) CC=$(CC) CXX=$(CXX) \
 
 .PHONY: ffmpeg
 
-all: sdl2 yasm lame ogg vorbis theora vpx x264 ffmpeg live555
+all: pkg-config $(PACKAGES)
+
+pkg-config:
+	mkdir -p $(GADEPS)/bin
+	ln -sf /usr/bin/pkg-config $(GADEPS)/bin/$(CCPREFIX)pkg-config
 
 sdl2:
 	$(TGZUNPACK) $(SDL2)
@@ -81,6 +86,14 @@ lame:
 	make -C $(LAMEDIR) -j5
 	make -C $(LAMEDIR) install
 	rm -rf $(LAMEDIR)
+
+opus:
+	$(TGZUNPACK) $(OPUS)
+	-./patches/ltmain-avoid-version.sh $(OPUSDIR)/ltmain.sh
+	cd $(OPUSDIR); ./configure --prefix=$(GADEPS) $(CROSSCOMPILE) --with-pic
+	make -C $(OPUSDIR) -j5
+	make -C $(OPUSDIR) install
+	rm -rf $(OPUSDIR)
 
 ogg:
 	$(TGZUNPACK) $(OGG)
@@ -151,7 +164,7 @@ ANDROID_EXTRA_HEADERS = \
 
 ffmpeg:
 	$(TBZUNPACK) $(FFMPEG)
-	# XXX: install stagefright headers:
+	# XXX: install stagefright headers?
 	# include/binder,cutils,utils,multimedia/stagefright
 	cd $(FFMPEGDIR); cat ../patches/android-ffmpeg-*.diff | patch -p1
 	#tar -C $(GADEPS)/ -xjf $(STAGEFRIGHT).tbz
@@ -161,6 +174,7 @@ ffmpeg:
 		--enable-libmp3lame \
 		--enable-libtheora --enable-libvorbis \
 		--enable-libx264 --enable-libvpx \
+		--enable-libopus \
 		--enable-gpl --enable-nonfree --disable-outdev=sdl \
 		--disable-doc \
 		--enable-cross-compile --cross-prefix=$(CCPREFIX) \

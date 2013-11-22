@@ -300,6 +300,21 @@ init_adecoder() {
 		rtsperror("audio decoder: cannot allocate context\n");
 		return -1;
 	}
+	// some audio decoders will need these, e.g. opus
+	ctx->channels = rtspconf->audio_channels;
+	ctx->sample_rate = rtspconf->audio_samplerate;
+	if(ctx->channels == 1) {
+		ctx->channel_layout = AV_CH_LAYOUT_MONO;
+	} else if(ctx->channels == 2) {
+		ctx->channel_layout = AV_CH_LAYOUT_STEREO;
+	} else {
+		rtsperror("audio decoder: unsupported number of channels (%d)\n",
+			(int) ctx->channels);
+		return -1;
+	}
+	rtsperror("audio decoder: %d channels, samplerate %d\n",
+		(int) ctx->channels, (int) ctx->sample_rate);
+	//
 	if(avcodec_open2(ctx, codec, NULL) != 0) {
 		rtsperror("audio decoder: cannot open decoder\n");
 		return -1;

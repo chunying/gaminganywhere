@@ -104,6 +104,12 @@ LOCAL_MODULE := mp3lame
 LOCAL_SRC_FILES := lib/libmp3lame.so
 include $(PREBUILT_SHARED_LIBRARY)
 
+# opus
+include $(CLEAR_VARS)
+LOCAL_MODULE := opus
+LOCAL_SRC_FILES := lib/libopus.so
+include $(PREBUILT_SHARED_LIBRARY)
+
 # ogg
 include $(CLEAR_VARS)
 LOCAL_MODULE := ogg

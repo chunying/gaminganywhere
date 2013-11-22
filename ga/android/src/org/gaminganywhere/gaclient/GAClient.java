@@ -697,6 +697,7 @@ public class GAClient {
 		// full
 		System.loadLibrary("gnustl_shared");
 		System.loadLibrary("mp3lame");
+		System.loadLibrary("opus");
 		System.loadLibrary("ogg");
 		System.loadLibrary("vorbis");
 		System.loadLibrary("vorbisenc");

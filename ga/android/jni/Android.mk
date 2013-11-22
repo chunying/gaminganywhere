@@ -24,7 +24,6 @@ LOCAL_STATIC_LIBRARIES := \
 		liveMedia BasicUsageEnvironment UsageEnvironment groupsock \
 		swscale swresample postproc avdevice avfilter avformat avcodec avutil \
 		theora theoradec theoraenc vpx
-LOCAL_SHARED_LIBRARIES := sdl2 \
-		mp3lame ogg vorbis vorbisenc vorbisfile x264
+LOCAL_SHARED_LIBRARIES := mp3lame opus ogg vorbis vorbisenc vorbisfile x264
 LOCAL_LDLIBS := -llog -lz -lGLESv1_CM 
 include $(BUILD_SHARED_LIBRARY)

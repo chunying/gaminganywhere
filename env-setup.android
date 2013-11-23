@@ -1,0 +1,8 @@
+#!/bin/sh
+export KERNEL=`uname -s | tr A-Z a-z`
+export ANDROID_HOME=$HOME/android/android-sdk/.
+export NDK_ROOT=$HOME/android/android-ndk/.
+#
+export GADEPS=$HOME/myprog/gaminganywhere/deps.android
+export PKG_CONFIG_PATH=$GADEPS/lib/pkgconfig
+export PATH=$GADEPS/bin:$ANDROID_HOME/tools:$NDK_ROOT:$NDK_ROOT/toolchains/arm-linux-androideabi-4.6/prebuilt/$KERNEL-x86/bin:$PATH

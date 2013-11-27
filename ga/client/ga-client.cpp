@@ -61,7 +61,6 @@ pthread_mutex_t watchdogMutex;
 struct timeval watchdogTimer = {0LL, 0LL};
 
 static RTSPThreadParam rtspThreadParam;
-static unsigned int fullscreenFlag = 0;
 
 static int relativeMouseMode = 0;
 static int showCursor = 1;
@@ -127,10 +126,8 @@ create_overlay(struct RTSPThreadParam *rtspParam, int ch) {
 #ifdef	ANDROID
 	wflag = SDL_WINDOW_FULLSCREEN | SDL_WINDOW_BORDERLESS;
 #else
-	fullscreenFlag = 0;
 	if(ga_conf_readbool("fullscreen", 0) != 0) {
 		wflag |= SDL_WINDOW_FULLSCREEN | SDL_WINDOW_BORDERLESS;
-		fullscreenFlag = SDL_WINDOW_FULLSCREEN;
 	}
 #endif
 	snprintf(windowTitle, sizeof(windowTitle), "Player Channel #%d", ch);
@@ -209,6 +206,21 @@ create_overlay(struct RTSPThreadParam *rtspParam, int ch) {
 	gettimeofday(&watchdogTimer, NULL);
 	pthread_mutex_unlock(&watchdogMutex);
 	//
+	return;
+}
+
+static void
+switch_fullscreen() {
+	unsigned int flags;
+	SDL_Window *w = NULL;
+	pthread_mutex_lock(&rtspThreadParam.surfaceMutex[0]);
+	if((w = rtspThreadParam.surface[0]) == NULL)
+		goto quit;
+	flags = SDL_GetWindowFlags(w);
+	flags = (flags & SDL_WINDOW_FULLSCREEN) ^ SDL_WINDOW_FULLSCREEN;
+	SDL_SetWindowFullscreen(w, flags);
+quit:
+	pthread_mutex_unlock(&rtspThreadParam.surfaceMutex[0]);
 	return;
 }
 
@@ -375,16 +387,7 @@ ProcessEvent(SDL_Event *event) {
 		// switch between fullscreen?
 		if((event->key.keysym.sym == SDLK_RETURN)
 		&& (event->key.keysym.mod & KMOD_ALT)) {
-			rtsperror("ga-client: full screen switching request detected.\n");
-			pthread_mutex_lock(&rtspThreadParam.surfaceMutex[0]);
-			if(fullscreenFlag)
-				fullscreenFlag = 0;
-			else
-				fullscreenFlag = SDL_WINDOW_FULLSCREEN;
-			if(rtspThreadParam.surface[0] != NULL) {
-				SDL_SetWindowFullscreen(rtspThreadParam.surface[0], fullscreenFlag);
-			}
-			pthread_mutex_unlock(&rtspThreadParam.surfaceMutex[0]);
+			switch_fullscreen();
 		} else
 		//
 		if(rtspconf->ctrlenable) {

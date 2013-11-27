@@ -99,6 +99,8 @@ ga_win32_draw_system_cursor(struct vsource_frame *frame) {
 		mask.bmHeight = mask.bmHeight>>1;
 		for(i = 0; i < mask.bmHeight; i++) {
 			pty = cinfo.ptScreenPos.y - iinfo.yHotspot + i;
+			if(pty < 0)
+				continue;
 			if(pty >= frame->realheight)
 				break;
 			mcurr = mbits + i * mask.bmWidthBytes;
@@ -106,6 +108,8 @@ ga_win32_draw_system_cursor(struct vsource_frame *frame) {
 			fcurr = frame->imgbuf + (pty * frame->realstride);
 			for(j = 0; j < mask.bmWidth; j++) {
 				ptx = cinfo.ptScreenPos.x - iinfo.xHotspot + j;
+				if(ptx < 0)
+					continue;
 				if(ptx >= frame->realwidth)
 					break;
 				if((mcurr[j>>3] & bitmask[j&0x07]) == 0) {
@@ -155,6 +159,8 @@ ga_win32_draw_system_cursor(struct vsource_frame *frame) {
 #endif
 		for(i = 0; i < mask.bmHeight; i++) {
 			pty = cinfo.ptScreenPos.y - iinfo.yHotspot + i;
+			if(pty < 0)
+				continue;
 			if(pty >= frame->realheight)
 				break;
 			mcurr = mbits + i * mask.bmWidthBytes;
@@ -162,6 +168,8 @@ ga_win32_draw_system_cursor(struct vsource_frame *frame) {
 			fcurr = frame->imgbuf + (pty * frame->realstride);
 			for(j = 0; j < mask.bmWidth; j++) {
 				ptx = cinfo.ptScreenPos.x - iinfo.xHotspot + j;
+				if(ptx < 0)
+					continue;
 				if(ptx >= frame->realwidth)
 					break;
 				if((mcurr[j>>3] & bitmask[j&0x07]) == 0) {

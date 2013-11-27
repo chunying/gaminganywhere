@@ -14,11 +14,7 @@ bin\7za x -y msinttypes-r26.zip *.h
 move /y *.h %GADEPS%\include
 @REM
 echo Installing ffmpeg ...
-@REM set FFMPEG=20121010-git-1a104bf
-@REM set FFMPEG=20121114-git-2f74f8d
-@REM set FFMPEG=1.1.1
-@REM set FFMPEG=1.2
-set FFMPEG=20130711-git-15cee5e
+set FFMPEG=2.1.1
 bin\7za x -y ffmpeg-%FFMPEG%-win32-shared.7z
 move /y ffmpeg-%FFMPEG%-win32-shared\bin\* %GADEPS%\bin\
 rmdir /s /q ffmpeg-%FFMPEG%-win32-shared
@@ -39,7 +35,7 @@ rmdir /s /q ffmpeg-%FFMPEG%-win32-dev
 @REM
 @REM
 echo Installing SDL2 ...
-set SDL2=2.0.0
+set SDL2=2.0.1
 bin\7za x -y SDL2-devel-%SDL2%-VC.zip
 move /y SDL2-%SDL2%\lib\x86\*.dll %GADEPS%\bin\
 move /y SDL2-%SDL2%\include\*.h %GADEPS%\include\SDL2\

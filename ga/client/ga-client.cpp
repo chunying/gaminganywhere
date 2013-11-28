@@ -91,13 +91,7 @@ switch_fullscreen() {
 		goto quit;
 	flags = SDL_GetWindowFlags(w);
 	flags = (flags & SDL_WINDOW_FULLSCREEN_DESKTOP) ^ SDL_WINDOW_FULLSCREEN_DESKTOP;
-	if(flags & SDL_WINDOW_FULLSCREEN_DESKTOP) {
-		SDL_SetWindowSize(w, nativeSizeX[0], nativeSizeY[0]);
-		SDL_SetWindowFullscreen(w, flags);
-	} else {
-		SDL_SetWindowFullscreen(w, flags);
-		SDL_SetWindowSize(w, windowSizeX[0], windowSizeY[0]);
-	}
+	SDL_SetWindowFullscreen(w, flags);
 quit:
 	pthread_mutex_unlock(&rtspThreadParam.surfaceMutex[0]);
 	return;
@@ -206,7 +200,7 @@ create_overlay(struct RTSPThreadParam *rtspParam, int ch) {
 		rtsperror("ga-client: set video mode (create window) failed.\n");
 		exit(-1);
 	}
-	SDL_SetWindowMaximumSize(surface, w, h);
+	//SDL_SetWindowMaximumSize(surface, w, h);
 	SDL_SetWindowMinimumSize(surface, w>>2, h>>2);
 	nativeSizeX[ch] = windowSizeX[ch] = w;
 	nativeSizeY[ch] = windowSizeY[ch] = h;
@@ -553,7 +547,7 @@ ProcessEvent(SDL_Event *event) {
 		if(event->window.event == SDL_WINDOWEVENT_CLOSE) {
 			rtspThreadParam.running = false;
 			return;
-		} else if(event->window.event == SDL_WINDOWEVENT_RESIZED) {
+		} else if(event->window.event == SDL_WINDOWEVENT_SIZE_CHANGED) {
 			mi = windowId2ch.find(event->window.windowID);
 			if(mi != windowId2ch.end()) {
 				int w, h, ch = mi->second;

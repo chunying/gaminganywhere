@@ -52,10 +52,15 @@ extern "C" {
 #include "ga-conf.h"
 #include "ga-avcodec.h"
 
+#include <map>
+using namespace std;
+
 #define	POOLSIZE	16
 
 #define	IDLE_MAXIMUM_THRESHOLD		3600000	/* us */
 #define	IDLE_DETECTION_THRESHOLD	 600000 /* us */
+
+#define	WINDOW_TITLE		"Player Channel #%d (%dx%d)"
 
 pthread_mutex_t watchdogMutex;
 struct timeval watchdogTimer = {0LL, 0LL};
@@ -66,6 +71,10 @@ static int relativeMouseMode = 0;
 static int showCursor = 1;
 static int windowSizeX[IMAGE_SOURCE_CHANNEL_MAX];
 static int windowSizeY[IMAGE_SOURCE_CHANNEL_MAX];
+// support resizable window
+static int nativeSizeX[IMAGE_SOURCE_CHANNEL_MAX];
+static int nativeSizeY[IMAGE_SOURCE_CHANNEL_MAX];
+static map<unsigned int, int> windowId2ch;
 
 #ifndef ANDROID
 #define	DEFAULT_FONT		"FreeSans.ttf"
@@ -81,8 +90,14 @@ switch_fullscreen() {
 	if((w = rtspThreadParam.surface[0]) == NULL)
 		goto quit;
 	flags = SDL_GetWindowFlags(w);
-	flags = (flags & SDL_WINDOW_FULLSCREEN) ^ SDL_WINDOW_FULLSCREEN;
-	SDL_SetWindowFullscreen(w, flags);
+	flags = (flags & SDL_WINDOW_FULLSCREEN_DESKTOP) ^ SDL_WINDOW_FULLSCREEN_DESKTOP;
+	if(flags & SDL_WINDOW_FULLSCREEN_DESKTOP) {
+		SDL_SetWindowSize(w, nativeSizeX[0], nativeSizeY[0]);
+		SDL_SetWindowFullscreen(w, flags);
+	} else {
+		SDL_SetWindowFullscreen(w, flags);
+		SDL_SetWindowSize(w, windowSizeX[0], windowSizeY[0]);
+	}
 quit:
 	pthread_mutex_unlock(&rtspThreadParam.surfaceMutex[0]);
 	return;
@@ -109,6 +124,16 @@ switch_grab_input(SDL_Window *w) {
 		pthread_mutex_unlock(&rtspThreadParam.surfaceMutex[0]);
 	}
 	return;
+}
+
+static int
+xlat_mouseX(int ch, int x) {
+	return (1.0 * nativeSizeX[ch] / windowSizeX[ch]) * x;
+}
+
+static int
+xlat_mouseY(int ch, int y) {
+	return (1.0 * nativeSizeY[ch] / windowSizeY[ch]) * y;
 }
 
 static void
@@ -162,26 +187,30 @@ create_overlay(struct RTSPThreadParam *rtspParam, int ch) {
 	int wflag = 0;
 #if 1	// only support SDL2
 #ifdef	ANDROID
-	wflag = SDL_WINDOW_FULLSCREEN | SDL_WINDOW_BORDERLESS;
+	wflag = SDL_WINDOW_FULLSCREEN_DESKTOP | SDL_WINDOW_BORDERLESS;
 #else
+	wflag |= SDL_WINDOW_RESIZABLE;
 	if(ga_conf_readbool("fullscreen", 0) != 0) {
-		wflag |= SDL_WINDOW_FULLSCREEN | SDL_WINDOW_BORDERLESS;
+		wflag |= SDL_WINDOW_FULLSCREEN_DESKTOP | SDL_WINDOW_BORDERLESS;
 	}
 #endif
 	if(relativeMouseMode != 0) {
 		wflag |= SDL_WINDOW_INPUT_GRABBED;
 	}
-	snprintf(windowTitle, sizeof(windowTitle), "Player Channel #%d", ch);
+	snprintf(windowTitle, sizeof(windowTitle), WINDOW_TITLE, ch, w, h);
 	surface = SDL_CreateWindow(windowTitle,
 			SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
 			w, h, wflag);
-	windowSizeX[ch] = w;
-	windowSizeY[ch] = h;
 #endif
 	if(surface == NULL) {
 		rtsperror("ga-client: set video mode (create window) failed.\n");
 		exit(-1);
 	}
+	SDL_SetWindowMaximumSize(surface, w, h);
+	SDL_SetWindowMinimumSize(surface, w>>2, h>>2);
+	nativeSizeX[ch] = windowSizeX[ch] = w;
+	nativeSizeY[ch] = windowSizeY[ch] = h;
+	windowId2ch[SDL_GetWindowID(surface)] = ch;
 	// move mouse to center
 #if 1	// only support SDL2
 	SDL_WarpMouseInWindow(surface, w/2, h/2);
@@ -380,6 +409,8 @@ render_image(struct RTSPThreadParam *rtspParam, int ch) {
 void
 ProcessEvent(SDL_Event *event) {
 	sdlmsg_t m;
+	map<unsigned int,int>::iterator mi;
+	int ch;
 	//
 	switch(event->type) {
 	case SDL_KEYUP:
@@ -427,24 +458,34 @@ ProcessEvent(SDL_Event *event) {
 		}
 		break;
 	case SDL_MOUSEBUTTONUP:
-		if(rtspconf->ctrlenable) {
-		sdlmsg_mousekey(&m, 0, event->button.button, event->button.x, event->button.y);
-		ctrl_client_sendmsg(&m, sizeof(sdlmsg_mouse_t));
+		mi = windowId2ch.find(event->button.windowID);
+		if(mi != windowId2ch.end() && rtspconf->ctrlenable) {
+			ch = mi->second;
+			sdlmsg_mousekey(&m, 0, event->button.button,
+				xlat_mouseX(ch, event->button.x),
+				xlat_mouseY(ch, event->button.y));
+			ctrl_client_sendmsg(&m, sizeof(sdlmsg_mouse_t));
 		}
 		break;
 	case SDL_MOUSEBUTTONDOWN:
-		if(rtspconf->ctrlenable) {
-		sdlmsg_mousekey(&m, 1, event->button.button, event->button.x, event->button.y);
-		ctrl_client_sendmsg(&m, sizeof(sdlmsg_mouse_t));
+		mi = windowId2ch.find(event->button.windowID);
+		if(mi != windowId2ch.end() && rtspconf->ctrlenable) {
+			ch = mi->second;
+			sdlmsg_mousekey(&m, 1, event->button.button,
+				xlat_mouseX(ch, event->button.x),
+				xlat_mouseY(ch, event->button.y));
+			ctrl_client_sendmsg(&m, sizeof(sdlmsg_mouse_t));
 		}
 		break;
 	case SDL_MOUSEMOTION:
-		if(rtspconf->ctrlenable && rtspconf->sendmousemotion) {
+		mi = windowId2ch.find(event->motion.windowID);
+		if(mi != windowId2ch.end() && rtspconf->ctrlenable && rtspconf->sendmousemotion) {
+			ch = mi->second;
 			sdlmsg_mousemotion(&m,
-				event->motion.x,
-				event->motion.y,
-				event->motion.xrel,
-				event->motion.yrel,
+				xlat_mouseX(ch, event->motion.x),
+				xlat_mouseY(ch, event->motion.y),
+				xlat_mouseX(ch, event->motion.xrel),
+				xlat_mouseY(ch, event->motion.yrel),
 				event->motion.state,
 				relativeMouseMode == 0 ? 0 : 1);
 			ctrl_client_sendmsg(&m, sizeof(sdlmsg_mouse_t));
@@ -463,13 +504,13 @@ ProcessEvent(SDL_Event *event) {
 		(etf).type, (etf).x, (etf).y, (etf).dx, (etf).dy, (etf).pressure);
 	case SDL_FINGERDOWN:
 		// window size has not been registered
-		if(windowSizeX[0] == 0)
+		if(nativeSizeX[0] == 0)
 			break;
 		//DEBUG_FINGER(event->tfinger);
 		if(rtspconf->ctrlenable) {
 		unsigned short mapx, mapy;
-		mapx = (unsigned short) (1.0 * (windowSizeX[0]-1) * event->tfinger.x / 32767.0);
-		mapy = (unsigned short) (1.0 * (windowSizeY[0]-1) * event->tfinger.y / 32767.0);
+		mapx = (unsigned short) (1.0 * (nativeSizeX[0]-1) * event->tfinger.x / 32767.0);
+		mapy = (unsigned short) (1.0 * (nativeSizeY[0]-1) * event->tfinger.y / 32767.0);
 		sdlmsg_mousemotion(&m, mapx, mapy, 0, 0, 0, 0);
 		ctrl_client_sendmsg(&m, sizeof(sdlmsg_mouse_t));
 		//
@@ -479,13 +520,13 @@ ProcessEvent(SDL_Event *event) {
 		break;
 	case SDL_FINGERUP:
 		// window size has not been registered
-		if(windowSizeX[0] == 0)
+		if(nativeSizeX[0] == 0)
 			break;
 		//DEBUG_FINGER(event->tfinger);
 		if(rtspconf->ctrlenable) {
 		unsigned short mapx, mapy;
-		mapx = (unsigned short) (1.0 * (windowSizeX[0]-1) * event->tfinger.x / 32767.0);
-		mapy = (unsigned short) (1.0 * (windowSizeY[0]-1) * event->tfinger.y / 32767.0);
+		mapx = (unsigned short) (1.0 * (nativeSizeX[0]-1) * event->tfinger.x / 32767.0);
+		mapy = (unsigned short) (1.0 * (nativeSizeY[0]-1) * event->tfinger.y / 32767.0);
 		sdlmsg_mousemotion(&m, mapx, mapy, 0, 0, 0, 0);
 		ctrl_client_sendmsg(&m, sizeof(sdlmsg_mouse_t));
 		//
@@ -495,13 +536,13 @@ ProcessEvent(SDL_Event *event) {
 		break;
 	case SDL_FINGERMOTION:
 		// window size has not been registered
-		if(windowSizeX[0] == 0)
+		if(nativeSizeX[0] == 0)
 			break;
 		//DEBUG_FINGER(event->tfinger);
 		if(rtspconf->ctrlenable) {
 		unsigned short mapx, mapy;
-		mapx = (unsigned short) (1.0 * (windowSizeX[0]-1) * event->tfinger.x / 32767.0);
-		mapy = (unsigned short) (1.0 * (windowSizeY[0]-1) * event->tfinger.y / 32767.0);
+		mapx = (unsigned short) (1.0 * (nativeSizeX[0]-1) * event->tfinger.x / 32767.0);
+		mapy = (unsigned short) (1.0 * (nativeSizeY[0]-1) * event->tfinger.y / 32767.0);
 		sdlmsg_mousemotion(&m, mapx, mapy, 0, 0, 0, 0);
 		ctrl_client_sendmsg(&m, sizeof(sdlmsg_mouse_t));
 		}
@@ -513,8 +554,19 @@ ProcessEvent(SDL_Event *event) {
 			rtspThreadParam.running = false;
 			return;
 		} else if(event->window.event == SDL_WINDOWEVENT_RESIZED) {
-			rtsperror("event video resize w=%d h=%d\n",
-				event->window.data1, event->window.data2);
+			mi = windowId2ch.find(event->window.windowID);
+			if(mi != windowId2ch.end()) {
+				int w, h, ch = mi->second;
+				char title[64];
+				w = event->window.data1;
+				h = event->window.data2;
+				windowSizeX[ch] = w;
+				windowSizeY[ch] = h;
+				snprintf(title, sizeof(title), WINDOW_TITLE, ch, w, h);
+				SDL_SetWindowTitle(rtspThreadParam.surface[ch], title);
+				rtsperror("event window #%d(%x) resized: w=%d h=%d\n",
+					ch, event->window.windowID, w, h);
+			}
 		}
 		break;
 	case SDL_USEREVENT:

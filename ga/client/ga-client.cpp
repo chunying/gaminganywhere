@@ -74,6 +74,44 @@ static TTF_Font *defFont = NULL;
 #endif
 
 static void
+switch_fullscreen() {
+	unsigned int flags;
+	SDL_Window *w = NULL;
+	pthread_mutex_lock(&rtspThreadParam.surfaceMutex[0]);
+	if((w = rtspThreadParam.surface[0]) == NULL)
+		goto quit;
+	flags = SDL_GetWindowFlags(w);
+	flags = (flags & SDL_WINDOW_FULLSCREEN) ^ SDL_WINDOW_FULLSCREEN;
+	SDL_SetWindowFullscreen(w, flags);
+quit:
+	pthread_mutex_unlock(&rtspThreadParam.surfaceMutex[0]);
+	return;
+}
+
+static void
+switch_grab_input(SDL_Window *w) {
+	SDL_bool grabbed;
+	int need_unlock = 0;
+	//
+	if(w == NULL) {
+		pthread_mutex_lock(&rtspThreadParam.surfaceMutex[0]);
+		w = rtspThreadParam.surface[0];
+		need_unlock = 1;
+	}
+	if(w != NULL) {
+		grabbed = SDL_GetWindowGrab(w);
+		if(grabbed == SDL_FALSE)
+			SDL_SetWindowGrab(w, SDL_TRUE);
+		else
+			SDL_SetWindowGrab(w, SDL_FALSE);
+	}
+	if(need_unlock) {
+		pthread_mutex_unlock(&rtspThreadParam.surfaceMutex[0]);
+	}
+	return;
+}
+
+static void
 create_overlay(struct RTSPThreadParam *rtspParam, int ch) {
 	int w, h;
 	PixelFormat format;
@@ -130,6 +168,9 @@ create_overlay(struct RTSPThreadParam *rtspParam, int ch) {
 		wflag |= SDL_WINDOW_FULLSCREEN | SDL_WINDOW_BORDERLESS;
 	}
 #endif
+	if(relativeMouseMode != 0) {
+		wflag |= SDL_WINDOW_INPUT_GRABBED;
+	}
 	snprintf(windowTitle, sizeof(windowTitle), "Player Channel #%d", ch);
 	surface = SDL_CreateWindow(windowTitle,
 			SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
@@ -206,21 +247,6 @@ create_overlay(struct RTSPThreadParam *rtspParam, int ch) {
 	gettimeofday(&watchdogTimer, NULL);
 	pthread_mutex_unlock(&watchdogMutex);
 	//
-	return;
-}
-
-static void
-switch_fullscreen() {
-	unsigned int flags;
-	SDL_Window *w = NULL;
-	pthread_mutex_lock(&rtspThreadParam.surfaceMutex[0]);
-	if((w = rtspThreadParam.surface[0]) == NULL)
-		goto quit;
-	flags = SDL_GetWindowFlags(w);
-	flags = (flags & SDL_WINDOW_FULLSCREEN) ^ SDL_WINDOW_FULLSCREEN;
-	SDL_SetWindowFullscreen(w, flags);
-quit:
-	pthread_mutex_unlock(&rtspThreadParam.surfaceMutex[0]);
 	return;
 }
 
@@ -361,6 +387,7 @@ ProcessEvent(SDL_Event *event) {
 		&& relativeMouseMode != 0) {
 			showCursor = 1 - showCursor;
 			//SDL_ShowCursor(showCursor);
+			switch_grab_input(NULL);
 #if 1
 			if(showCursor)
 				SDL_SetRelativeMouseMode(SDL_FALSE);

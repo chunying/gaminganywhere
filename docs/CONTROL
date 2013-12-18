@@ -16,7 +16,7 @@ events to the running game.
 
 Please note that the original GA client for PC is implemented with
 libsdl, so values in a control message are mostly based on those defined
-in libsdl. Readers are suggested to read SDL's document or source codes
+in libsdl. Readers are suggested to read SDL's document or header files
 if the value of a SDL constant is required. The document can be found at
 http://wiki.libsdl.org/SDL_Event.
 
@@ -24,23 +24,26 @@ http://wiki.libsdl.org/SDL_Event.
 
 Currently the control message can be delivered via UDP or TCP.
 The default port to receive control messages is on port 8555, but it can
-be changed to any arbitrary port. The protocol message formats are
-defined in the next section. In general, formatted control messages can
-be sent as-is. However, to work with TCP, a initial handshake message
-has to be sent first. It is done by sending the below string from client
-to server:
+be changed to any arbitrary port. The transport layer protocol configured on
+the server and the client must be consistent.
+
+The protocol message formats are defined in the next section.
+In general, formatted control messages can be sent as-is.
+However, to work with TCP, a initial handshake message has to be sent first.
+It is done by sending the below string from a client to the server:
 
 C->S: 1-byte-length + "GACtrlV01" + NULL (total 11 bytes)
 
 The server will keep silent if the handshake message is correct.
-Otherwise, it rejects a client immediately. The client can send control
-messages later using the same TCP connection.
+Otherwise, it rejects the client immediately by closing the connection.
+The client can then send control messages later using the same TCP
+connection after succesfully sent the initial handshake message.
 
 * Protocol Messages
 
 - General format
 
-The general format for a control messages is as follows:
+  The general format for a control messages is as follows:
 
    0                   1                   2                   3   
    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 
@@ -66,7 +69,7 @@ The general format for a control messages is as follows:
     the ID for the same type of controller.
 
   - payload: variable-length data contains controller-specific values.
-    The details please refer to the control message for specific types.
+    The details please refer to the control message for each type.
 
 - Format for a NULL message
 
@@ -88,7 +91,7 @@ The general format for a control messages is as follows:
    0                   1                   2                   3   
    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 
   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-  |         message size          | msg. type (1) |     which     |
+  |       message size (18)       | msg. type (1) |     which     |
   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
   |  is_pressed   |    UNUSED     |            scancode           |
   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -103,31 +106,32 @@ The general format for a control messages is as follows:
     indicates that the key is released; Otherwise, it is pressed.
 
   - scancode: store the SDL_Scancode value, which is available at:
-    http://wiki.libsdl.org/SDL_Scancode. The value is stored in network byte
-    order (BIG endian).
+    http://wiki.libsdl.org/SDL_Scancode.
+    The value is stored in network byte order (BIG endian).
 
   - sdlkey: store the SDL_Keycode value, which is available at:
-    http://wiki.libsdl.org/SDL_Keycode. The value is stored in network byte
-    order (BIG endian).
+    http://wiki.libsdl.org/SDL_Keycode.
+    The value is stored in network byte order (BIG endian).
 
   - unicode: store the UTF-16 unicode for the involved key, if applicable.
-    Otherwise, it is zero. The value is stored in network byte order
-    (BIG endian).
+    Otherwise, it is zero.
+    The value is stored in network byte order (BIG endian).
 
   - sdlmod: store the SDL_Keymod value, which is available at:
     http://wiki.libsdl.org/SDL_Keymod.
+    The value is stored in network byte order (BIG endian).
 
 - Format for mouse events
 
-  This message is used for sending key stroke events. The format and the
-  explanations are as follows. The "message type" can be
-  SDL_EVENT_MSGTYPE_MOUSEKEY (2), SDL_EVENT_MSGTYPE_MOUSEMOTION (3), or
-  SDL_EVENT_MSGTYPE_MOUSEWHEEL (4).
+  This format is used for sending mouse events. The format and the
+  explanation for each message are describe as follows.
+  The "message type" can be SDL_EVENT_MSGTYPE_MOUSEKEY (2),
+  SDL_EVENT_MSGTYPE_MOUSEMOTION (3), or SDL_EVENT_MSGTYPE_MOUSEWHEEL (4).
 
    0                   1                   2                   3   
    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 
   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-  |         message size          |   msg. type   |     which     |
+  |       message size (16)       |   msg. type   |     which     |
   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
   |  is_pressed   | mouse button  |  mouse state  | relative mode |
   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -152,7 +156,7 @@ The general format for a control messages is as follows:
 
     Currently GA treats SDL_BUTTON_X1 and SDL_BUTTON_X2 as mouse wheel
     events. However, the interpretation may be changed in the future.
-    It is not recommended to the two buttons. For mouse wheels, please
+    It is not recommended to use the two buttons. For mouse wheels, please
     consider working with the SDL_EVENT_MSGTYPE_MOUSEWHEEL message type.
     This field is valid when message type is SDL_EVENT_MSGTYPE_MOUSEKEY.
     Otherwise, it is ignored.
@@ -168,34 +172,36 @@ The general format for a control messages is as follows:
 
     Although SDL uses a 32-bit value to store the value, the current GA
     control message only use a 8-bit field to store the value.
-    ** Please note that GA currently does not use the field.
+    ** Please note that GA server currently does not use the field.
     This field is valid when message type is SDL_EVENT_MSGTYPE_MOUSEMOTION.
 
   - relative mode: store a non-zero value if the "mouse pointer relative X"
     and "mouse pointer relative Y" are used instead of "mouse pointer X" and
     "mouse pointer Y". The move of a mouse pointer can be represented in
-    absolute coordinate (through "mouse pointer X" and "mouse pointer Y"
-    fields) or relative coordinate (through "mouse pointer relative X" and
+    absolute coordinate (using "mouse pointer X" and "mouse pointer Y"
+    fields) or relative coordinate (using "mouse pointer relative X" and
     "mouse pointer relative Y" fields). However, not all operating systems
-    allow to replay mouse move in relative coordinate.
-    For SDL games, both absolute and relative coordinates are supported;
-    For Windows, the client has to choose either absolute or relative
-    coordinates; For Mac OS X, only absolute coordinate are supported.
+    allow to replay mouse move events with relative coordinates.
+    For SDL games running with a hook-mode server, both absolute and
+    relative coordinates are supported; For general Windows games, the
+    client has to choose either absolute or relative coordinates; For
+    general Mac OS X games, only absolute coordinate are supported.
     This field is valid when message type is SDL_EVENT_MSGTYPE_MOUSEMOTION.
 
-  - mouse pointer X and mouse pointer Y: store a non-negative 16-bit integer
-    value that represent the current absolute coordinate of the mouse.
+  - mouse pointer X and mouse pointer Y: store non-negative 16-bit integer
+    values that represent the current absolute coordinate (X, Y) of the mouse.
     The values must be stored in network byte order (BIG endian).
     The two fields are valid for all mouse messages.
     Please note that when the two fields are used for
     SDL_EVENT_MSGTYPE_MOUSEWHEEL message, the values are treated as signed
-    integer. The X value is used for vertical direction and the Y value is
-    used for horizontal direction.
+    integer. The X value is used for vertical direction mouse wheel and the
+    Y value is used for horizontal direction mouse wheel.
 
   - mouse pointer relative X and mouse pointer relative Y: store a signed
     16-bit integer value that represent the relative coordinate of the most
-    recent move of the mouse pointer. The values must be stored in network
-    byte order (BIG endian). The two fields are valid when message type is
+    recent move (delta-X, delta-Y) of the mouse pointer.
+    The values must be stored in network byte order (BIG endian).
+    The two fields are valid when message type is
     SDL_EVENT_MSGTYPE_MOUSEMOTION.
 
 =======================================

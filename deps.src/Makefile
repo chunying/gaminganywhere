@@ -8,6 +8,7 @@ PACKAGES	= sdl2 sdl2_ttf yasm lame opus ogg vorbis theora vpx \
 ifeq ($(SYSTEM),Darwin)
 VPX_EXTRA_CONFIG =
 HAS_BREW	= $(shell if which -s brew; then echo 1; else echo 0; fi)
+MACHINE		= $(shell uname -m)-apple-darwin
 ifeq ($(HAS_BREW),1)
 PACKAGES	= osx_brew live555
 endif

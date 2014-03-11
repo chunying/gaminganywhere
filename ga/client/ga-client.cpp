@@ -719,6 +719,10 @@ main(int argc, char *argv[]) {
 		rtsperror("SDL init failed: %s\n", SDL_GetError());
 		return -1;
 	}
+	if(rtspconf->video_renderer_software == 0) {
+		ga_error("SDL: prefer opengl hardware renderer.\n");
+		SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengl");
+	}
 #if 0	// only support SDL2
 	// enable keyboard repeat?
 	SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY, SDL_DEFAULT_REPEAT_INTERVAL);

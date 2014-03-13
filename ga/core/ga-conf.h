@@ -30,6 +30,7 @@ EXPORT void ga_conf_clear();
 EXPORT char * ga_conf_readv(const char *key, char *store, int slen);
 EXPORT int ga_conf_readint(const char *key);
 EXPORT int ga_conf_readbool(const char *key, int defval);
+EXPORT int ga_conf_boolval(const char *ptr, int defval);
 EXPORT int ga_conf_readints(const char *key, int *vals, int n);
 EXPORT int ga_conf_writev(const char *key, const char *value);
 EXPORT void ga_conf_erase(const char *key);

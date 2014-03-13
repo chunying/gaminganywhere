@@ -280,7 +280,7 @@ ga_conf_readints(const char *key, int *val, int n) {
 	return ga_conf_multiple_int(buf, val, n);
 }
 
-static int
+int
 ga_conf_boolval(const char *ptr, int defval) {
 	if(strcasecmp(ptr, "true") == 0
 	|| strcasecmp(ptr, "1") ==0

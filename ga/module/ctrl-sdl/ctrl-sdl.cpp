@@ -44,6 +44,11 @@ static double scaleFactorY = 1.0;
 static int outputW, outputH;	// client window resolution
 static int cxsize, cysize;	// for mapping mouse coordinates
 
+// support key blocking
+static bool keyblock_initialized = false;
+static map<unsigned short, unsigned short> kbScancode;
+static map<int, int> kbSdlkey;
+
 #ifdef WIN32
 #define	INVALID_KEY	0xffff
 typedef WORD	KeySym;		// map to Windows Virtual Keycode
@@ -197,6 +202,10 @@ sdlmsg_replay_init(void *arg) {
 	struct gaRect *rect = (struct gaRect*) arg;
 	struct RTSPConf *conf = rtspconf_global();
 	//
+	if(keyblock_initialized == false) {
+		sdlmsg_kb_init();
+		keyblock_initialized = true;
+	}
 	if(keymap_initialized == false) {
 		SDLKeyToKeySym_init();
 	}
@@ -605,9 +614,87 @@ sdlmsg_replay_native(sdlmsg_t *msg) {
 #endif
 
 int
+sdlmsg_kb_init() {
+	char keybuf[64], valbuf[64];
+	char *key, *val;
+	//
+	kbScancode.clear();
+	kbSdlkey.clear();
+	// load scancodes
+	if(ga_conf_mapsize("key-block-scancode") > 0) {
+		ga_conf_mapreset("key-block-scancode");
+		for(	key = ga_conf_mapkey("key-block-scancode", keybuf, sizeof(keybuf));
+			key != NULL;
+			key = ga_conf_mapnextkey("key-block-scancode", keybuf, sizeof(keybuf))) {
+			//
+			unsigned short sc = strtol(key, NULL, 0);
+			if(sc == 0)
+				continue;
+			//
+			val = ga_conf_mapvalue("key-block-scancode", valbuf, sizeof(valbuf));
+			if(val == NULL)
+				continue;
+			//
+			if(ga_conf_boolval(val, 0) != 0)
+				kbScancode[sc] = 1;
+		}
+	}
+	// load sdlkey
+	if(ga_conf_mapsize("key-block-keycode") > 0) {
+		ga_conf_mapreset("key-block-keycode");
+		for(	key = ga_conf_mapkey("key-block-keycode", keybuf, sizeof(keybuf));
+			key != NULL;
+			key = ga_conf_mapnextkey("key-block-keycode", keybuf, sizeof(keybuf))) {
+			//
+			unsigned short kc = strtol(key, NULL, 0);
+			if(kc == 0)
+				continue;
+			//
+			val = ga_conf_mapvalue("key-block-keycode", valbuf, sizeof(valbuf));
+			if(val == NULL)
+				continue;
+			//
+			if(ga_conf_boolval(val, 0) != 0)
+				kbSdlkey[kc] = 1;
+		}
+	}
+	//
+	ga_error("key-blocking initialized: %u+%u keys blocked.\n",
+		kbScancode.size(), kbSdlkey.size());
+	//
+	return 0;
+}
+
+GEN_KB_ADD_FUNC(unsigned short, scancode, kbScancode)
+GEN_KB_ADD_FUNC(int, sdlkey, kbSdlkey)
+GEN_KB_MATCH_FUNC(unsigned short, scancode, kbScancode)
+GEN_KB_MATCH_FUNC(int, sdlkey, kbSdlkey)
+
+int
+sdlmsg_key_blocked(sdlmsg_t *msg) {
+	sdlmsg_keyboard_t *msgk;
+	if(msg->msgtype != SDL_EVENT_MSGTYPE_KEYBOARD) {
+		return 0;
+	}
+	//
+	msgk = (sdlmsg_keyboard_t*) msg;
+	//
+	if(sdlmsg_kb_match_scancode(msgk->scancode)) {
+		return 1;
+	}
+	if(sdlmsg_kb_match_sdlkey(msgk->sdlkey)) {
+		return 1;
+	}
+	return 0;
+}
+
+int
 sdlmsg_replay(sdlmsg_t *msg) {
 	// convert from network byte order to host byte order
 	sdlmsg_ntoh(msg);
+	if(sdlmsg_key_blocked(msg)) {
+		return 0;
+	}
 	sdlmsg_replay_native(msg);
 	return 0;
 }

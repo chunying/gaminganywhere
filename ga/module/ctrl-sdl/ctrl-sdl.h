@@ -123,6 +123,30 @@ typedef struct sdlmsg_mouse_s		sdlmsg_mouse_t;
 
 sdlmsg_t* sdlmsg_ntoh(sdlmsg_t *msg);
 
+///// key blocking support
+#define	GEN_KB_ADD_FUNC_PROTO(type, field) \
+	int sdlmsg_kb_add_##field(type v, int remove)
+#define GEN_KB_ADD_FUNC(type, field, db)	\
+	GEN_KB_ADD_FUNC_PROTO(type, field) { \
+		if(remove) { db.erase(v); } \
+		else       { db[v] = v;   } \
+		return 0; \
+	}
+#define GEN_KB_MATCH_FUNC_PROTO(type, field) \
+	int sdlmsg_kb_match_##field(type v)
+#define	GEN_KB_MATCH_FUNC(type, field, db) \
+	GEN_KB_MATCH_FUNC_PROTO(type, field) { \
+		if(db.find(v) == db.end()) { return 0; } \
+		return 1; \
+	}
+int sdlmsg_kb_init();
+GEN_KB_ADD_FUNC_PROTO(unsigned short, scancode);
+GEN_KB_ADD_FUNC_PROTO(int, sdlkey);
+GEN_KB_MATCH_FUNC_PROTO(unsigned short, scancode);
+GEN_KB_MATCH_FUNC_PROTO(int, sdlkey);
+int sdlmsg_key_blocked(sdlmsg_t *msg);
+////
+
 #if 1	// only support SDL2
 sdlmsg_t* sdlmsg_keyboard(sdlmsg_t *msg, unsigned char pressed, unsigned short scancode, SDL_Keycode key, unsigned short mod, unsigned int unicode);
 sdlmsg_t* sdlmsg_mousewheel(sdlmsg_t *msg, unsigned short mousex, unsigned short mousey);

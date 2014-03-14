@@ -105,6 +105,7 @@ sdl_hook_init() {
 		return 0;
 	// override controller
 	sdl12_mapinit();
+	sdlmsg_kb_init();
 	ctrl_server_setreplay(sdl_hook_replay_callback);
 	no_default_controller = 1;
 	//
@@ -731,6 +732,9 @@ void
 sdl_hook_replay_callback(void *msg, int msglen) {
 	sdlmsg_t *smsg = (sdlmsg_t*) msg;
 	sdlmsg_ntoh(smsg);
+	if(sdlmsg_key_blocked(smsg)) {
+		return;
+	}
 	sdl12_hook_replay(smsg);
 	return;
 }

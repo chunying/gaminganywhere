@@ -45,6 +45,8 @@ using namespace std;
 #define	AVCODEC_MAX_AUDIO_FRAME_SIZE	192000 // 1 second of 48khz 32bit audio
 #endif
 
+#define RCVBUF_SIZE		262144
+
 #define	COUNT_FRAME_RATE	600	// every N frames
 
 struct RTSPConf *rtspconf;
@@ -982,6 +984,47 @@ setupNextSubsession(RTSPClient* rtspClient) {
 }
 
 static void
+SetRecvBufSize(RTPSource *rtpsrc) {
+	Groupsock *gs = NULL;
+	int s;
+#ifdef WIN32
+	DWORD bufsz;
+	int buflen;
+#else
+	int bufsz;
+	socklen_t buflen;
+#endif
+	//
+	if(rtpsrc == NULL) {
+		rtsperror("Receiver buffer size: no RTPSource available.\n");
+		return;
+	}
+	//
+	gs = rtpsrc->RTPgs();
+	if(gs == NULL) {
+		rtsperror("Receiver buffer size: no Groupsock available.\n");
+		return;
+	}
+	//
+	s = gs->socketNum();
+	//
+	bufsz = RCVBUF_SIZE;
+	if(setsockopt(s, SOL_SOCKET, SO_RCVBUF, (char*) &bufsz, sizeof(bufsz)) != 0) {
+		rtsperror("Receiver buffer size: set failed (%d).\n", RCVBUF_SIZE);
+		return;
+	}
+	//
+	buflen = sizeof(bufsz);
+	if(getsockopt(s, SOL_SOCKET, SO_RCVBUF, (char*) &bufsz, &buflen) != 0) {
+		rtsperror("Receiver buffer size: get failed.\n");
+		return;
+	}
+	//
+	rtsperror("Receiver buffer size: %d bytes.\n", bufsz);
+	return;
+}
+
+static void
 NATHolePunch(RTPSource *rtpsrc, MediaSubsession *subsession) {
 	Groupsock *gs = NULL;
 	int s;
@@ -1063,6 +1106,8 @@ continueAfterSETUP(RTSPClient* rtspClient, int resultCode, char* resultString) {
 		if (scs.subsession->rtcpInstance() != NULL) {
 			scs.subsession->rtcpInstance()->setByeHandler(subsessionByeHandler, scs.subsession);
 		}
+		// Set receiver buffer size
+		SetRecvBufSize(scs.subsession->rtpSource());
 		// NAT hole-punching?
 		NATHolePunch(scs.subsession->rtpSource(), scs.subsession);
 	} while (0);

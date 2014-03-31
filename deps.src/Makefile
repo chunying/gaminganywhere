@@ -38,7 +38,7 @@ sdl2:
 	rm -rf $(SDL2DIR)
 
 sdl2_ttf:
-	$(TBZUNPACK) $(SDL2_TTF)
+	$(TGZUNPACK) $(SDL2_TTF)
 	mkdir -p $(SDL2_TTFDIR)/mybuild
 	cd $(SDL2_TTFDIR)/mybuild; ../configure --prefix=$(GADEPS) --with-pic
 	make -C $(SDL2_TTFDIR)/mybuild -j5

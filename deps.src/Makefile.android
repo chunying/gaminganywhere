@@ -61,7 +61,7 @@ sdl2:
 
 sdl2_ttf:
 	# XXX: we need freetype
-	$(TBZUNPACK) $(SDL2_TTF)
+	$(TGZUNPACK) $(SDL2_TTF)
 	mkdir -p $(SDL2_TTFDIR)/mybuild
 	cd $(SDL2_TTFDIR)/mybuild; ../configure --prefix=$(GADEPS) --with-sdl-prefix=$(GADEPS) $(CROSSCOMPILE)
 	make -C $(SDL2_TTFDIR)/mybuild -j5
@@ -140,7 +140,7 @@ vpx:
 x264:
 	$(TBZUNPACK) $(X264)
 	# enable android pthread
-	cd $(X264DIR); cat ../patches/android-x264-*.diff | patch -p1
+	#cd $(X264DIR); cat ../patches/android-x264-*.diff | patch -p1
 	# disable so versioning
 	mv $(X264DIR)/configure $(X264DIR)/configure.old
 	cat $(X264DIR)/configure.old | sed -e 's,SONAME=libx264.so.$$API,SONAME=libx264.so,g' > $(X264DIR)/configure

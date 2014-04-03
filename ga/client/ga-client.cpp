@@ -213,6 +213,12 @@ create_overlay(struct RTSPThreadParam *rtspParam, int ch) {
 		SDL_SetRelativeMouseMode(SDL_TRUE);
 		showCursor = 0;
 		//SDL_ShowCursor(0);
+#if 0		//// XXX: EXPERIMENTAL - switch twice to make it normal?
+		switch_grab_input(NULL);
+		SDL_SetRelativeMouseMode(SDL_FALSE);
+		switch_grab_input(NULL);
+		SDL_SetRelativeMouseMode(SDL_TRUE);
+#endif		////
 		ga_error("ga-client: relative mouse mode enabled.\n");
 	}
 	//

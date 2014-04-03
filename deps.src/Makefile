@@ -4,11 +4,14 @@ MACHINE		= $(shell uname -m)
 SYSTEM		= $(shell uname -s)
 PACKAGES	= sdl2 sdl2_ttf yasm lame opus ogg vorbis theora vpx \
 		  x264 xvid ffmpeg live555
+OSX_CLANG_PATCH	= echo '*** Not on OS X: not applied ***'
 
 ifeq ($(SYSTEM),Darwin)
 VPX_EXTRA_CONFIG =
 HAS_BREW	= $(shell if which -s brew; then echo 1; else echo 0; fi)
 MACHINE		= $(shell uname -m)-apple-darwin
+OSX_CLANG_PATCH = perl -p -i -e "s/-falign-loops=16//g" configure; \
+		  perl -p -i -e "s/-fforce-addr//g"     configure
 ifeq ($(HAS_BREW),1)
 PACKAGES	= osx_brew live555
 endif
@@ -83,7 +86,8 @@ vorbis:
 
 theora:
 	$(TBZUNPACK) $(THEORA)
-	cd $(THEORADIR); ./configure --prefix=$(GADEPS) --with-pic
+	cd $(THEORADIR); $(OSX_CLANG_PATCH)
+	cd $(THEORADIR); ./configure --prefix=$(GADEPS) --with-pic --disable-examples
 	make -C $(THEORADIR) -j5
 	make -C $(THEORADIR) install
 	rm -rf $(THEORADIR)
@@ -97,10 +101,18 @@ vpx:
 
 x264:
 	$(TBZUNPACK) $(X264)
+	cd $(X264DIR); $(OSX_CLANG_PATCH)
 	cd $(X264DIR); ./configure --prefix=$(GADEPS) --enable-shared --enable-pic
 	make -C $(X264DIR) -j5
 	make -C $(X264DIR) install
 	rm -rf $(X264DIR)
+
+x265:
+	$(TBZUNPACK) $(X265)
+	cd $(X265DIR)/build/linux; cmake -D CMAKE_INSTALL_PREFIX:PATH=$(GADEPS) ../../source/
+	make -C $(X265DIR)/build/linux -j5
+	make -C $(X265DIR)/build/linux install
+	rm -rf $(X265DIR)
 
 xvid:
 	$(TBZUNPACK) $(XVID)

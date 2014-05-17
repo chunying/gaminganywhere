@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 Chun-Ying Huang
+ * Copyright (c) 2013-2014 Chun-Ying Huang
  *
  * This file is part of GamingAnywhere (GA).
  *
@@ -28,11 +28,11 @@
 #include "ga-avcodec.h"
 #include "ga-module.h"
 
-MODULE EXPORT void * aencoder_threadproc(void *arg);
+//MODULE EXPORT void * aencoder_threadproc(void *arg);
 
 static struct RTSPConf *rtspconf = NULL;
 
-void *
+static void *
 aencoder_threadproc(void *arg) {
 	AVCodecContext *encoder = NULL;
 	SwrContext *swrctx = NULL;
@@ -307,5 +307,15 @@ audio_quit:
 	ga_error("audio encoder: thread terminated (tid=%ld).\n", ga_gettid());
 	//
 	return NULL;
+}
+
+ga_module_t *
+module_load() {
+	static ga_module_t m;
+	bzero(&m, sizeof(m));
+	m.type = GA_MODULE_TYPE_AENCODER;
+	m.name = strdup("ffmpeg-audio-encoder");
+	m.threadproc = aencoder_threadproc;
+	return &m;
 }
 

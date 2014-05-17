@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 Chun-Ying Huang
+ * Copyright (c) 2013-2014 Chun-Ying Huang
  *
  * This file is part of GamingAnywhere (GA).
  *
@@ -154,8 +154,13 @@ sdlmsg_t* sdlmsg_mousewheel(sdlmsg_t *msg, unsigned short mousex, unsigned short
 sdlmsg_t* sdlmsg_mousekey(sdlmsg_t *msg, unsigned char pressed, unsigned char button, unsigned short x, unsigned short y);
 sdlmsg_t* sdlmsg_mousemotion(sdlmsg_t *msg, unsigned short mousex, unsigned short mousey, unsigned short relx, unsigned short rely, unsigned char state, int relativeMouseMode);
 
+#if 0
 MODULE MODULE_EXPORT int sdlmsg_replay_init(void *arg);
 MODULE MODULE_EXPORT void sdlmsg_replay_deinit(void *arg);
+#else
+int sdlmsg_replay_init(void *arg);
+void sdlmsg_replay_deinit(void *arg);
+#endif
 int sdlmsg_replay(sdlmsg_t *msg);
 void sdlmsg_replay_callback(void *msg, int msglen);
 

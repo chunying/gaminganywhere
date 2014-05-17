@@ -31,12 +31,14 @@
 
 using namespace std;
 
-static map<struct ga_module *, struct ga_module *> mlist;
+static map<ga_module_t *, HMODULE> mlist;
 
-struct ga_module *
+ga_module_t *
 ga_load_module(const char *modname, const char *prefix) {
 	char fn[1024];
-	struct ga_module m, *pm;
+	ga_module_t *m;
+	HMODULE handle;
+	ga_module_t * (*do_module_load)();
 #ifdef WIN32
 	snprintf(fn, sizeof(fn), "%s.dll", modname);
 #elif defined __APPLE__
@@ -44,33 +46,22 @@ ga_load_module(const char *modname, const char *prefix) {
 #else
 	snprintf(fn, sizeof(fn), "%s.so", modname);
 #endif
-	if((m.handle = dlopen(fn, RTLD_NOW|RTLD_LOCAL)) == NULL) {
+	//
+	if((handle = dlopen(fn, RTLD_NOW|RTLD_LOCAL)) == NULL) {
 		ga_error("ga_load_module: load module (%s) failed - %s.\n", fn, dlerror());
 		return NULL;
 	}
-	//
-	m.init = (int (*)(void*)) ga_module_loadfunc(m.handle, prefix, "init");
-	m.threadproc = (void* (*)(void*)) ga_module_loadfunc(m.handle, prefix, "threadproc");;
-	m.deinit = (void (*)(void*)) ga_module_loadfunc(m.handle, prefix, "deinit");
-	m.notify = (int (*)(void*,int)) ga_module_loadfunc(m.handle, prefix, "notify");
-	// nothing exports?
-	if(m.init == NULL
-	&& m.threadproc == NULL
-	&& m.deinit == NULL
-	&& m.notify == NULL) {
-		ga_error("ga_load_module: [%s] does not export nothing.\n", fn);
-		ga_unload_module(&m);
+	//if((loadfunc = ga_module_loadfunc(handle, prefix, "load")) == NULL) {
+	if((do_module_load = (ga_module_t * (*)()) dlsym(handle, "module_load")) == NULL) {
+		ga_error("ga_load_module: [%s] is not a valid module.\n", fn);
+		dlclose(handle);
 		return NULL;
 	}
-	//
-	if((pm = (struct ga_module*) malloc(sizeof(m))) == NULL) {
-		ga_error("ga_load_module: [%s] malloc failed - %s\n", fn, strerror(errno));
-		return NULL;
+	if((m = do_module_load()) != NULL) {
+		mlist[m] = handle;
 	}
-	bcopy(&m, pm, sizeof(m));
-	mlist[pm] = pm;
 	//
-	return pm;
+	return m;
 }
 
 void *
@@ -85,16 +76,19 @@ ga_module_loadfunc(HMODULE h, const char *prefix, const char *funcname) {
 }
 
 void
-ga_unload_module(struct ga_module *m) {
+ga_unload_module(ga_module_t *m) {
+	map<ga_module_t *, HMODULE>::iterator mi;
 	if(m == NULL)
 		return;
-	dlclose(m->handle);
-	bzero(m, sizeof(struct ga_module));
+	if((mi = mlist.find(m)) == mlist.end())
+		return;
+	dlclose(mi->second);
+	mlist.erase(mi);
 	return;
 }
 
 int
-ga_init_single_module(const char *name, struct ga_module *m, void *arg) {
+ga_init_single_module(const char *name, ga_module_t *m, void *arg) {
 	if(m->init == NULL)
 		return 0;
 	if(m->init(arg) < 0) {
@@ -105,7 +99,7 @@ ga_init_single_module(const char *name, struct ga_module *m, void *arg) {
 }
 
 void
-ga_init_single_module_or_quit(const char *name, struct ga_module *m, void *arg) {
+ga_init_single_module_or_quit(const char *name, ga_module_t *m, void *arg) {
 	if(ga_init_single_module(name, m, arg) < 0)
 		exit(-1);
 	return;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 Chun-Ying Huang
+ * Copyright (c) 2013-2014 Chun-Ying Huang
  *
  * This file is part of GamingAnywhere (GA).
  *
@@ -1126,4 +1126,17 @@ SDLKeyToKeySym(int sdlkey) {
 	}
 	return INVALID_KEY;
 }
+
+#ifdef GA_MODULE
+ga_module_t *
+module_load() {
+	static ga_module_t m;
+	bzero(&m, sizeof(m));
+	m.type = GA_MODULE_TYPE_CONTROL;
+	m.name = strdup("control-SDL");
+	m.init = sdlmsg_replay_init;
+	m.deinit = sdlmsg_replay_deinit;
+	return &m;
+}
+#endif
 

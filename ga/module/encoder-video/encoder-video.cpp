@@ -30,13 +30,13 @@
 
 #include "pipeline.h"
 
-MODULE EXPORT void * vencoder_threadproc(void *arg);
+//MODULE EXPORT void * vencoder_threadproc(void *arg);
 
 static struct RTSPConf *rtspconf = NULL;
 static int outputW;
 static int outputH;
 
-void *
+static void *
 vencoder_threadproc(void *arg) {
 	// arg is pointer to source pipe
 	// image info
@@ -223,5 +223,15 @@ video_quit:
 	ga_error("video encoder: thread terminated (tid=%ld).\n", ga_gettid());
 	//
 	return NULL;
+}
+
+ga_module_t *
+module_load() {
+	static ga_module_t m;
+	bzero(&m, sizeof(m));
+	m.type = GA_MODULE_TYPE_VENCODER;
+	m.name = strdup("ffmpeg-video-encoder");
+	m.threadproc = vencoder_threadproc;
+	return &m;
 }
 

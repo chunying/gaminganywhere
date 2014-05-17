@@ -64,7 +64,7 @@ static struct gaImage realimage, *image = &realimage;
 static struct gaRect *prect = NULL;
 static struct gaRect rect;
 
-static struct ga_module *m_filter, *m_vencoder, *m_asource, *m_aencoder, *m_ctrl;
+static ga_module_t *m_filter, *m_vencoder, *m_asource, *m_aencoder, *m_ctrl;
 
 int	// should be called only once
 vsource_init(int width, int height) {

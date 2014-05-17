@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 Chun-Ying Huang
+ * Copyright (c) 2013-2014 Chun-Ying Huang
  *
  * This file is part of GamingAnywhere (GA).
  *
@@ -39,7 +39,7 @@ static struct Xcap_wasapi_param audioparam;
 static struct Xcap_alsa_param audioparam;
 #endif
 
-int
+static int
 asource_init(void *arg) {
 	int delay = 0;
 	struct RTSPConf *rtspconf = rtspconf_global();
@@ -110,7 +110,7 @@ asource_init(void *arg) {
 	return 0;
 }
 
-void *
+static void *
 asource_threadproc(void *arg) {
 	int r;
 	unsigned char *fbuffer;
@@ -152,7 +152,7 @@ asource_threadproc(void *arg) {
 	return NULL;
 }
 
-void
+static void
 asource_deinit(void *arg) {
 #ifdef WIN32
 	ga_wasapi_close(&audioparam);
@@ -160,6 +160,18 @@ asource_deinit(void *arg) {
 	ga_alsa_close(audioparam.handle, audioparam.sndlog);
 #endif
 	return;
+}
+
+ga_module_t *
+module_load() {
+	static ga_module_t m;
+	bzero(&m, sizeof(m));
+	m.type = GA_MODULE_TYPE_ASOURCE;
+	m.name = strdup("asource-system");
+	m.init = asource_init;
+	m.threadproc = asource_threadproc;
+	m.deinit = asource_deinit;
+	return &m;
 }
 
 #endif	/* ENABLE_AUDIO */

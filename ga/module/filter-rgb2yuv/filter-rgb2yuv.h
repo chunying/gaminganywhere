@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 Chun-Ying Huang
+ * Copyright (c) 2013-2014 Chun-Ying Huang
  *
  * This file is part of GamingAnywhere (GA).
  *
@@ -23,7 +23,9 @@
 
 //#define	F_RGB2YUV_PIPEFORMAT	"filter-RGB2YUV-%d"
 
+#if 0
 MODULE MODULE_EXPORT int filter_RGB2YUV_init(void *arg);		// arg: array of the names of source pipe and dst pipe
 MODULE MODULE_EXPORT void* filter_RGB2YUV_threadproc(void *arg);	// arg: array of the names of source pipe and dst pipe
+#endif
 
 #endif

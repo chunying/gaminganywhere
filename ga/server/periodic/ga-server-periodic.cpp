@@ -37,7 +37,7 @@ static const char *filterpipe0 = "filter-0";
 static struct gaRect *prect = NULL;
 static struct gaRect rect;
 
-static struct ga_module *m_vsource, *m_filter, *m_vencoder, *m_asource, *m_aencoder, *m_ctrl;
+static ga_module_t *m_vsource, *m_filter, *m_vencoder, *m_asource, *m_aencoder, *m_ctrl;
 
 int
 load_modules() {

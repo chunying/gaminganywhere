@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 Chun-Ying Huang
+ * Copyright (c) 2013-2014 Chun-Ying Huang
  *
  * This file is part of GamingAnywhere (GA).
  *
@@ -21,8 +21,10 @@
 
 #include "ga-module.h"
 
+#if 0
 MODULE MODULE_EXPORT int vsource_init(void *arg);		// arg is pipeline format, e.g., image-%d
 MODULE MODULE_EXPORT void * vsource_threadproc(void *arg);	// arg is pipeline format, e.g., image-%d
 MODULE MODULE_EXPORT void vsource_deinit(void *arg);		// arg is not used
+#endif
 
 #endif

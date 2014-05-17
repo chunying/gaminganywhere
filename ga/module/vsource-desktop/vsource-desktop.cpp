@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 Chun-Ying Huang
+ * Copyright (c) 2013-2014 Chun-Ying Huang
  *
  * This file is part of GamingAnywhere (GA).
  *
@@ -62,7 +62,7 @@ static int screenwidth, screenheight;
 
 static struct gaImage realimage, *image = &realimage;
 
-int
+static int
 vsource_init(void *arg) {
 	struct RTSPConf *rtspconf = rtspconf_global();
 	//const char *pipeformat = (const char *) arg;
@@ -161,7 +161,7 @@ vsource_init(void *arg) {
 	return 0;
 }
 
-void *
+static void *
 vsource_threadproc(void *arg) {
 	int i;
 	int frame_interval;
@@ -285,7 +285,7 @@ vsource_threadproc(void *arg) {
 	return NULL;
 }
 
-void
+static void
 vsource_deinit(void *arg) {
 #ifdef WIN32
 	#ifdef D3D_CAPTURE
@@ -303,5 +303,17 @@ vsource_deinit(void *arg) {
 	ga_xwin_deinit();
 #endif
 	return;
+}
+
+ga_module_t *
+module_load() {
+	static ga_module_t m;
+	bzero(&m, sizeof(m));
+	m.type = GA_MODULE_TYPE_VSOURCE;
+	m.name = strdup("vsource-desktop");
+	m.init = vsource_init;
+	m.threadproc = vsource_threadproc;
+	m.deinit = vsource_deinit;
+	return &m;
 }
 

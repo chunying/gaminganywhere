@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 Chun-Ying Huang
+ * Copyright (c) 2013-2014 Chun-Ying Huang
  *
  * This file is part of GamingAnywhere (GA).
  *
@@ -41,7 +41,7 @@ static map<void*,bool> initialized;
 static int outputW;
 static int outputH;
 
-int
+static int
 filter_RGB2YUV_init(void *arg) {
 	// arg is image source id
 	int iid;
@@ -163,7 +163,7 @@ init_failed:
 	return -1;
 }
 
-void *
+static void *
 filter_RGB2YUV_threadproc(void *arg) {
 	// arg is pointer to source pipe
 	//char pipename[64];
@@ -285,5 +285,16 @@ filter_quit:
 	ga_error("RGB2YUV filter: thread terminated.\n");
 	//
 	return NULL;
+}
+
+ga_module_t *
+module_load() {
+	static ga_module_t m;
+	bzero(&m, sizeof(m));
+	m.type = GA_MODULE_TYPE_FILTER;
+	m.name = strdup("filter-RGB2YUV");
+	m.init = filter_RGB2YUV_init;
+	m.threadproc = filter_RGB2YUV_threadproc;
+	return &m;
 }
 

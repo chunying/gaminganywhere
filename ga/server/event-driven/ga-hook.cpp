@@ -52,7 +52,7 @@ static int hookid = 0;
 
 //static struct gaRect rect;
 
-static struct ga_module *m_filter, *m_vencoder, *m_asource, *m_aencoder, *m_ctrl;
+static ga_module_t *m_filter, *m_vencoder, *m_asource, *m_aencoder, *m_ctrl;
 
 static int module_checked = 0;
 

@@ -22,7 +22,6 @@
 #include "rtspconf.h"
 
 #define ENABLE_AUDIO
-#define	SHARE_ENCODER
 
 EXPORT void *rtspserver_main(void *arg);
 

@@ -690,7 +690,7 @@ rtp_new_av_stream(RTSPContext *ctx, struct sockaddr_in *sin, int streamid, enum 
 		ga_error("Cannot create new stream (%d)\n", codecid);
 		return -1;
 	}
-//#ifndef SHARE_ENCODER
+	//
 	if(codecid == rtspconf->video_encoder_codec->id) {
 		encoder = ga_avcodec_vencoder_init(
 				stream->codec,
@@ -713,7 +713,6 @@ rtp_new_av_stream(RTSPContext *ctx, struct sockaddr_in *sin, int streamid, enum 
 		ga_error("Cannot init encoder\n");
 		return -1;
 	}
-//#endif	/* SHARE_ENCODER */
 	//
 	ctx->encoder[streamid] = encoder;
 	ctx->stream[streamid] = stream;
@@ -904,27 +903,12 @@ rtsp_cmd_play(RTSPContext *ctx, const char *url, RTSPMessageHeader *h) {
 		rtsp_reply_error(ctx, RTSP_STATUS_STATE);
 		return;
 	}
-	// create threads
-#ifndef SHARE_ENCODER
-	if(pthread_create(&ctx->vthread, NULL, vencoder_thread, ctx) != 0) {
-		ga_error("cannot create video thread\n");
-		rtsp_reply_error(ctx, RTSP_STATUS_INTERNAL);
-		return;
-	}
-#ifdef ENABLE_AUDIO
-	if(pthread_create(&ctx->athread, NULL, aencoder_thread, ctx) != 0) {
-		ga_error("cannot create audio thread\n");
-		rtsp_reply_error(ctx, RTSP_STATUS_INTERNAL);
-		return;
-	}
-#endif	/* ENABLE_AUDIO */
-#else
+	// 2014-05-20: support only shared-encoder model
 	if(encoder_register_client(ctx) < 0) {
 		ga_error("cannot register encoder client.\n");
 		rtsp_reply_error(ctx, RTSP_STATUS_INTERNAL);
 		return;
 	}
-#endif	/* SHARE_ENCODER */
 	//
 	ctx->state = SERVER_STATE_PLAYING;
 	rtsp_reply_header(ctx, RTSP_STATUS_OK);
@@ -1252,15 +1236,8 @@ quit:
 	ctx.state = SERVER_STATE_TEARDOWN;
 	//
 	close(ctx.fd);
-#ifdef	SHARE_ENCODER
+	// 2014-05-20: support only share-encoder model
 	encoder_unregister_client(&ctx);
-#else
-	ga_error("connection closed, checking for worker threads...\n");
-	pthread_join(ctx.vthread, (void**) &thread_ret);
-#ifdef	ENABLE_AUDIO
-	pthread_join(ctx.athread, (void**) &thread_ret);
-#endif	/* ENABLE_AUDIO */
-#endif	/* SHARE_ENCODER */
 	//
 	per_client_deinit(&ctx);
 	//ga_error("RTSP client thread terminated (%d/%d clients left).\n",

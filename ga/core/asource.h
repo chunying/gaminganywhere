@@ -33,6 +33,7 @@ struct AudioBuffer {
 };
 
 EXPORT struct AudioBuffer * audio_source_buffer_init();
+EXPORT void audio_source_buffer_deinit(struct AudioBuffer *ab);
 EXPORT void audio_source_buffer_fill_one(AudioBuffer *ab, const unsigned char *data, int frames);
 EXPORT void audio_source_buffer_fill(const unsigned char *data, int frames);
 EXPORT int audio_source_buffer_read(AudioBuffer *ab, unsigned char *buf, int frames);

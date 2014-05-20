@@ -72,6 +72,16 @@ audio_source_buffer_init() {
 }
 
 void
+audio_source_buffer_deinit(struct AudioBuffer *ab) {
+	if(ab == NULL)
+		return;
+	if(ab->buffer != NULL)
+		free(ab->buffer);
+	free(ab);
+	return;
+}
+
+void
 audio_source_buffer_fill_one(AudioBuffer *ab, const unsigned char *data, int frames) {
 	int headspace, tailspace;
 	int framesize;

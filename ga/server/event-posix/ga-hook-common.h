@@ -39,7 +39,7 @@ extern pipeline *g_pipe[SOURCES];
 int vsource_init(int width, int height);
 
 int ga_hook_capture_prepared(int width, int height, int check_resolution);
-void ga_hook_capture_dupframe(struct vsource_frame *frame);
+void ga_hook_capture_dupframe(vsource_frame_t *frame);
 
 void *ga_server(void *arg);
 int ga_hook_get_resolution(int width, int height);

@@ -111,8 +111,8 @@ hook_glFlush() {
 	int vp_x, vp_y, vp_width, vp_height;
 	int i;
 	//
-	struct pooldata *data;
-	struct vsource_frame *frame;
+	pooldata_t *data;
+	vsource_frame_t *frame;
 	//
 	if(global_initialized == 0) {
 		gl_global_init();
@@ -158,7 +158,7 @@ hook_glFlush() {
 		frameLinesize = vp_width<<2;
 		//
 		data = g_pipe[0]->allocate_data();
-		frame = (struct vsource_frame*) data->ptr;
+		frame = (vsource_frame_t*) data->ptr;
 		frame->pixelformat = PIX_FMT_RGBA;
 		frame->realwidth = vp_width;
 		frame->realheight = vp_height;

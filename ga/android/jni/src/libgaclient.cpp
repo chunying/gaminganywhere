@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 Chun-Ying Huang
+ * Copyright (c) 2013-2014 Chun-Ying Huang
  *
  * This file is part of GamingAnywhere (GA).
  *
@@ -351,7 +351,7 @@ gl_resize(int width, int height) {
 int
 gl_render() {
 	extern int image_rendered;
-	struct pooldata *data = NULL;
+	pooldata_t *data = NULL;
 	AVPicture *vframe = NULL;
 	//
 	//ga_log("XXX: img=%dx%d; pipeline=0x%p\n",
@@ -398,7 +398,7 @@ int
 create_overlay(int ch, int w, int h, PixelFormat format) {
 	struct SwsContext *swsctx = NULL;
 	pipeline *pipe = NULL;
-	struct pooldata *data = NULL;
+	pooldata_t *data = NULL;
 	//
 	setScreenDimension(rtspThreadParam.jnienv, w, h);
 	// XXX: assume surfaceMutex[ch] locked
@@ -873,7 +873,7 @@ Java_org_gaminganywhere_gaclient_GAClient_rtspConnect(
 	rtspThreadParam.running = true;
 	rtspThreadParam.rtpOverTCP = (g_conf->proto == IPPROTO_TCP) ? true : false;
 	rtspThreadParam.jnienv = env;
-	for(int i = 0; i < IMAGE_SOURCE_CHANNEL_MAX; i++) {
+	for(int i = 0; i < VIDEO_SOURCE_CHANNEL_MAX; i++) {
 		pthread_mutex_init(&rtspThreadParam.surfaceMutex[i], NULL);
 	}
 	//

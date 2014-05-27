@@ -416,6 +416,7 @@ hook_coreaudio() {
 		return -1;
 	}
 	CA_DO_HOOK(CoCreateInstance);
+	ga_error("hook_coreaudio: done\n");
 	return 0;
 }
 

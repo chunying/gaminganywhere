@@ -24,15 +24,21 @@
 #include "ga-module.h"
 #include "rtspconf.h"
 #include "server.h"
+#include "ga-liveserver.h"
 #include "controller.h"
 #include "encoder-common.h"
 
 // image source pipeline:
 //	vsource -- [vsource-%d] --> filter -- [filter-%d] --> encoder
 
-static const char *imagepipefmt = "image-%d";
-static const char *imagepipe0 = "image-0";
-static const char *filterpipe0 = "filter-0";
+// configurations:
+static char *imagepipefmt = "video-%d";
+static char *filterpipefmt = "filter-%d";
+static char *imagepipe0 = "video-0";
+static char *filterpipe0 = "filter-0";
+static char *filter_param[] = { imagepipefmt, filterpipefmt };
+static char *video_encoder_param = filterpipefmt;
+static void *audio_encoder_param = NULL;
 
 static struct gaRect *prect = NULL;
 static struct gaRect rect;
@@ -65,23 +71,22 @@ load_modules() {
 int
 init_modules() {
 	struct RTSPConf *conf = rtspconf_global();
-	static const void *vsourcearg[] = { (void*) imagepipefmt, (void*) prect };
-	static const char *filterpipe[] = { imagepipe0, filterpipe0 };
+	//static const char *filterpipe[] = { imagepipe0, filterpipe0 };
 	if(conf->ctrlenable) {
 		ga_init_single_module_or_quit("controller", m_ctrl, (void *) prect);
 	}
 	// controller server is built-in - no need to init
 	// note the order of the two modules ...
-	ga_init_single_module_or_quit("image source", m_vsource, (void*) /*imagepipefmt*/vsourcearg);
-	ga_init_single_module_or_quit("filter", m_filter, (void*) filterpipe);
+	ga_init_single_module_or_quit("video-source", m_vsource, (void*) prect);
+	ga_init_single_module_or_quit("filter", m_filter, (void*) filter_param);
 	//
-	ga_init_single_module_or_quit("video encoder", m_vencoder, NULL);
+	ga_init_single_module_or_quit("video-encoder", m_vencoder, filterpipefmt);
 	if(ga_conf_readbool("enable-audio", 1) != 0) {
 	//////////////////////////
 #ifndef __APPLE__
-	ga_init_single_module_or_quit("audio source", m_asource, NULL);
+	ga_init_single_module_or_quit("audio-source", m_asource, NULL);
 #endif
-	ga_init_single_module_or_quit("audio encoder", m_aencoder, NULL);
+	ga_init_single_module_or_quit("audio-encoder", m_aencoder, NULL);
 	//////////////////////////
 	}
 	return 0;
@@ -94,19 +99,23 @@ run_modules() {
 	// controller server is built-in, but replay is a module
 	if(conf->ctrlenable) {
 		ga_run_single_module_or_quit("control server", ctrl_server_thread, conf);
-		ga_run_single_module_or_quit("control replayer", m_ctrl->threadproc, conf);
+		// XXX: safe to comment out?
+		//ga_run_single_module_or_quit("control replayer", m_ctrl->threadproc, conf);
 	}
 	// video
-	ga_run_single_module_or_quit("image source", m_vsource->threadproc, (void*) imagepipefmt);
-	ga_run_single_module_or_quit("filter 0", m_filter->threadproc, (void*) filterpipe);
-	encoder_register_vencoder(m_vencoder->threadproc, (void*) filterpipe0);
+	//ga_run_single_module_or_quit("image source", m_vsource->threadproc, (void*) imagepipefmt);
+	if(m_vsource->start(prect) < 0)		exit(-1);
+	//ga_run_single_module_or_quit("filter 0", m_filter->threadproc, (void*) filterpipe);
+	if(m_filter->start(filter_param) < 0)	exit(-1);
+	encoder_register_vencoder(m_vencoder, video_encoder_param);
 	// audio
 	if(ga_conf_readbool("enable-audio", 1) != 0) {
 	//////////////////////////
 #ifndef __APPLE__
-	ga_run_single_module_or_quit("audio source", m_asource->threadproc, NULL);
+	//ga_run_single_module_or_quit("audio source", m_asource->threadproc, NULL);
+	if(m_asource->start(NULL) < 0)		exit(-1);
 #endif
-	encoder_register_aencoder(m_aencoder->threadproc, NULL);
+	encoder_register_aencoder(m_aencoder, audio_encoder_param);
 	//////////////////////////
 	}
 	return 0;
@@ -150,7 +159,8 @@ main(int argc, char *argv[]) {
 	if(init_modules() < 0)	 	{ return -1; }
 	if(run_modules() < 0)	 	{ return -1; }
 	//
-	rtspserver_main(NULL);
+	//rtspserver_main(NULL);
+	liveserver_main(NULL);
 	// alternatively, it is able to create a thread to run rtspserver_main:
 	//	pthread_create(&t, NULL, rtspserver_main, NULL);
 	//

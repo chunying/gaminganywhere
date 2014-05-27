@@ -2,12 +2,25 @@
 #include <BasicUsageEnvironment.hh>
 
 #include "ga-common.h"
+#include "rtspconf.h"
+#include "encoder-common.h"
+#include "vsource.h"
 #include "ga-mediasubsession.h"
+#include "ga-liveserver.h"
 
-static UsageEnvironment* env;
+static UsageEnvironment* env = NULL;
 
 void *
-liveserver(void *arg) {
+liveserver_taskscheduler() {
+	if(env == NULL)
+		return NULL;
+	return &env->taskScheduler();
+}
+
+void *
+liveserver_main(void *arg) {
+	int cid;
+	RTSPConf *rtspconf = rtspconf_global();
 	TaskScheduler* scheduler = BasicTaskScheduler::createNew();
 	UserAuthenticationDatabase* authDB = NULL;
 	env = BasicUsageEnvironment::createNew(*scheduler);
@@ -19,17 +32,23 @@ liveserver(void *arg) {
 	// access to the server.
 #endif
 	RTSPServer* rtspServer = RTSPServer::createNew(*env, 8554, authDB);
+	//
 	if (rtspServer == NULL) {
 		//*env << "Failed to create RTSP server: " << env->getResultMsg() << "\n";
 		ga_error("Failed to create RTSP server: %s\n", env->getResultMsg());
 		exit(1);
 	}
 	//
+	encoder_pktqueue_init(VIDEO_SOURCE_CHANNEL_MAX+1, 3 * 1024* 1024/*3MB*/);
+	encoder_config_rtspserver(RTSPSERVER_TYPE_LIVE);
+	//
 	ServerMediaSession * sms
 		= ServerMediaSession::createNew(*env, "desktop", "desktop", 
 				"GamingAnywhere Server");
-	sms->addSubsession(GAMediaSubsession::createNew(*env, "audio/MPEG")); 
-	sms->addSubsession(GAMediaSubsession::createNew(*env, "video/H264")); 
+	for(cid = 0; cid < video_source_channels(); cid++) {
+		sms->addSubsession(GAMediaSubsession::createNew(*env, cid, encoder_get_vencoder()->mimetype)); 
+	}
+	sms->addSubsession(GAMediaSubsession::createNew(*env, cid, encoder_get_aencoder()->mimetype)); 
 	rtspServer->addServerMediaSession(sms);
 
 	if(rtspServer->setUpTunnelingOverHTTP(80)

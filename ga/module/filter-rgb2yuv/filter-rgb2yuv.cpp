@@ -36,56 +36,120 @@
 #define	POOLSIZE	8
 
 using namespace std;
-static pthread_mutex_t initMutex = PTHREAD_MUTEX_INITIALIZER;
-static map<void*,bool> initialized;
-static int outputW;
-static int outputH;
+
+static int filter_initialized = 0;
+static int filter_started = 0;
+static pthread_t filter_tid[VIDEO_SOURCE_CHANNEL_MAX];
+
+/* filter_RGB2YUV_init: arg is two pointers to pipeline format string */
+/*	1st ptr: source pipeline */
+/*	2nd ptr: destination pipeline */
+/* the number of pipeline(s) is equivalut to the number of video source(s) */
 
 static int
 filter_RGB2YUV_init(void *arg) {
 	// arg is image source id
 	int iid;
-	int iwidth;
-	int iheight;
-	int istride;
-	int resolution[2];
-	//char pipename[64];
 	const char **filterpipe = (const char **) arg;
-	//pipeline *srcpipe = (pipeline*) arg;
-	pipeline *srcpipe = pipeline::lookup(filterpipe[0]);
-	pipeline *pipe = NULL;
-	struct pooldata *data = NULL;
-	struct SwsContext *swsctx = NULL;
+	pipeline *srcpipe[VIDEO_SOURCE_CHANNEL_MAX];
+	pipeline *dstpipe[VIDEO_SOURCE_CHANNEL_MAX];
 	//
+	if(filter_initialized != 0)
+		return 0;
+	bzero(dstpipe, sizeof(dstpipe));
 	//
-	map<void*,bool>::iterator mi;
-	pthread_mutex_lock(&initMutex);
-	if((mi = initialized.find(arg)) != initialized.end()) {
-		if(mi->second != false) {
-			// has been initialized
-			pthread_mutex_unlock(&initMutex);
-			return 0;
+	for(iid = 0; iid < video_source_channels(); iid++) {
+		char pixelfmt[64];
+		char srcpipename[64], dstpipename[64];
+		int inputW, inputH, outputW, outputH;
+		struct SwsContext *swsctx = NULL;
+		pooldata_t *data = NULL;
+		//
+		snprintf(srcpipename, sizeof(srcpipename), filterpipe[0], iid);
+		snprintf(dstpipename, sizeof(dstpipename), filterpipe[1], iid);
+		srcpipe[iid] = pipeline::lookup(srcpipename);
+		if(srcpipe[iid] == NULL) {
+			ga_error("RGB2YUV filter: cannot find pipe %s\n", srcpipename);
+			goto init_failed;
 		}
+		inputW = video_source_curr_width(iid);
+		inputH = video_source_curr_height(iid);
+		outputW = video_source_out_width(iid);
+		outputH = video_source_out_height(iid);
+		// create default converters
+		if(ga_conf_readv("filter-source-pixelformat", pixelfmt, sizeof(pixelfmt)) != NULL) {
+			if(strcasecmp("rgba", pixelfmt) == 0) {
+				swsctx = create_frame_converter(
+						inputW, inputH, PIX_FMT_RGBA,
+						outputW, outputH, PIX_FMT_YUV420P);
+				ga_error("RGB2YUV filter: RGBA source specified.\n");
+			} else if(strcasecmp("bgra", pixelfmt) == 0) {
+				swsctx = create_frame_converter(
+						inputW, inputH, PIX_FMT_BGRA,
+						outputW, outputH, PIX_FMT_YUV420P);
+				ga_error("RGB2YUV filter: BGRA source specified.\n");
+			}
+		}
+		if(swsctx == NULL) {
+#ifdef __APPLE__
+			swsctx = create_frame_converter(
+					inputW, inputH, PIX_FMT_RGBA,
+					outputW, outputH, PIX_FMT_YUV420P);
+#else
+			swsctx = create_frame_converter(
+					inputW, inputH, PIX_FMT_BGRA,
+					outputW, outputH, PIX_FMT_YUV420P);
+#endif
+		}
+		if(swsctx == NULL) {
+			ga_error("RGB2YUV filter: cannot initialize converters.\n");
+			goto init_failed;
+		}
+		//
+		if((dstpipe[iid] = new pipeline()) == NULL) {
+			ga_error("RGB2YUV filter: create dst-pipeline failed (%s).\n", dstpipename);
+			goto init_failed;
+		}
+#if 1		// XXX: to be removed
+		// has privdata from the source?
+		if(srcpipe[iid]->get_privdata_size() > 0) {
+			if(dstpipe[iid]->alloc_privdata(srcpipe[iid]->get_privdata_size()) == NULL) {
+				ga_error("RGB2YUV filter: cannot allocate privdata.\n");
+				goto init_failed;
+			}
+			dstpipe[iid]->set_privdata(srcpipe[iid]->get_privdata(), srcpipe[iid]->get_privdata_size());
+		}
+#endif
+		//
+		if((data = dstpipe[iid]->datapool_init(POOLSIZE, sizeof(vsource_frame_t))) == NULL) {
+			ga_error("RGB2YUV filter: cannot allocate data pool for %s.\n", dstpipename);
+			goto init_failed;
+		}
+		// per frame init
+		for(; data != NULL; data = data->next) {
+			if(vsource_frame_init(iid, (vsource_frame_t*) data->ptr) == NULL) {
+				ga_error("RGB2YUV filter: init frame failed for %s.\n", dstpipename);
+				goto init_failed;
+			}
+		}
+		//
+		pipeline::do_register(dstpipename, dstpipe[iid]);
+		video_source_add_pipename(iid, dstpipename);
 	}
-	pthread_mutex_unlock(&initMutex);
 	//
+#if 0
 	if(srcpipe == NULL) {
 		ga_error("RGB2YUV filter: init - NULL pipeline specified (%s).\n", filterpipe[0]);
 		goto init_failed;
 	}
-	iid = ((struct vsource_config*) srcpipe->get_privdata())->id;
-	iwidth = video_source_maxwidth(iid);
-	iheight = video_source_maxheight(iid);
-	istride = video_source_maxstride(iid);
+	iid = ((vsource_t *) srcpipe->get_privdata())->channel;
+	iwidth = video_source_curr_width(iid);
+	iheight = video_source_curr_height(iid);
+	istride = video_source_curr_stride(iid);
 	//
-	outputW = iwidth;	// by default, the same as max resolution
-	outputH = iheight;
-	if(ga_conf_readints("output-resolution", resolution, 2) == 2) {
-		outputW = resolution[0];
-		outputH = resolution[1];
-		ga_error("RGB2YUV filter: output-resolution specified: %dx%d\n",
-			outputW, outputH);
-	}
+	outputW = video_source_out_width(iid);
+	outputH = video_source_out_height(iid);
+	ga_error("RGB2YUV filter: output-resolution = %dx%d\n", outputW, outputH);
 	// create default converters
 	do {
 		char pixelfmt[64];
@@ -137,44 +201,54 @@ filter_RGB2YUV_init(void *arg) {
 		pipe->set_privdata(srcpipe->get_privdata(), srcpipe->get_privdata_size());
 	}
 	//
-	if((data = pipe->datapool_init(POOLSIZE, sizeof(struct vsource_frame))) == NULL) {
+	if((data = pipe->datapool_init(POOLSIZE, sizeof(vsource_frame_t))) == NULL) {
 		ga_error("RGB2YUV filter: cannot allocate data pool.\n");
 		goto init_failed;
 	}
 	// per frame init
 	for(; data != NULL; data = data->next) {
-		if(vsource_frame_init((struct vsource_frame*) data->ptr, iwidth, iheight, istride) == NULL) {
+		if(vsource_frame_init(iid, (vsource_frame_t*) data->ptr) == NULL) {
 			ga_error("RGB2YUV filter: init frame failed.\n");
 			goto init_failed;
 		}
 	}
 	//
 	pipeline::do_register(filterpipe[1], pipe);
+	video_source_add_pipename(iid, filterpipe[1]);
+#endif
 	//
-	pthread_mutex_lock(&initMutex);
-	initialized[arg] = true;
-	pthread_mutex_unlock(&initMutex);
+	filter_initialized = 1;
 	//
 	return 0;
 init_failed:
+	for(iid = 0; iid < video_source_channels(); iid++) {
+		if(dstpipe[iid] != NULL)
+			delete dstpipe[iid];
+		dstpipe[iid] = NULL;
+	}
+#if 0
 	if(pipe) {
 		delete pipe;
 	}
+#endif
 	return -1;
 }
+
+/* filter_RGB2YUV_threadproc: arg is two pointers to pipeline name */
+/*	1st ptr: source pipeline */
+/*	2nd ptr: destination pipeline */
 
 static void *
 filter_RGB2YUV_threadproc(void *arg) {
 	// arg is pointer to source pipe
 	//char pipename[64];
 	const char **filterpipe = (const char **) arg;
-	//pipeline *srcpipe = (pipeline*) arg;
 	pipeline *srcpipe = pipeline::lookup(filterpipe[0]);
-	pipeline *dstpipe = NULL;
-	struct pooldata *srcdata = NULL;
-	struct pooldata *dstdata = NULL;
-	struct vsource_frame *srcframe = NULL;
-	struct vsource_frame *dstframe = NULL;
+	pipeline *dstpipe = pipeline::lookup(filterpipe[1]);
+	pooldata_t *srcdata = NULL;
+	pooldata_t *dstdata = NULL;
+	vsource_frame_t *srcframe = NULL;
+	vsource_frame_t *dstframe = NULL;
 	// image info
 	//int istride = video_source_maxstride();
 	//
@@ -182,31 +256,34 @@ filter_RGB2YUV_threadproc(void *arg) {
 	unsigned char *dst[] = { NULL, NULL, NULL, NULL };
 	int srcstride[] = { 0, 0, 0, 0 };
 	int dststride[] = { 0, 0, 0, 0 };
+	int iid;
+	int outputW, outputH;
 	//
 	struct SwsContext *swsctx = NULL;
 	//
 	pthread_mutex_t condMutex = PTHREAD_MUTEX_INITIALIZER;
 	pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
 	//
-	if(srcpipe == NULL) {
-		ga_error("RGB2YUV filter: NULL pipeline specified.\n");
-		goto filter_quit;
-	}
-	// init variables
-	if((dstpipe = pipeline::lookup(filterpipe[1])) == NULL) {
-		ga_error("RGB2YUV filter: cannot find pipeline '%s'\n", filterpipe[1]/*pipename*/);
+	if(srcpipe == NULL || dstpipe == NULL) {
+		ga_error("RGB2YUV filter: bad pipeline (src=%p; dst=%p).\n", srcpipe, dstpipe);
 		goto filter_quit;
 	}
 	//
-	ga_error("RGB2YUV filter: pipe from '%s' to '%s' (output-resolution=%dx%d)\n",
+	if(dstpipe->get_privdata_size() <= 0) {
+		ga_error("RGB2YUV filter: no privdata found in %s\n", dstpipe);
+	}
+	iid = ((vsource_t*) dstpipe->get_privdata())->channel;
+	outputW = video_source_out_width(iid);
+	outputH = video_source_out_height(iid);
+	//
+	ga_error("RGB2YUV filter[%ld]: pipe#%d from '%s' to '%s' (output-resolution=%dx%d)\n",
+		ga_gettid(), iid,
 		srcpipe->name(), dstpipe->name(),
 		outputW/*iwidth*/, outputH/*iheight*/);
 	//
 	srcpipe->client_register(ga_gettid(), &cond);
 	// start filtering
-	ga_error("RGB2YUV filter started: tid=%ld.\n", ga_gettid());
-	//
-	while(true) {
+	while(filter_started != 0) {
 		// wait for notification
 		srcdata = srcpipe->load_data();
 		if(srcdata == NULL) {
@@ -220,10 +297,10 @@ filter_RGB2YUV_threadproc(void *arg) {
 				goto filter_quit;
 			}
 		}
-		srcframe = (struct vsource_frame*) srcdata->ptr;
+		srcframe = (vsource_frame_t*) srcdata->ptr;
 		//
 		dstdata = dstpipe->allocate_data();
-		dstframe = (struct vsource_frame*) dstdata->ptr;
+		dstframe = (vsource_frame_t*) dstdata->ptr;
 		// basic info
 		dstframe->imgpts = srcframe->imgpts;
 		dstframe->pixelformat = PIX_FMT_YUV420P;	//yuv420p;
@@ -287,6 +364,51 @@ filter_quit:
 	return NULL;
 }
 
+/* filter_RGB2YUV_start: arg is two pointers to pipeline format string */
+/*	1st ptr: source pipeline */
+/*	2nd ptr: destination pipeline */
+/* the number of pipeline(s) is equivalut to the number of video source(s) */
+
+static int
+filter_RGB2YUV_start(void *arg) {
+	int iid;
+	const char **filterpipe = (const char **) arg;
+	static char *filter_param[VIDEO_SOURCE_CHANNEL_MAX][2];
+#define	MAXPARAMLEN	64
+	static char params[VIDEO_SOURCE_CHANNEL_MAX][2][MAXPARAMLEN];
+	//
+	if(filter_started != 0)
+		return 0;
+	filter_started = 1;
+	for(iid = 0; iid < video_source_channels(); iid++) {
+		snprintf(params[iid][0], MAXPARAMLEN, filterpipe[0], iid);
+		snprintf(params[iid][1], MAXPARAMLEN, filterpipe[1], iid);
+		filter_param[iid][0] = params[iid][0];
+		filter_param[iid][1] = params[iid][1];
+		if(pthread_create(&filter_tid[iid], NULL, filter_RGB2YUV_threadproc, filter_param[iid]) != 0) {
+			filter_started = 0;
+			ga_error("filter RGB2YUV: create thread failed.\n");
+			return -1;
+		}
+		pthread_detach(filter_tid[iid]);
+	}
+	return 0;
+}
+
+/* filter_RGB2YUV_stop: no arguments are required */
+
+static int
+filter_RGB2YUV_stop(void *arg) {
+	int iid;
+	if(filter_started == 0)
+		return 0;
+	filter_started = 0;
+	for(iid = 0; iid < video_source_channels(); iid++) {
+		pthread_cancel(filter_tid[iid]);
+	}
+	return 0;
+}
+
 ga_module_t *
 module_load() {
 	static ga_module_t m;
@@ -294,7 +416,9 @@ module_load() {
 	m.type = GA_MODULE_TYPE_FILTER;
 	m.name = strdup("filter-RGB2YUV");
 	m.init = filter_RGB2YUV_init;
-	m.threadproc = filter_RGB2YUV_threadproc;
+	m.start = filter_RGB2YUV_start;
+	m.stop = filter_RGB2YUV_stop;
+	//m.threadproc = filter_RGB2YUV_threadproc;
 	return &m;
 }
 

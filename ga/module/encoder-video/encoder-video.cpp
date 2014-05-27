@@ -30,23 +30,126 @@
 
 #include "pipeline.h"
 
-//MODULE EXPORT void * vencoder_threadproc(void *arg);
-
 static struct RTSPConf *rtspconf = NULL;
-static int outputW;
-static int outputH;
+
+static int vencoder_initialized = 0;
+static int vencoder_started = 0;
+static pthread_t vencoder_tid[VIDEO_SOURCE_CHANNEL_MAX];
+//// encoders for encoding
+static AVCodecContext *vencoder[VIDEO_SOURCE_CHANNEL_MAX];
+//// encoders for generating SDP
+/* we separate encoder and encoder_sdp because some ffmpeg codecs
+ * only generate ctx->extradata when CODEC_FLAG_GLOBAL_HEADER flag
+ * is set */
+static AVCodecContext *vencoder_sdp[VIDEO_SOURCE_CHANNEL_MAX];
+
+// specific data for h.264/h.265
+static char *_sps[VIDEO_SOURCE_CHANNEL_MAX];
+static int _spslen[VIDEO_SOURCE_CHANNEL_MAX];
+static char *_pps[VIDEO_SOURCE_CHANNEL_MAX];
+static int _ppslen[VIDEO_SOURCE_CHANNEL_MAX];
+
+static int
+vencoder_deinit(void *arg) {
+	int iid;
+	for(iid = 0; iid < video_source_channels(); iid++) {
+		if(_sps[iid] != NULL)
+			free(_sps[iid]);
+		if(_pps[iid] != NULL)
+			free(_pps[iid]);
+		if(vencoder_sdp[iid] != NULL)
+			ga_avcodec_close(vencoder_sdp[iid]);
+		if(vencoder[iid] != NULL)
+			ga_avcodec_close(vencoder[iid]);
+		vencoder_sdp[iid] = NULL;
+		vencoder[iid] = NULL;
+	}
+	bzero(_sps, sizeof(_sps));
+	bzero(_pps, sizeof(_pps));
+	bzero(_spslen, sizeof(_spslen));
+	bzero(_ppslen, sizeof(_ppslen));
+	vencoder_initialized = 0;
+	ga_error("video encoder: deinitialized.\n");
+	return 0;
+}
+
+static int
+vencoder_init(void *arg) {
+	int iid;
+	char *pipefmt = (char*) arg;
+	struct RTSPConf *rtspconf = rtspconf_global();
+	//
+	if(rtspconf == NULL) {
+		ga_error("video encoder: no configuration found\n");
+		return -1;
+	}
+	if(vencoder_initialized != 0)
+		return 0;
+	//
+	for(iid = 0; iid < video_source_channels(); iid++) {
+		char pipename[64];
+		int outputW, outputH;
+		pipeline *pipe;
+		AVCodecContext *avc = NULL;
+		//
+		_sps[iid] = _pps[iid] = NULL;
+		_spslen[iid] = _ppslen[iid] = 0;
+		snprintf(pipename, sizeof(pipename), pipefmt, iid);
+		outputW = video_source_out_width(iid);
+		outputH = video_source_out_height(iid);
+		if((pipe = pipeline::lookup(pipename)) == NULL) {
+			ga_error("video encoder: pipe %s is not found\n", pipename);
+			goto init_failed;
+		}
+		ga_error("video encoder: video source #%d from '%s' (%dx%d).\n",
+			iid, pipe->name(), outputW, outputH, iid);
+		vencoder[iid] = ga_avcodec_vencoder_init(NULL,
+				rtspconf->video_encoder_codec,
+				outputW, outputH,
+				rtspconf->video_fps, rtspconf->vso);
+		if(vencoder[iid] == NULL)
+			goto init_failed;
+		// encoders for SDP generation
+		switch(rtspconf->video_encoder_codec->id) {
+		case AV_CODEC_ID_H264:
+		case AV_CODEC_ID_H265:
+		case AV_CODEC_ID_CAVS:
+		case AV_CODEC_ID_MPEG4:
+			// need ctx with CODEC_FLAG_GLOBAL_HEADER flag
+			avc = avcodec_alloc_context3(rtspconf->video_encoder_codec);
+			if(avc == NULL)
+				goto init_failed;
+			avc->flags |= CODEC_FLAG_GLOBAL_HEADER;
+			avc = ga_avcodec_vencoder_init(avc,
+				rtspconf->video_encoder_codec,
+				outputW, outputH,
+				rtspconf->video_fps, rtspconf->vso);
+			if(avc == NULL)
+				goto init_failed;
+			ga_error("video encoder: meta-encoder #%d created.\n", iid);
+			break;
+		default:
+			// do nothing
+			break;
+		}
+		vencoder_sdp[iid] = avc;
+	}
+	vencoder_initialized = 1;
+	ga_error("video encoder: initialized.\n");
+	return 0;
+init_failed:
+	vencoder_deinit(NULL);
+	return -1;
+}
 
 static void *
 vencoder_threadproc(void *arg) {
-	// arg is pointer to source pipe
-	// image info
-	int iid;
-	int iwidth;
-	int iheight;
-	int rtp_id;
-	struct pooldata *data = NULL;
-	struct vsource_frame *frame = NULL;
-	pipeline *pipe = (pipeline*) arg;
+	// arg is pointer to source pipename
+	int iid, outputW, outputH;
+	pooldata_t *data = NULL;
+	vsource_frame_t *frame = NULL;
+	char *pipename = (char*) arg;
+	pipeline *pipe = pipeline::lookup(pipename);
 	AVCodecContext *encoder = NULL;
 	//
 	AVFrame *pic_in = NULL;
@@ -58,41 +161,20 @@ vencoder_threadproc(void *arg) {
 	pthread_mutex_t condMutex = PTHREAD_MUTEX_INITIALIZER;
 	pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
 	//
-	int resolution[2];
 	int video_written = 0;
 	//
 	if(pipe == NULL) {
-		ga_error("video encoder: NULL pipeline specified.\n");
+		ga_error("video encoder: invalid pipeline specified (%s).\n", pipename);
 		goto video_quit;
 	}
 	//
 	rtspconf = rtspconf_global();
 	// init variables
-	iid = ((struct vsource_config*) pipe->get_privdata())->id;
-	iwidth = video_source_maxwidth(iid);
-	iheight = video_source_maxheight(iid);
-	rtp_id = ((struct vsource_config*) pipe->get_privdata())->rtp_id;
+	iid = ((vsource_t*) pipe->get_privdata())->channel;
+	encoder = vencoder[iid];
 	//
-	outputW = iwidth;	// by default, the same as max resolution
-	outputH = iheight;
-	if(ga_conf_readints("output-resolution", resolution, 2) == 2) {
-		outputW = resolution[0];
-		outputH = resolution[1];
-	}
-	//
-	ga_error("video encoder: image source from '%s' (%dx%d) via channel %d, resolution=%dx%d.\n",
-		pipe->name(), iwidth, iheight, rtp_id, outputW, outputH);
-	//
-	encoder = ga_avcodec_vencoder_init(
-			NULL,
-			rtspconf->video_encoder_codec,
-			outputW, outputH,
-			rtspconf->video_fps,
-			rtspconf->vso);
-	if(encoder == NULL) {
-		ga_error("video encoder: cannot initialized the encoder.\n");
-		goto video_quit;
-	}
+	outputW = video_source_out_width(iid);
+	outputH = video_source_out_height(iid);
 	//
 	nalbuf_size = 100000+12 * outputW * outputH;
 	if(ga_malloc(nalbuf_size, (void**) &nalbuf, &nalign) < 0) {
@@ -116,12 +198,12 @@ vencoder_threadproc(void *arg) {
 	// start encoding
 	ga_error("video encoding started: tid=%ld %dx%d@%dfps, nalbuf_size=%d, pic_in_size=%d.\n",
 		ga_gettid(),
-		iwidth, iheight, rtspconf->video_fps,
+		outputW, outputH, rtspconf->video_fps,
 		nalbuf_size, pic_in_size);
 	//
 	pipe->client_register(ga_gettid(), &cond);
 	//
-	while(encoder_running() > 0) {
+	while(vencoder_started != 0 && encoder_running() > 0) {
 		AVPacket pkt;
 		int got_packet = 0;
 		// wait for notification
@@ -145,7 +227,7 @@ vencoder_threadproc(void *arg) {
 				continue;
 			}
 		}
-		frame = (struct vsource_frame*) data->ptr;
+		frame = (vsource_frame_t*) data->ptr;
 		// handle pts
 		if(basePts == -1LL) {
 			basePts = frame->imgpts;
@@ -189,7 +271,7 @@ vencoder_threadproc(void *arg) {
 			pkt.stream_index = 0;
 			// send the packet
 			if(encoder_send_packet_all("video-encoder",
-				rtp_id/*rtspconf->video_id*/, &pkt,
+				iid/*rtspconf->video_id*/, &pkt,
 				pkt.pts) < 0) {
 				goto video_quit;
 			}
@@ -218,20 +300,219 @@ video_quit:
 	if(pic_in_buf)	av_free(pic_in_buf);
 	if(pic_in)	av_free(pic_in);
 	if(nalbuf)	free(nalbuf);
-	if(encoder)	ga_avcodec_close(encoder);
 	//
 	ga_error("video encoder: thread terminated (tid=%ld).\n", ga_gettid());
 	//
 	return NULL;
 }
 
+static int
+vencoder_start(void *arg) {
+	int iid;
+	char *pipefmt = (char*) arg;
+#define	MAXPARAMLEN	64
+	static char pipename[VIDEO_SOURCE_CHANNEL_MAX][MAXPARAMLEN];
+	if(vencoder_started != 0)
+		return 0;
+	vencoder_started = 1;
+	for(iid = 0; iid < video_source_channels(); iid++) {
+		snprintf(pipename[iid], MAXPARAMLEN, pipefmt, iid);
+		if(pthread_create(&vencoder_tid[iid], NULL, vencoder_threadproc, pipename[iid]) != 0) {
+			vencoder_started = 0;
+			ga_error("video encoder: create thread failed.\n");
+			return -1;
+		}
+	}
+	ga_error("video encdoer: all started (%d)\n", iid);
+	return 0;
+}
+
+static int
+vencoder_stop(void *arg) {
+	int iid;
+	void *ignored;
+	if(vencoder_started == 0)
+		return 0;
+	vencoder_started = 0;
+	for(iid = 0; iid < video_source_channels(); iid++) {
+		pthread_join(vencoder_tid[iid], &ignored);
+	}
+	ga_error("video encdoer: all stopped (%d)\n", iid);
+	return 0;
+}
+
+static void *
+vencoder_raw(void *arg, int *size) {
+#if defined __APPLE__
+	int64_t in = (int64_t) arg;
+	int iid = (int) (in & 0xffffffffLL);
+#else
+	int iid = (int) arg;
+#endif
+	if(vencoder_initialized == 0)
+		return NULL;
+	if(size)
+		*size = sizeof(vencoder[iid]);
+	return vencoder[iid];
+}
+
+/* find startcode: 00 00 00 01 - a simplified version */
+static unsigned char *
+find_startcode(unsigned char *data, unsigned char *end) {
+	unsigned char *r;
+	for(r = data; r < end - 4; r++) {
+		if(r[0] == 0
+		&& r[1] == 0
+		&& r[2] == 0
+		&& r[3] == 1)
+			return r;
+	}
+	return end;
+}
+
+static int
+h264_get_sps_pps(int channelId, unsigned char *data, int datalen) {
+	int ret = -1;
+	unsigned char *r;
+	unsigned char *sps = NULL, *pps = NULL;
+	int spslen = 0, ppslen = 0;
+	if(_sps[channelId] != NULL)
+		return 0;
+	ga_error("video encoder: extradata=%p(%d)\n", data, datalen);
+	for(int i = 0; i < datalen; i++) {
+		fprintf(stderr, "%02x ", data[i]);
+		if((i+1) % 16 == 0)
+			fprintf(stderr, "\n");
+	}
+	fprintf(stderr, "\n");
+	r = find_startcode(data, data + datalen);
+	while(r < data + datalen) {
+		unsigned char nal_type;
+		unsigned char *r1;
+		if(sps != NULL && pps != NULL)
+			break;
+		while(0 == (*r++))
+			;
+		nal_type = *r & 0x1f;
+		r1 = find_startcode(r, data + datalen);
+		if(nal_type == 7) {
+			// SPS
+			sps = r;
+			spslen = r1 - r;
+		} else if(nal_type == 8) {
+			// PPS
+			pps = r;
+			ppslen = r1 - r;
+		}
+		r = r1;
+	}
+	if(sps != NULL && pps != NULL) {
+		// alloc and copy SPS
+		if((_sps[channelId] = (char*) malloc(spslen)) == NULL)
+			return -1;
+		_spslen[channelId] = spslen;
+		bcopy(sps, _sps[channelId], spslen);
+		// alloc and copy PPS
+		if((_pps[channelId] = (char*) malloc(ppslen)) == NULL) {
+			free(_sps[channelId]);
+			_sps[channelId] = NULL;
+			return -1;
+		}
+		_ppslen[channelId] = ppslen;
+		bcopy(pps, _pps[channelId], ppslen);
+		ga_error("video encoder: found sps@%d(%d); pps@%d(%d)\n",
+			sps-data, _spslen[channelId],
+			pps-data, _ppslen[channelId]);
+		//
+		ret = 0;
+	}
+	return ret;
+}
+
+static void *
+vencoder_opt1(void *arg, int *size) {
+	AVCodecContext *ve = NULL;
+#if defined __APPLE__
+	int64_t in = (int64_t) arg;
+	int iid = (int) (in & 0xffffffffLL);
+#else
+	int iid = (int) arg;
+#endif
+	void *ret = NULL;
+	if(vencoder_initialized == 0)
+		return NULL;
+	ve = vencoder_sdp[iid] ? vencoder_sdp[iid] : vencoder[iid];
+	if(ve == NULL)
+		return NULL;
+	if(ve->extradata_size <= 0)
+		return NULL;
+	switch(ve->codec_id) {
+	case AV_CODEC_ID_H264:
+		if(h264_get_sps_pps(iid, ve->extradata, ve->extradata_size) < 0)
+			return NULL;
+		*size = _spslen[iid];
+		return _sps[iid];
+		break;
+	default:
+		*size = ve->extradata_size;
+		ret = ve->extradata;
+	}
+	return ret;
+}
+
+static void *
+vencoder_opt2(void *arg, int *size) {
+	AVCodecContext *ve = NULL;
+#if defined __APPLE__
+	int64_t in = (int64_t) arg;
+	int iid = (int) (in & 0xffffffffLL);
+#else
+	int iid = (int) arg;
+#endif
+	void *ret = NULL;
+	if(vencoder_initialized == 0)
+		return NULL;
+	ve = vencoder_sdp[iid] ? vencoder_sdp[iid] : vencoder[iid];
+	if(ve == NULL)
+		return NULL;
+	if(ve->extradata_size <= 0)
+		return NULL;
+	switch(ve->codec_id) {
+	case AV_CODEC_ID_H264:
+		// return PPS
+		if(h264_get_sps_pps(iid, ve->extradata, ve->extradata_size) < 0)
+			return NULL;
+		*size = _ppslen[iid];
+		return _pps[iid];
+		break;
+	default:
+		*size = ve->extradata_size;
+		ret = ve->extradata;
+	}
+	return ret;
+}
+
 ga_module_t *
 module_load() {
 	static ga_module_t m;
+	struct RTSPConf *rtspconf = rtspconf_global();
+	char mime[64];
+	//
 	bzero(&m, sizeof(m));
 	m.type = GA_MODULE_TYPE_VENCODER;
 	m.name = strdup("ffmpeg-video-encoder");
-	m.threadproc = vencoder_threadproc;
+	if(ga_conf_readv("video-mimetype", mime, sizeof(mime)) != NULL) {
+		m.mimetype = strdup(mime);
+	}
+	m.init = vencoder_init;
+	m.start = vencoder_start;
+	//m.threadproc = vencoder_threadproc;
+	m.stop = vencoder_stop;
+	m.deinit = vencoder_deinit;
+	//
+	m.raw = vencoder_raw;
+	m.option1 = vencoder_opt1;
+	m.option2 = vencoder_opt2;
 	return &m;
 }
 

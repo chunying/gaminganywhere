@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 Chun-Ying Huang
+ * Copyright (c) 2013-2014 Chun-Ying Huang
  *
  * This file is part of GamingAnywhere (GA).
  *
@@ -44,7 +44,7 @@ extern int image_rendered;
 #define	RTSP_VIDEOSTATE_NULL	0
  
 #ifdef ANDROID
-#define	IMAGE_SOURCE_CHANNEL_MAX	2
+#define	VIDEO_SOURCE_CHANNEL_MAX	2
 #endif
 
 struct RTSPThreadParam {
@@ -55,24 +55,24 @@ struct RTSPThreadParam {
 #endif
 	char quitLive555;
 	// video
-	int width[IMAGE_SOURCE_CHANNEL_MAX];
-	int height[IMAGE_SOURCE_CHANNEL_MAX];
-	PixelFormat format[IMAGE_SOURCE_CHANNEL_MAX];
+	int width[VIDEO_SOURCE_CHANNEL_MAX];
+	int height[VIDEO_SOURCE_CHANNEL_MAX];
+	PixelFormat format[VIDEO_SOURCE_CHANNEL_MAX];
 #ifdef ANDROID
 	JNIEnv *jnienv;
-	pthread_mutex_t surfaceMutex[IMAGE_SOURCE_CHANNEL_MAX];
-	struct SwsContext *swsctx[IMAGE_SOURCE_CHANNEL_MAX];
-	pipeline *pipe[IMAGE_SOURCE_CHANNEL_MAX];
+	pthread_mutex_t surfaceMutex[VIDEO_SOURCE_CHANNEL_MAX];
+	struct SwsContext *swsctx[VIDEO_SOURCE_CHANNEL_MAX];
+	pipeline *pipe[VIDEO_SOURCE_CHANNEL_MAX];
 #else
-	pthread_mutex_t surfaceMutex[IMAGE_SOURCE_CHANNEL_MAX];
+	pthread_mutex_t surfaceMutex[VIDEO_SOURCE_CHANNEL_MAX];
 #if 1	// only support SDL2
-	unsigned int windowId[IMAGE_SOURCE_CHANNEL_MAX];
-	SDL_Window *surface[IMAGE_SOURCE_CHANNEL_MAX];
-	SDL_Renderer *renderer[IMAGE_SOURCE_CHANNEL_MAX];
-	SDL_Texture *overlay[IMAGE_SOURCE_CHANNEL_MAX];
+	unsigned int windowId[VIDEO_SOURCE_CHANNEL_MAX];
+	SDL_Window *surface[VIDEO_SOURCE_CHANNEL_MAX];
+	SDL_Renderer *renderer[VIDEO_SOURCE_CHANNEL_MAX];
+	SDL_Texture *overlay[VIDEO_SOURCE_CHANNEL_MAX];
 #endif
-	struct SwsContext *swsctx[IMAGE_SOURCE_CHANNEL_MAX];
-	pipeline *pipe[IMAGE_SOURCE_CHANNEL_MAX];
+	struct SwsContext *swsctx[VIDEO_SOURCE_CHANNEL_MAX];
+	pipeline *pipe[VIDEO_SOURCE_CHANNEL_MAX];
 	// audio
 	pthread_mutex_t audioMutex;
 	bool audioOpened;

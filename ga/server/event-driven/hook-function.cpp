@@ -67,8 +67,8 @@ D3D9_screen_capture(IDirect3DDevice9 * pDevice) {
 	IDirect3DSurface9 *renderSurface, *oldRenderSurface;
 	D3DLOCKED_RECT lockedRect;
 	int i;
-	struct pooldata *data;
-	struct vsource_frame *frame;
+	pooldata_t *data;
+	vsource_frame_t *frame;
 	//
 	if(vsource_initialized == 0)
 		return false;
@@ -175,7 +175,7 @@ D3D9_screen_capture(IDirect3DDevice9 * pDevice) {
 	do {
 		unsigned char *src, *dst;
 		data = g_pipe[0]->allocate_data();
-		frame = (struct vsource_frame*) data->ptr;
+		frame = (vsource_frame_t*) data->ptr;
 		frame->pixelformat = PIX_FMT_BGRA;
 		frame->realwidth = desc.Width;
 		frame->realheight = desc.Height;
@@ -198,10 +198,10 @@ D3D9_screen_capture(IDirect3DDevice9 * pDevice) {
 	// duplicate from channel 0 to other channels
 	for(i = 1; i < SOURCES; i++) {
 		int j;
-		struct pooldata *dupdata;
-		struct vsource_frame *dupframe;
+		pooldata_t *dupdata;
+		vsource_frame_t *dupframe;
 		dupdata = g_pipe[i]->allocate_data();
-		dupframe = (struct vsource_frame*) dupdata->ptr;
+		dupframe = (vsource_frame_t*) dupdata->ptr;
 		//
 		vsource_dup_frame(frame, dupframe);
 		//
@@ -631,8 +631,8 @@ hook_DXGISwapChainPresent(
 	static int capture_initialized = 0;
 	//
 	int i;
-	struct pooldata *data;
-	struct vsource_frame *frame;
+	pooldata_t *data;
+	vsource_frame_t *frame;
 	//
 	DXGI_SWAP_CHAIN_DESC pDESC;
 	HRESULT hr = pDXGISwapChainPresent(This, SyncInterval, Flags);	
@@ -741,7 +741,7 @@ hook_DXGISwapChainPresent(
 		do {
 			unsigned char *src, *dst;
 			data = g_pipe[0]->allocate_data();
-			frame = (struct vsource_frame*) data->ptr;
+			frame = (vsource_frame_t*) data->ptr;
 			frame->pixelformat = PIX_FMT_BGRA;
 			frame->realwidth = desc.Width;
 			frame->realheight = desc.Height;
@@ -762,10 +762,10 @@ hook_DXGISwapChainPresent(
 		// duplicate from channel 0 to other channels
 		for(i = 1; i < SOURCES; i++) {
 			int j;
-			struct pooldata *dupdata;
-			struct vsource_frame *dupframe;
+			pooldata_t *dupdata;
+			vsource_frame_t *dupframe;
 			dupdata = g_pipe[i]->allocate_data();
-			dupframe = (struct vsource_frame*) dupdata->ptr;
+			dupframe = (vsource_frame_t*) dupdata->ptr;
 			//
 			vsource_dup_frame(frame, dupframe);
 			//
@@ -824,7 +824,7 @@ hook_DXGISwapChainPresent(
 		do {
 			unsigned char *src, *dst;
 			data = g_pipe[0]->allocate_data();
-			frame = (struct vsource_frame*) data->ptr;
+			frame = (vsource_frame_t*) data->ptr;
 			frame->pixelformat = PIX_FMT_BGRA;
 			frame->realwidth = desc.Width;
 			frame->realheight = desc.Height;
@@ -845,10 +845,10 @@ hook_DXGISwapChainPresent(
 		// duplicate from channel 0 to other channels
 		for(i = 1; i < SOURCES; i++) {
 			int j;
-			struct pooldata *dupdata;
-			struct vsource_frame *dupframe;
+			pooldata_t *dupdata;
+			vsource_frame_t *dupframe;
 			dupdata = g_pipe[i]->allocate_data();
-			dupframe = (struct vsource_frame*) dupdata->ptr;
+			dupframe = (vsource_frame_t*) dupdata->ptr;
 			//
 			vsource_dup_frame(frame, dupframe);
 			//

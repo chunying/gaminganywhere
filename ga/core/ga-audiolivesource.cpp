@@ -17,18 +17,23 @@
  */
 
 #include "ga-common.h"
+#include "encoder-common.h"
 #include "ga-audiolivesource.h"
+#include "ga-liveserver.h"
+
+static GAAudioLiveSource *aLiveSource = NULL;
+static void signalNewAudioFrameData(int channelId);
 
 EventTriggerId GAAudioLiveSource::eventTriggerId = 0;
 unsigned GAAudioLiveSource::referenceCount = 0;
 
 GAAudioLiveSource * GAAudioLiveSource
-::createNew(UsageEnvironment& env/* TODO: more params */) {
-	return new GAAudioLiveSource(env);
+::createNew(UsageEnvironment& env, int cid/* TODO: more params */) {
+	return new GAAudioLiveSource(env, cid);
 }
 
 GAAudioLiveSource
-::GAAudioLiveSource(UsageEnvironment& env)
+::GAAudioLiveSource(UsageEnvironment& env, int cid)
 		: FramedSource(env) {
 	//
 	if (referenceCount == 0) {
@@ -38,18 +43,22 @@ GAAudioLiveSource
 	}
 	++referenceCount;
 	// Any instance-specific initialization of the device would be done here:
+	this->channelId = cid;
+	aLiveSource = this;
 	if (eventTriggerId == 0) {
 		eventTriggerId = envir().taskScheduler().createEventTrigger(deliverFrame0);
+		encoder_pktqueue_register_callback(cid, signalNewAudioFrameData);
 	}
 }
 
 GAAudioLiveSource
 ::~GAAudioLiveSource() {
 	// Any instance-specific 'destruction' (i.e., resetting) of the device would be done here:
+	aLiveSource = NULL;
 	--referenceCount;
 	if (referenceCount == 0) {
 		// Any global 'destruction' (i.e., resetting) of the device would be done here:
-		// TODO: destroy the pipeline
+		encoder_pktqueue_unregister_callback(this->channelId, signalNewAudioFrameData);
 		// Reclaim our 'event trigger'
 		envir().taskScheduler().deleteEventTrigger(eventTriggerId);
 		eventTriggerId = 0;
@@ -70,7 +79,7 @@ void GAAudioLiveSource
 		return;
 	}
 	// If a new frame of data is immediately available to be delivered, then do this now:
-	if (0 /* a new frame of data is immediately available to be delivered*/ /*%%% TO BE WRITTEN %%%*/) {
+	if (encoder_pktqueue_size(this->channelId) > 0) {
 		deliverFrame();
 	}
 	// No new data is immediately available to be delivered.  We don't do anything more here.
@@ -103,8 +112,14 @@ void GAAudioLiveSource
 
 	if (!isCurrentlyAwaitingData()) return; // we're not ready for the data yet
 
-	u_int8_t* newFrameDataStart = (u_int8_t*)0xDEADBEEF; //%%% TO BE WRITTEN %%%
+	encoder_packet_t pkt;
+	u_int8_t* newFrameDataStart = NULL; //%%% TO BE WRITTEN %%%
 	unsigned newFrameSize = 0; //%%% TO BE WRITTEN %%%
+
+	newFrameDataStart = (u_int8_t*) encoder_pktqueue_front(this->channelId, &pkt);
+	if(newFrameDataStart == NULL)
+		return;
+	newFrameSize = pkt.size;
 
 	// Deliver the data here:
 	if (newFrameSize > fMaxSize) {
@@ -113,11 +128,24 @@ void GAAudioLiveSource
 	} else {
 		fFrameSize = newFrameSize;
 	}
-	gettimeofday(&fPresentationTime, NULL); // If you have a more accurate time - e.g., from an encoder - then use that instead.
+	//gettimeofday(&fPresentationTime, NULL); // If you have a more accurate time - e.g., from an encoder - then use that instead.
+	fPresentationTime = pkt.pts_tv;
 	// If the device is *not* a 'live source' (e.g., it comes instead from a file or buffer), then set "fDurationInMicroseconds" here.
 	memmove(fTo, newFrameDataStart, fFrameSize);
 
+	encoder_pktqueue_pop_front(channelId);
+
 	// After delivering the data, inform the reader that it is now available:
 	FramedSource::afterGetting(this);
+}
+
+static void
+signalNewAudioFrameData(int channelId) {
+	TaskScheduler* ourScheduler = (TaskScheduler*) liveserver_taskscheduler(); //%%% TO BE WRITTEN %%%
+	GAAudioLiveSource* ourDevice = aLiveSource; //%%% TO BE WRITTEN %%%
+
+	if (ourScheduler != NULL) { // sanity check
+		ourScheduler->triggerEvent(GAAudioLiveSource::eventTriggerId, ourDevice);
+	}
 }
 

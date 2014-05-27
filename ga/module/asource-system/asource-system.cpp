@@ -32,7 +32,10 @@
 #include "ga-alsa.h"
 #endif
 
-static bool initialized = false;
+static int asource_initialized = 0;
+static int asource_started = 0;
+static pthread_t asource_tid;
+
 #ifdef WIN32
 static struct Xcap_wasapi_param audioparam;
 #else
@@ -43,7 +46,7 @@ static int
 asource_init(void *arg) {
 	int delay = 0;
 	struct RTSPConf *rtspconf = rtspconf_global();
-	if(initialized)
+	if(asource_initialized != 0)
 		return 0;
 	//
 	if((delay = ga_conf_readint("audio-init-delay")) > 0) {
@@ -101,7 +104,7 @@ asource_init(void *arg) {
 #endif
 		return -1;
 	}
-	initialized = true;
+	asource_initialized = 1;
 	ga_error("audio source: setup chunk=%d, samplerate=%d, bps=%d, channels=%d\n",
 		audioparam.chunk_size,
 		audioparam.samplerate,
@@ -119,18 +122,18 @@ asource_threadproc(void *arg) {
 		exit(-1);
 	}
 	if((fbuffer = (unsigned char*) malloc(audioparam.chunk_bytes)) == NULL) {
-		ga_error("Audio source: malloc failed (%d bytes) - %s\n",
+		ga_error("audio source: malloc failed (%d bytes) - %s\n",
 			audioparam.chunk_bytes, strerror(errno));
 		exit(-1);
 	}
 	//
-	ga_error("Audio source thread started: tid=%ld\n", ga_gettid());
+	ga_error("audio source thread started: tid=%ld\n", ga_gettid());
 	//
-	while(true) {
+	while(asource_started != 0) {
 #ifdef WIN32
 		r = ga_wasapi_read(&audioparam, fbuffer, audioparam.chunk_size);
 		if(r < 0) {
-			ga_error("Audio source: WASAPI read failed.\n");
+			ga_error("audio source: WASAPI read failed.\n");
 			break;
 		}
 #else
@@ -139,7 +142,7 @@ asource_threadproc(void *arg) {
 			snd_pcm_wait(audioparam.handle, 1000);
 			continue;
 		} else if(r < 0) {
-			ga_error("Audio source: ALSA read failed - %s\n",
+			ga_error("audio source: ALSA read failed - %s\n",
 				snd_strerror(r));
 			break;
 		}
@@ -152,14 +155,38 @@ asource_threadproc(void *arg) {
 	return NULL;
 }
 
-static void
+static int 
 asource_deinit(void *arg) {
 #ifdef WIN32
 	ga_wasapi_close(&audioparam);
 #else
 	ga_alsa_close(audioparam.handle, audioparam.sndlog);
 #endif
-	return;
+	asource_initialized = 0;
+	return 0;
+}
+
+static int
+asource_start(void *arg) {
+	if(asource_started != 0)
+		return 0;
+	asource_started = 1;
+	if(pthread_create(&asource_tid, NULL, asource_threadproc, arg) != 0) {
+		asource_started = 0;
+		ga_error("audio source: create thread failed.\n");
+		return -1;
+	}
+	pthread_detach(asource_tid);
+	return 0;
+}
+
+static int
+asource_stop(void *arg) {
+	if(asource_started == 0)
+		return 0;
+	asource_started = 0;
+	pthread_cancel(asource_tid);
+	return 0;
 }
 
 ga_module_t *
@@ -169,7 +196,9 @@ module_load() {
 	m.type = GA_MODULE_TYPE_ASOURCE;
 	m.name = strdup("asource-system");
 	m.init = asource_init;
-	m.threadproc = asource_threadproc;
+	m.start = asource_start;
+	//m.threadproc = asource_threadproc;
+	m.stop = asource_stop;
 	m.deinit = asource_deinit;
 	return &m;
 }

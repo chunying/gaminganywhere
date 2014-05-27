@@ -63,10 +63,10 @@ static int video_framing = 0;
 static int audio_framing = 0;
 
 #ifdef COUNT_FRAME_RATE
-static int cf_frame[IMAGE_SOURCE_CHANNEL_MAX];
-static struct timeval cf_tv0[IMAGE_SOURCE_CHANNEL_MAX];
-static struct timeval cf_tv1[IMAGE_SOURCE_CHANNEL_MAX];
-static long long cf_interval[IMAGE_SOURCE_CHANNEL_MAX];
+static int cf_frame[VIDEO_SOURCE_CHANNEL_MAX];
+static struct timeval cf_tv0[VIDEO_SOURCE_CHANNEL_MAX];
+static struct timeval cf_tv1[VIDEO_SOURCE_CHANNEL_MAX];
+static long long cf_interval[VIDEO_SOURCE_CHANNEL_MAX];
 #endif
 
 static unsigned rtspClientCount = 0; // Counts how many streams (i.e., "RTSPClient"s) are currently in use.
@@ -96,9 +96,9 @@ struct PacketQueue {
 };
 
 static RTSPThreadParam *rtspParam = NULL;
-static AVCodecContext *vdecoder[IMAGE_SOURCE_CHANNEL_MAX];
+static AVCodecContext *vdecoder[VIDEO_SOURCE_CHANNEL_MAX];
 static map<unsigned short,int> port2channel;
-static AVFrame *vframe[IMAGE_SOURCE_CHANNEL_MAX];
+static AVFrame *vframe[VIDEO_SOURCE_CHANNEL_MAX];
 static AVCodecContext *adecoder = NULL;
 static AVFrame *aframe = NULL;
 
@@ -204,7 +204,7 @@ init_vdecoder(int channel, const char *sprop) {
 	AVFrame *frame;
 	const char **names = NULL;
 	//
-	if(channel > IMAGE_SOURCE_CHANNEL_MAX) {
+	if(channel > VIDEO_SOURCE_CHANNEL_MAX) {
 		rtsperror("video decoder(%d): too many decoders.\n", channel);
 		return -1;
 	}
@@ -333,7 +333,7 @@ play_video_priv(int ch/*channel*/, unsigned char *buffer, int bufsize, struct ti
 #ifndef ANDROID
 	union SDL_Event evt;
 #endif
-	struct pooldata *data = NULL;
+	pooldata_t *data = NULL;
 	AVPicture *dstframe = NULL;
 	//
 	av_init_packet(&avpkt);
@@ -426,7 +426,7 @@ struct decoder_buffer {
 
 static void
 play_video(int channel, unsigned char *buffer, int bufsize, struct timeval pts, bool marker) {
-	static struct decoder_buffer db[IMAGE_SOURCE_CHANNEL_MAX];
+	static struct decoder_buffer db[VIDEO_SOURCE_CHANNEL_MAX];
 	struct decoder_buffer *pdb = &db[channel];
 	// buffer initialization
 	if(pdb->privbuf == NULL) {

@@ -159,7 +159,7 @@ MODULE MODULE_EXPORT int sdlmsg_replay_init(void *arg);
 MODULE MODULE_EXPORT void sdlmsg_replay_deinit(void *arg);
 #else
 int sdlmsg_replay_init(void *arg);
-void sdlmsg_replay_deinit(void *arg);
+int sdlmsg_replay_deinit(void *arg);
 #endif
 int sdlmsg_replay(sdlmsg_t *msg);
 void sdlmsg_replay_callback(void *msg, int msglen);

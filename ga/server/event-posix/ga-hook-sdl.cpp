@@ -844,8 +844,8 @@ hook_SDL_capture_screen(const char *caller) {
 	static int frame_interval;
 	static struct timeval initialTv, captureTv;
 	static int sb_initialized = 0;
-	struct pooldata *data;
-	struct vsource_frame *frame;
+	pooldata_t *data;
+	vsource_frame_t *frame;
 	//
 	if(old_SDL_BlitSurface(screensurface, NULL, dupsurface, NULL) != 0) {
 		ga_error("SDL_BlitSurface: GA cannot blit to RGB surface (called by %s).\n", caller);
@@ -869,7 +869,7 @@ hook_SDL_capture_screen(const char *caller) {
 	// copy screen
 	do {
 		data = g_pipe[0]->allocate_data();
-		frame = (struct vsource_frame*) data->ptr;
+		frame = (vsource_frame_t*) data->ptr;
 		frame->pixelformat = PIX_FMT_RGBA;
 		frame->realwidth = dupsurface->w;
 		frame->realheight = dupsurface->h;
@@ -957,8 +957,8 @@ hook_SDL_GL_SwapBuffers() {
 	GLint vp[4];
 	int vp_x, vp_y, vp_width, vp_height;
 	int i;
-	struct pooldata *data;
-	struct vsource_frame *frame;
+	pooldata_t *data;
+	vsource_frame_t *frame;
 	//
 	if(old_SDL_GL_SwapBuffers == NULL) {
 		sdl_hook_symbols();
@@ -1000,7 +1000,7 @@ hook_SDL_GL_SwapBuffers() {
 		frameLinesize = vp_width<<2;
 		//
 		data = g_pipe[0]->allocate_data();
-		frame = (struct vsource_frame*) data->ptr;
+		frame = (vsource_frame_t*) data->ptr;
 		frame->pixelformat = PIX_FMT_RGBA;
 		frame->realwidth = vp_width;
 		frame->realheight = vp_height;

@@ -56,9 +56,13 @@ pipeline *g_pipe[SOURCES];
 
 static char *ga_root = NULL;
 
-static const char *imagepipefmt = "image-%d";
-static const char *imagepipe0 = "image-0";
-static const char *filterpipe0 = "filter-0";
+static char *imagepipefmt = "video-%d";
+static char *filterpipefmt = "filter-%d";
+static char *imagepipe0 = "video-0";
+static char *filterpipe0 = "filter-0";
+static char *filter_param[] = { imagepipefmt, filterpipefmt };
+static char *video_encoder_param = filterpipefmt;
+static void *audio_encoder_param = NULL;
 
 static struct gaImage realimage, *image = &realimage;
 static struct gaRect *prect = NULL;
@@ -85,20 +89,20 @@ vsource_init(int width, int height) {
 	image->bytes_per_line = (BITSPERPIXEL>>3) * image->width;
 #ifdef SOURCES
 	do {
-		vsource_config config[SOURCES];
+		vsource_config_t config[SOURCES];
 		bzero(config, sizeof(config));
 		for(i = 0; i < SOURCES; i++) {
-			config[i].rtp_id = i;
-			config[i].maxwidth = image->width;
-			config[i].maxheight = image->height;
-			config[i].maxstride = image->bytes_per_line;
+			//config[i].rtp_id = i;
+			config[i].curr_width = image->width;
+			config[i].curr_height = image->height;
+			config[i].curr_stride = image->bytes_per_line;
 		}
-		if(video_source_setup_ex(imagepipefmt, config, SOURCES) < 0) {
+		if(video_source_setup_ex(config, SOURCES) < 0) {
 			return -1;
 		}
 	} while(0);
 #else
-	if(video_source_setup(imagepipefmt, 0, image->width, image->height, image->bytes_per_line) < 0) {
+	if(video_source_setup(image->width, image->height, image->bytes_per_line) < 0) {
 		return -1;
 	}
 #endif
@@ -143,13 +147,13 @@ ga_hook_capture_prepared(int width, int height, int check_resolution) {
 }
 
 void
-ga_hook_capture_dupframe(struct vsource_frame *frame) {
+ga_hook_capture_dupframe(vsource_frame_t *frame) {
 	int i;
 	for(i = 1; i < SOURCES; i++) {
-		struct pooldata *dupdata;
-		struct vsource_frame *dupframe;
+		pooldata_t *dupdata;
+		vsource_frame_t *dupframe;
 		dupdata = g_pipe[i]->allocate_data();
-		dupframe = (struct vsource_frame*) dupdata->ptr;
+		dupframe = (vsource_frame_t*) dupdata->ptr;
 		//
 		vsource_dup_frame(frame, dupframe);
 		//
@@ -225,18 +229,18 @@ init_modules() {
 		}
 	}
 	// controller server is built-in - no need to init
-	ga_init_single_module_or_quit("filter", m_filter, (void*) filterpipe);
+	ga_init_single_module_or_quit("filter", m_filter, (void*) filter_param);
 	//
-	ga_init_single_module_or_quit("video encoder", m_vencoder, NULL);
+	ga_init_single_module_or_quit("video-encoder", m_vencoder, filterpipefmt);
 	if(ga_conf_readbool("enable-audio", 1) != 0) {
 	//////////////////////////
 #ifndef __APPLE__
 	if(ga_conf_readv("hook-audio", hook_audio, sizeof(hook_audio)) == NULL
 	|| hook_audio[0] == '\0') {
-		ga_init_single_module_or_quit("audio source", m_asource, NULL);
+		ga_init_single_module_or_quit("audio-source", m_asource, NULL);
 	}
 #endif
-	ga_init_single_module_or_quit("audio encoder", m_aencoder, NULL);
+	ga_init_single_module_or_quit("audio-encoder", m_aencoder, NULL);
 	//////////////////////////
 	}
 	return 0;
@@ -251,22 +255,25 @@ run_modules() {
 	if(conf->ctrlenable) {
 		ga_run_single_module_or_quit("control server", ctrl_server_thread, conf);
 		if(no_default_controller == 0) {
-			ga_run_single_module_or_quit("control replayer", m_ctrl->threadproc, conf);
+			// XXX: safe to comment out?
+			//ga_run_single_module_or_quit("control replayer", m_ctrl->threadproc, conf);
 		}
 	}
 	// video
-	ga_run_single_module_or_quit("filter 0", m_filter->threadproc, (void*) filterpipe);
-	encoder_register_vencoder(m_vencoder->threadproc, (void*) filterpipe0);
+	//ga_run_single_module_or_quit("filter 0", m_filter->threadproc, (void*) filterpipe);
+	if(m_filter->start(filter_param) < 0)	exit(-1);
+	encoder_register_vencoder(m_vencoder, video_encoder_param);
 	// audio
 	if(ga_conf_readbool("enable-audio", 1) != 0) {
 	//////////////////////////
 #ifndef __APPLE__
 	if(ga_conf_readv("hook-audio", hook_audio, sizeof(hook_audio)) == NULL
 	|| hook_audio[0] == '\0') {
-		ga_run_single_module_or_quit("audio source", m_asource->threadproc, NULL);
+		//ga_run_single_module_or_quit("audio source", m_asource->threadproc, NULL);
+		if(m_asource->start(NULL) < 0)	exit(-1);
 	}
 #endif
-	encoder_register_aencoder(m_aencoder->threadproc, NULL);
+	encoder_register_aencoder(m_aencoder, audio_encoder_param);
 	//////////////////////////
 	}
 	return 0;

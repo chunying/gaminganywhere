@@ -24,18 +24,18 @@
 
 class GAMediaSubsession : public OnDemandServerMediaSubsession {
 private:
-	const char *mimeType;
-	// TODO: add pointer to encoder module
+	const char *mimetype;
+	int channelId;
 public:
 	static GAMediaSubsession * createNew(UsageEnvironment &env,
-			// TODO: add pointer to encoder module
-			const char *mimeType = NULL,
+			int cid, /* channel Id */
+			const char *mimetype = NULL,
 			portNumBits initialPortNum=6970,
 			Boolean multiplexRTCPWithRTP=False);
 protected:
 	GAMediaSubsession(UsageEnvironment &env,
-			// TODO: add pointer to encoder module
-			const char *mimeType = NULL,
+			int cid, /* channel Id */
+			const char *mimetype = NULL,
 			portNumBits initialPortNum=6970,
 			Boolean multiplexRTCPWithRTP=False);
 	virtual FramedSource* createNewStreamSource(unsigned clientSessionId,

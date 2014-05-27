@@ -21,55 +21,72 @@
 #include "vsource.h"	// for getting the current audio-id
 #include "asource.h"
 #include "server.h"
+#include "rtspconf.h"
 #include "rtspserver.h"
 #include "encoder-common.h"
 
 #include "ga-common.h"
+#include "ga-conf.h"
 #include "ga-avcodec.h"
 #include "ga-module.h"
 
 //MODULE EXPORT void * aencoder_threadproc(void *arg);
 
-static struct RTSPConf *rtspconf = NULL;
+static int aencoder_initialized = 0;
+static int aencoder_started = 0;
+static pthread_t aencoder_tid;
 
-static void *
-aencoder_threadproc(void *arg) {
-	AVCodecContext *encoder = NULL;
-	SwrContext *swrctx = NULL;
+// internal configuration
+static int rtp_id = -1;
+// for audio encoding
+static AVCodecContext *encoder = NULL;
+static AVCodecContext *encoder_sdp = NULL;
+static int dstlines[SWR_CH_MAX];	// max SWR_CH_MAX (32) channels
+static int source_size = -1;
+static int encoder_size = -1;
+// for audio conversion
+static SwrContext *swrctx = NULL;
+static const unsigned char *srcplanes[SWR_CH_MAX];
+static unsigned char *dstplanes[SWR_CH_MAX];
+static unsigned char *convbuf = NULL;
+
+static int
+aencoder_deinit(void *arg) {
+	if(aencoder_initialized == 0)
+		return 0;
+	if(convbuf)	free(convbuf);
+	if(swrctx)	swr_free(&swrctx);
+	if(encoder)	ga_avcodec_close(encoder);
+	if(encoder_sdp)	ga_avcodec_close(encoder_sdp);
 	//
-	struct AudioBuffer *ab;
-	int r, frameunit;
-	// input frame
-	AVFrame frame0, *snd_in = &frame0;
-	int got_packet, source_size, encoder_size;
-	// buffer used to store encoder outputs
-	unsigned char *buf = NULL;
-	int bufsize;
-	// buffer used to store captured data
-	unsigned char *samples = NULL;
-	int nsamples, samplebytes, maxsamples, samplesize;
-	int offset;
-	// buffer used to convert samples - in cases that they are different
-	int dstlines[SWR_CH_MAX];	// max SWR_CH_MAX (32) channels
-	const unsigned char *srcplanes[SWR_CH_MAX];
-	unsigned char *dstplanes[SWR_CH_MAX];
-	unsigned char *convbuf = NULL;
+	swrctx = NULL;
+	convbuf = NULL;
+	encoder = NULL;
+	encoder_sdp = NULL;
+	source_size = encoder_size = -1;
 	//
-	int rtp_id = video_source_channels();
-	// for a/v sync
-#ifdef WIN32
-	LARGE_INTEGER baseT, currT, freq;
-#else
-	struct timeval baseT, currT;
-#endif
-	long long pts = -1LL, newpts = 0LL, ptsOffset = 0LL, ptsSync = 0LL;
+	aencoder_initialized = 0;
+	ga_error("audio encoder: deinitialized.\n");
 	//
-	int audio_dropping = 0;
-	int audio_written = 0;
-	int buffer_purged = 0;
-	//
-	rtspconf = rtspconf_global();
-	//
+	return 0;
+}
+
+static int
+aencoder_init(void *arg) {
+	struct RTSPConf *rtspconf = rtspconf_global();
+	rtp_id = video_source_channels();
+	if(aencoder_initialized != 0)
+		return 0;
+	if(rtspconf == NULL) {
+		ga_error("audio encoder: no valid global configuration available.\n");
+		return -1;
+	}
+	// no duplicated initialization
+	if(encoder != NULL) {
+		ga_error("audio encoder: has been initialized.\n");
+		return 0;
+	}
+	// alloc encoder
 	encoder = ga_avcodec_aencoder_init(
 			NULL,
 			rtspconf->audio_encoder_codec,
@@ -80,8 +97,32 @@ aencoder_threadproc(void *arg) {
 			rtspconf->audio_codec_channel_layout);
 	if(encoder == NULL) {
 		ga_error("audio encoder: cannot initialized the encoder.\n");
-		goto audio_quit;
+		goto init_failed;
 	}
+	// encoder for SDP generation
+	switch(rtspconf->audio_encoder_codec->id) {
+	case AV_CODEC_ID_AAC:
+		// need ctx with CODEC_FLAG_GLOBAL_HEADER flag
+		encoder_sdp = avcodec_alloc_context3(rtspconf->audio_encoder_codec);
+		if(encoder_sdp == NULL)
+			goto init_failed;
+		encoder_sdp->flags |= CODEC_FLAG_GLOBAL_HEADER;
+		if(encoder_sdp == NULL)
+			goto init_failed;
+		encoder_sdp = ga_avcodec_aencoder_init(encoder_sdp,
+				rtspconf->audio_encoder_codec,
+				rtspconf->audio_bitrate,
+				rtspconf->audio_samplerate,
+				rtspconf->audio_channels,
+				rtspconf->audio_codec_format,
+				rtspconf->audio_codec_channel_layout);
+		ga_error("audio encoder: meta-encoder #%d created.\n");
+		break;
+	default:
+		// do nothing
+		break;
+	}
+	// estimate sizes
 	source_size = av_samples_get_buffer_size(NULL,
 			rtspconf->audio_channels,
 			encoder->frame_size,
@@ -94,13 +135,13 @@ aencoder_threadproc(void *arg) {
 	do {
 		int i = 0;
 		while(dstlines[i] > 0) {
-			fprintf(stderr, "encoder_size=%d, frame_size=%d, dstlines[%d] = %d\n",
+			ga_error("audio encoder: encoder_size=%d, frame_size=%d, dstlines[%d] = %d\n",
 				encoder_size, encoder->frame_size, i, dstlines[i]);
 			i++;
 		}
 	} while(0);
 #endif
-	// create converter & memory if necessary
+	// need live format conversion?
 	if(rtspconf->audio_device_format != encoder->sample_fmt) {
 		if((swrctx = swr_alloc_set_opts(NULL, 
 				encoder->channel_layout,
@@ -111,16 +152,16 @@ aencoder_threadproc(void *arg) {
 				rtspconf->audio_samplerate,
 				0, NULL)) == NULL) {
 			ga_error("audio encoder: cannot allocate swrctx.\n");
-			goto audio_quit;
+			goto init_failed;
 		}
 		if(swr_init(swrctx) < 0) {
 			ga_error("audio encoder: cannot initialize swrctx.\n");
-			goto audio_quit;
+			goto init_failed;
 		}
 		//
 		if((convbuf = (unsigned char*) malloc(encoder_size)) == NULL) {
 			ga_error("audio encoder: cannot allocate conversion buffer.\n");
-			goto audio_quit;
+			goto init_failed;
 		}
 		bzero(convbuf, encoder_size);
 		//
@@ -135,18 +176,54 @@ aencoder_threadproc(void *arg) {
 		} else {
 			dstplanes[1] = NULL;
 		}
-		ga_error("audio decoder: on-the-fly audio format conversion enabled.\n");
-		ga_error("audio decoder: convert from %dch(%llx)@%dHz (%s) to %dch(%lld)@%dHz (%s).\n",
+		ga_error("audio encoder: on-the-fly audio format conversion enabled.\n");
+		ga_error("audio encoder: convert from %dch(%llx)@%dHz (%s) to %dch(%lld)@%dHz (%s).\n",
 			rtspconf->audio_channels, rtspconf->audio_device_channel_layout, rtspconf->audio_samplerate,
 			av_get_sample_fmt_name(rtspconf->audio_device_format),
 			encoder->channels, encoder->channel_layout, encoder->sample_rate,
 			av_get_sample_fmt_name(encoder->sample_fmt));
 	}
 	//
+	aencoder_initialized = 1;
+	ga_error("audio encoder: initialized.\n");
+	//
+	return 0;
+init_failed:
+	aencoder_deinit(NULL);
+	return -1;
+}
+
+static void *
+aencoder_threadproc(void *arg) {
+	struct RTSPConf *rtspconf = rtspconf_global();
+	int r, frameunit;
+	// input frame
+	AVFrame frame0, *snd_in = &frame0;
+	int got_packet;
+	// buffer used to store encoder outputs
+	unsigned char *buf = NULL;
+	int bufsize;
+	// buffer used to store captured data
+	unsigned char *samples = NULL;
+	int nsamples, samplebytes, maxsamples, samplesize;
+	int offset;
+	// for a/v sync
+#ifdef WIN32
+	LARGE_INTEGER baseT, currT, freq;
+#else
+	struct timeval baseT, currT;
+#endif
+	long long pts = -1LL, newpts = 0LL, ptsOffset = 0LL, ptsSync = 0LL;
+	//
+	AudioBuffer *ab = NULL;
+	int audio_written = 0;
+	int buffer_purged = 0;
+	//
 	nsamples = 0;
 	samplebytes = 0;
 	maxsamples = encoder->frame_size;
 	samplesize = encoder->frame_size * audio_source_channels() * audio_source_bitspersample() / 8;
+	//
 	if((ab = audio_source_buffer_init()) == NULL) {
 		ga_error("audio encoder: cannot initialize audio source buffer.\n");
 		return NULL;
@@ -181,7 +258,7 @@ aencoder_threadproc(void *arg) {
 	QueryPerformanceFrequency(&freq);
 #endif
 	//
-	while(encoder_running() > 0) {
+	while(aencoder_started != 0 && encoder_running() > 0) {
 		//
 		if(buffer_purged == 0) {
 			audio_source_buffer_purge(ab);
@@ -297,25 +374,57 @@ drop_audio_frame:
 	}
 audio_quit:
 	audio_source_client_unregister(ga_gettid());
+	audio_source_buffer_deinit(ab);
 	//
 	if(samples)	free(samples);
 	if(buf)		free(buf);
-	if(convbuf)	free(convbuf);
-	if(swrctx)	swr_free(&swrctx);
-	if(encoder)	ga_avcodec_close(encoder);
-	//
+	aencoder_deinit(NULL);
 	ga_error("audio encoder: thread terminated (tid=%ld).\n", ga_gettid());
 	//
 	return NULL;
 }
 
+static int
+aencoder_start(void *arg) {
+	if(aencoder_started != 0)
+		return 0;
+	aencoder_started = 1;
+	if(pthread_create(&aencoder_tid, NULL, aencoder_threadproc, arg) != 0) {
+		aencoder_started = 0;
+		ga_error("audio source: create thread failed.\n");
+		return -1;
+	}
+	//pthread_detach(aencoder_tid);
+	return 0;
+}
+
+static int
+aencoder_stop(void *arg) {
+	void *ignored;
+	if(aencoder_started == 0)
+		return 0;
+	aencoder_started = 0;
+	//pthread_cancel(aencoder_tid);
+	pthread_join(aencoder_tid, &ignored);
+	return 0;
+}
+
 ga_module_t *
 module_load() {
 	static ga_module_t m;
+	struct RTSPConf *rtspconf = rtspconf_global();
+	char mime[64];
 	bzero(&m, sizeof(m));
 	m.type = GA_MODULE_TYPE_AENCODER;
 	m.name = strdup("ffmpeg-audio-encoder");
-	m.threadproc = aencoder_threadproc;
+	if(ga_conf_readv("audio-mimetype", mime, sizeof(mime)) != NULL) {
+		m.mimetype = strdup(mime);
+	}
+	m.init = aencoder_init;
+	m.start = aencoder_start;
+	//m.threadproc = aencoder_threadproc;
+	m.stop = aencoder_stop;
+	m.deinit = aencoder_deinit;
 	return &m;
 }
 

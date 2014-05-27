@@ -24,6 +24,6 @@
 #include "ga-conf.h"
 #include "vsource.h"
 
-int ga_win32_draw_system_cursor(struct vsource_frame *frame);
+int ga_win32_draw_system_cursor(vsource_frame_t *frame);
 
 #endif /* __GA_WIN32_COMMON_H__ */

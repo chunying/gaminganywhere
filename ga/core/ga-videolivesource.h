@@ -20,16 +20,20 @@
 #define __GA_VIDEOLIVESOURCE_H__
 
 #include <FramedSource.hh>
+#include "ga-module.h"
 
 class GAVideoLiveSource : public FramedSource {
 public:
-	static GAVideoLiveSource * createNew(UsageEnvironment& env/* TODO: more params */);
-	static EventTriggerId eventTriggerId;
+	static GAVideoLiveSource * createNew(UsageEnvironment& env, int cid/* TODO: more params */);
+	//static EventTriggerId eventTriggerId;
 protected:
-	GAVideoLiveSource(UsageEnvironment& env);
+	GAVideoLiveSource(UsageEnvironment& env, int cid);
 	~GAVideoLiveSource();
 private:
 	static unsigned referenceCount;
+	static int remove_startcode;
+	static ga_module_t *m;
+	int channelId;
 	//
 	static void deliverFrame0(void* clientData);
 	void doGetNextFrame();

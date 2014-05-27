@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 Chun-Ying Huang
+ * Copyright (c) 2013-2014 Chun-Ying Huang
  *
  * This file is part of GamingAnywhere (GA).
  *
@@ -102,22 +102,22 @@ pipeline::name() {
 	return myname.c_str();
 }
 
-struct pooldata *
+pooldata_t *
 pipeline::datapool_init(int n, int datasize) {
 	int i;
-	struct pooldata *data;
+	pooldata_t *data;
 	//
 	if(n <= 0 || datasize <= 0)
 		return NULL;
 	//
 	bufpool = NULL;
 	for(i = 0; i < n; i++) {
-		if((data = (struct pooldata*) malloc(sizeof(struct pooldata) + datasize)) == NULL) {
+		if((data = (pooldata_t*) malloc(sizeof(pooldata_t) + datasize)) == NULL) {
 			bufpool = datapool_free(bufpool);
 			return NULL;
 		}
-		bzero(data, sizeof(struct pooldata) + datasize);
-		data->ptr = ((unsigned char*) data) + sizeof(struct pooldata);
+		bzero(data, sizeof(pooldata_t) + datasize);
+		data->ptr = ((unsigned char*) data) + sizeof(pooldata_t);
 		data->next = bufpool;
 		bufpool = data;
 	}
@@ -126,9 +126,9 @@ pipeline::datapool_init(int n, int datasize) {
 	return bufpool;
 }
 
-struct pooldata *
-pipeline::datapool_free(struct pooldata *head) {
-	struct pooldata *next;
+pooldata_t *
+pipeline::datapool_free(pooldata_t *head) {
+	pooldata_t *next;
 	//
 	if(head == NULL)
 		return NULL;
@@ -145,10 +145,10 @@ pipeline::datapool_free(struct pooldata *head) {
 	return NULL;
 }
 
-struct pooldata *
+pooldata_t *
 pipeline::allocate_data() {
 	// allocate a data from buffer pool
-	struct pooldata *data = NULL;
+	pooldata_t *data = NULL;
 	pthread_mutex_lock(&poolmutex);
 	if(bufpool == NULL) {
 		// no more available free data - force to release the eldest one
@@ -169,7 +169,7 @@ pipeline::allocate_data() {
 }
 
 void
-pipeline::store_data(struct pooldata *data) {
+pipeline::store_data(pooldata_t *data) {
 	// store a data into data pool (at the end)
 	data->next = NULL;
 	pthread_mutex_lock(&poolmutex);
@@ -186,10 +186,10 @@ pipeline::store_data(struct pooldata *data) {
 	return;
 }
 
-struct pooldata *
+pooldata_t *
 pipeline::load_data_unlocked() {
 	// load a data from data (work) pool
-	struct pooldata *data;
+	pooldata_t *data;
 	if(datatail == NULL) {
 		return NULL;
 	}
@@ -202,9 +202,9 @@ pipeline::load_data_unlocked() {
 	return data;
 }
 
-struct pooldata *
+pooldata_t *
 pipeline::load_data() {
-	struct pooldata *data;
+	pooldata_t *data;
 	pthread_mutex_lock(&poolmutex);
 	data = load_data_unlocked();
 	pthread_mutex_unlock(&poolmutex);
@@ -212,7 +212,7 @@ pipeline::load_data() {
 }
 
 void
-pipeline::release_data(struct pooldata *data) {
+pipeline::release_data(pooldata_t *data) {
 	// return a data to buffer pool
 	pthread_mutex_lock(&poolmutex);
 	data->next = bufpool;

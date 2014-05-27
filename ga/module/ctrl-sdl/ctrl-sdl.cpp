@@ -300,7 +300,7 @@ sdlmsg_replay_init(void *arg) {
 	return 0;
 }
 
-void
+int
 sdlmsg_replay_deinit(void *arg) {
 #ifdef WIN32
 #elif defined __APPLE__
@@ -311,7 +311,7 @@ sdlmsg_replay_deinit(void *arg) {
 		display = NULL;
 	}
 #endif
-	return;
+	return 0;
 }
 
 #ifdef WIN32

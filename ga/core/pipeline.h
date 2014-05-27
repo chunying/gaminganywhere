@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 Chun-Ying Huang
+ * Copyright (c) 2013-2014 Chun-Ying Huang
  *
  * This file is part of GamingAnywhere (GA).
  *
@@ -23,10 +23,10 @@
 #include <map>
 #include <string>
 
-struct pooldata {
+typedef struct pooldata_s {
 	void *ptr;
-	struct pooldata *next;
-};
+	struct pooldata_s *next;
+}	pooldata_t;
 
 class EXPORT pipeline {
 private:
@@ -36,11 +36,11 @@ private:
 	std::map<long,pthread_cond_t*> condmap;
 	// buffer pool queue
 	pthread_mutex_t poolmutex;
-	struct pooldata *bufpool;		// unused free pool
-	struct pooldata *datahead, *datatail;	// occupied data
-	struct pooldata * datapool_free(struct pooldata *head);
+	pooldata_t *bufpool;		// unused free pool
+	pooldata_t *datahead, *datatail;	// occupied data
+	pooldata_t * datapool_free(pooldata_t *head);
 	int datacount, bufcount;
-	struct pooldata * load_data_unlocked(); // load one data from work pool w/o lock
+	pooldata_t * load_data_unlocked(); // load one data from work pool w/o lock
 	// private data
 	void *privdata;
 	int privdata_size;
@@ -54,11 +54,11 @@ public:
 	~pipeline();
 	const char * name();
 	// buffer pool
-	struct pooldata * datapool_init(int n, int datasize);
-	struct pooldata * allocate_data();	  // allocate one free data from free pool
-	void store_data(struct pooldata *data);	  // store one data into work pool
-	struct pooldata * load_data();		  // load one data from work pool
-	void release_data(struct pooldata *data); // release one data into free pool
+	pooldata_t * datapool_init(int n, int datasize);
+	pooldata_t * allocate_data();	  // allocate one free data from free pool
+	void store_data(pooldata_t *data);	  // store one data into work pool
+	pooldata_t * load_data();		  // load one data from work pool
+	void release_data(pooldata_t *data); // release one data into free pool
 	int data_count();
 	int buf_count();
 	// private data

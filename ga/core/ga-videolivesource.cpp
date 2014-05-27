@@ -18,41 +18,60 @@
 
 #include "ga-common.h"
 #include "ga-videolivesource.h"
+#include "ga-liveserver.h"
+#include "vsource.h"
+#include "encoder-common.h"
 
-EventTriggerId GAVideoLiveSource::eventTriggerId = 0;
+static GAVideoLiveSource *vLiveSource[VIDEO_SOURCE_CHANNEL_MAX];
+static EventTriggerId eventTriggerId[VIDEO_SOURCE_CHANNEL_MAX];
+static void signalNewVideoFrameData(int channelId);
+
+//EventTriggerId GAVideoLiveSource::eventTriggerId = 0;
 unsigned GAVideoLiveSource::referenceCount = 0;
+int GAVideoLiveSource::remove_startcode = 0;
+ga_module_t * GAVideoLiveSource::m = NULL;
 
 GAVideoLiveSource * GAVideoLiveSource
-::createNew(UsageEnvironment& env/* TODO: more params */) {
-	return new GAVideoLiveSource(env);
+::createNew(UsageEnvironment& env, int cid/* TODO: more params */) {
+	return new GAVideoLiveSource(env, cid);
 }
 
 GAVideoLiveSource
-::GAVideoLiveSource(UsageEnvironment& env)
+::GAVideoLiveSource(UsageEnvironment& env, int cid)
 		: FramedSource(env) {
 	//
 	if (referenceCount == 0) {
 		// Any global initialization of the device would be done here:
-		// TODO: create the pipeline
-		// TODO: register event trigger function
+		m = encoder_get_vencoder();
+		if(strcmp(m->mimetype, "video/H264") == 0
+		|| strcmp(m->mimetype, "video/H265") == 0)
+			remove_startcode = 1;
+		encoder_register_client(this);
 	}
 	++referenceCount;
 	// Any instance-specific initialization of the device would be done here:
-	if (eventTriggerId == 0) {
-		eventTriggerId = envir().taskScheduler().createEventTrigger(deliverFrame0);
+	this->channelId = cid;
+	vLiveSource[cid] = this;
+	if (eventTriggerId[cid] == 0) {
+		eventTriggerId[cid] = envir().taskScheduler().createEventTrigger(deliverFrame0);
+		encoder_pktqueue_register_callback(this->channelId, signalNewVideoFrameData);
 	}
 }
 
 GAVideoLiveSource
 ::~GAVideoLiveSource() {
 	// Any instance-specific 'destruction' (i.e., resetting) of the device would be done here:
+	vLiveSource[this->channelId] = NULL;
 	--referenceCount;
 	if (referenceCount == 0) {
 		// Any global 'destruction' (i.e., resetting) of the device would be done here:
-		// TODO: destroy the pipeline
+		encoder_unregister_client(this);
+		remove_startcode = 0;
+		m = NULL;
+		encoder_pktqueue_unregister_callback(this->channelId, signalNewVideoFrameData);
 		// Reclaim our 'event trigger'
-		envir().taskScheduler().deleteEventTrigger(eventTriggerId);
-		eventTriggerId = 0;
+		envir().taskScheduler().deleteEventTrigger(eventTriggerId[this->channelId]);
+		eventTriggerId[this->channelId] = 0;
 	}
 }
 
@@ -70,7 +89,7 @@ void GAVideoLiveSource
 		return;
 	}
 	// If a new frame of data is immediately available to be delivered, then do this now:
-	if (0 /* a new frame of data is immediately available to be delivered*/ /*%%% TO BE WRITTEN %%%*/) {
+	if (encoder_pktqueue_size(this->channelId) > 0) {
 		deliverFrame();
 	}
 	// No new data is immediately available to be delivered.  We don't do anything more here.
@@ -103,21 +122,55 @@ void GAVideoLiveSource
 
 	if (!isCurrentlyAwaitingData()) return; // we're not ready for the data yet
 
-	u_int8_t* newFrameDataStart = (u_int8_t*)0xDEADBEEF; //%%% TO BE WRITTEN %%%
+	encoder_packet_t pkt;
+	u_int8_t* newFrameDataStart = NULL; //%%% TO BE WRITTEN %%%
 	unsigned newFrameSize = 0; //%%% TO BE WRITTEN %%%
 
+	newFrameDataStart = (u_int8_t*) encoder_pktqueue_front(this->channelId, &pkt);
+	if(newFrameDataStart == NULL)
+		return;
+	newFrameSize = pkt.size;
+#if 1	// special handling for packets with startcode
+	if(remove_startcode != 0) {
+		if(newFrameDataStart[0] == 0
+		&& newFrameDataStart[1] == 0) {
+			if(newFrameDataStart[2] == 0
+			&& newFrameDataStart[3] == 1) {
+				newFrameDataStart += 4;
+				newFrameSize -= 4;
+			} else if(newFrameDataStart[2] == 1) {
+				newFrameDataStart += 3;
+				newFrameSize -= 3;
+			}
+		}
+	}
+#endif
 	// Deliver the data here:
 	if (newFrameSize > fMaxSize) {
 		fFrameSize = fMaxSize;
 		fNumTruncatedBytes = newFrameSize - fMaxSize;
+		ga_error("video encoder: packet truncated (%d > %d).\n", newFrameSize, fMaxSize);
 	} else {
 		fFrameSize = newFrameSize;
 	}
-	gettimeofday(&fPresentationTime, NULL); // If you have a more accurate time - e.g., from an encoder - then use that instead.
+	//gettimeofday(&fPresentationTime, NULL); // If you have a more accurate time - e.g., from an encoder - then use that instead.
+	fPresentationTime = pkt.pts_tv;
 	// If the device is *not* a 'live source' (e.g., it comes instead from a file or buffer), then set "fDurationInMicroseconds" here.
 	memmove(fTo, newFrameDataStart, fFrameSize);
 
+	encoder_pktqueue_pop_front(channelId);
+
 	// After delivering the data, inform the reader that it is now available:
 	FramedSource::afterGetting(this);
+}
+
+static void
+signalNewVideoFrameData(int channelId) {
+	TaskScheduler* ourScheduler = (TaskScheduler*) liveserver_taskscheduler(); //%%% TO BE WRITTEN %%%
+	GAVideoLiveSource* ourDevice = vLiveSource[channelId]; //%%% TO BE WRITTEN %%%
+
+	if (ourScheduler != NULL) { // sanity check
+		ourScheduler->triggerEvent(eventTriggerId[channelId], ourDevice);
+	}
 }
 

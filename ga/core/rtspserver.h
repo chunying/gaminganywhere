@@ -38,7 +38,7 @@ int ffio_open_dyn_packet_buf(AVIOContext **, int);
 
 #define	HOLE_PUNCHING		// enable self-implemented hole-punching
 
-#define	RTSP_CHANNEL_MAX	8	// must be at least IMAGE_SOURCE_CHANNEL_MAX+1
+#define	RTSP_CHANNEL_MAX	8	// must be at least VIDEO_SOURCE_CHANNEL_MAX+1
 #define	RTSP_CHANNEL_MAXx2	16	// must be RTSP_CHANNEL_MAX * 2
 
 enum RTSPServerState {
@@ -59,11 +59,13 @@ struct RTSPContext {
 	//
 	int state;
 	int hasVideo;
+#if 0
 	// video
 	// audio
 	// threads
 	pthread_t ithread, vthread, athread;
 	long vthreadId;
+#endif
 	//// RTSP
 	// internal read buffer
 	char *rbuffer;
@@ -72,9 +74,9 @@ struct RTSPContext {
 	int rbufsize;
 	// for creating SDP
 	AVFormatContext *sdp_fmtctx;
-	AVStream *sdp_vstream[IMAGE_SOURCE_CHANNEL_MAX];
+	AVStream *sdp_vstream[VIDEO_SOURCE_CHANNEL_MAX];
 	AVStream *sdp_astream;
-	AVCodecContext *sdp_vencoder[IMAGE_SOURCE_CHANNEL_MAX];
+	AVCodecContext *sdp_vencoder[VIDEO_SOURCE_CHANNEL_MAX];
 	AVCodecContext *sdp_aencoder;
 	// for real audio/video encoding
 	int seq;

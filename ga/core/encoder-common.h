@@ -22,15 +22,55 @@
 #include "rtspserver.h"
 #include "ga-common.h"
 #include "ga-avcodec.h"
+#include "ga-module.h"
 
+enum GARTSPServerType {
+	RTSPSERVER_TYPE_NULL = 0,
+	RTSPSERVER_TYPE_FFMPEG,
+	RTSPSERVER_TYPE_LIVE
+};
+
+// this data structure should be read-only outside this file
+typedef struct encoder_packet_s {
+	char *data;
+	unsigned size;
+	int64_t pts_int64;
+	struct timeval pts_tv;
+	// internal data structure - do not touch
+	//int pos;
+	int padding;
+}	encoder_packet_t;
+
+typedef struct encoder_packet_queue_s {
+	pthread_mutex_t mutex;
+	char *buf;
+	int bufsize, datasize;
+	int head, tail;
+}	encoder_packet_queue_t;
+
+typedef void (*qcallback_t)(int);
+
+EXPORT int encoder_config_rtspserver(int type);
 EXPORT int encoder_pts_sync(int samplerate);
 EXPORT int encoder_running();
-EXPORT int encoder_register_vencoder(void* (*threadproc)(void *), void *arg);
-EXPORT int encoder_register_aencoder(void* (*threadproc)(void *), void *arg);
-EXPORT int encoder_register_client(RTSPContext *rtsp);
-EXPORT int encoder_unregister_client(RTSPContext *rtsp);
+EXPORT int encoder_register_vencoder(ga_module_t *m, void *param);
+EXPORT int encoder_register_aencoder(ga_module_t *m, void *param);
+EXPORT ga_module_t *encoder_get_vencoder();
+EXPORT ga_module_t *encoder_get_aencoder();
+EXPORT int encoder_register_client(void *ctx);
+EXPORT int encoder_unregister_client(void *ctx);
 
-EXPORT int encoder_send_packet(const char *prefix, struct RTSPContext *rtsp, int channelId, AVPacket *pkt, int64_t encoderPts);
+EXPORT int encoder_send_packet(const char *prefix, void *ctx, int channelId, AVPacket *pkt, int64_t encoderPts);
 EXPORT int encoder_send_packet_all(const char *prefix, int channelId, AVPacket *pkt, int64_t encoderPts);
+
+// encoder packet queue - for async packet delivery
+EXPORT int encoder_pktqueue_init(int channels, int qsize);
+EXPORT int encoder_pktqueue_size(int channelId);
+EXPORT int encoder_pktqueue_append(int channelId, AVPacket *pkt, int64_t encoderPts);
+EXPORT char * encoder_pktqueue_front(int channelId, encoder_packet_t *pkt);
+EXPORT void encoder_pktqueue_split_packet(int channelId, char *offset);
+EXPORT void encoder_pktqueue_pop_front(int channelId);
+EXPORT int encoder_pktqueue_register_callback(int channelId, qcallback_t cb);
+EXPORT int encoder_pktqueue_unregister_callback(int channelId, qcallback_t cb);
 
 #endif

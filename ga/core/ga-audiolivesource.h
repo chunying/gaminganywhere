@@ -23,18 +23,21 @@
 
 class GAAudioLiveSource : public FramedSource {
 public:
-	static GAAudioLiveSource * createNew(UsageEnvironment& env/* TODO: more params */);
+	static GAAudioLiveSource * createNew(UsageEnvironment& env, int cid/* TODO: more params */);
 	static EventTriggerId eventTriggerId;
 protected:
-	GAAudioLiveSource(UsageEnvironment& env);
+	GAAudioLiveSource(UsageEnvironment& env, int cid);
 	~GAAudioLiveSource();
 private:
 	static unsigned referenceCount;
+	int channelId;
 	//
 	static void deliverFrame0(void* clientData);
 	void doGetNextFrame();
 	//virtual void doStopGettingFrames(); // optional
 	void deliverFrame();
 };
+
+EXPORT void signalNewAudioFrameData();
 
 #endif /* __GA_AUDIOLIVESOURCE_H__ */

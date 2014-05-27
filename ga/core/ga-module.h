@@ -45,15 +45,18 @@ typedef struct ga_module_s {
 	HMODULE	handle;
 	int type;
 	char *name;
-	char *mimeType;
+	char *mimetype;
 	int (*init)(void *arg);
-	void * (*threadproc)(void *arg);
-	void (*deinit)(void *arg);
-	int (*notify)(void *msg, int msglen);
-	char * (*option1)(int *buflen);
-	char * (*option2)(int *buflen);
-	char * (*option3)(int *buflen);
-	char * (*option4)(int *buflen);
+	int (*start)(void *arg);
+	//void * (*threadproc)(void *arg);
+	int (*stop)(void *arg);
+	int (*deinit)(void *arg);
+	int (*notify)(void *arg);
+	void * (*raw)(void *arg, int *size);
+	void * (*option1)(void *arg, int *size);
+	void * (*option2)(void *arg, int *size);
+	void * (*option3)(void *arg, int *size);
+	void * (*option4)(void *arg, int *size);
 	void * privdata;
 }	ga_module_t;
 //////////////////////////////////////////////

@@ -19,7 +19,7 @@
 #include "ga-win32-common.h"
 
 int
-ga_win32_draw_system_cursor(struct vsource_frame *frame) {
+ga_win32_draw_system_cursor(vsource_frame_t *frame) {
 	static int capture_cursor = -1;
 	static unsigned char bitmask[8] = {
 		0x80, 0x40, 0x20, 0x10, 0x08, 0x04, 0x02, 0x01

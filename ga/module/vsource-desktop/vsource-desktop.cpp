@@ -50,41 +50,38 @@
 
 #include "vsource-desktop.h"
 
+#define	SOURCES	1
+
 using namespace std;
-static pthread_mutex_t initMutex = PTHREAD_MUTEX_INITIALIZER;
-static map<void*,bool> initialized;
 
 static struct gaRect croprect;
 static struct gaRect *prect = NULL;
 static int screenwidth, screenheight;
 
-#define	SOURCES	1
-
 static struct gaImage realimage, *image = &realimage;
 
+static int vsource_initialized = 0;
+static int vsource_started = 0;
+static pthread_t vsource_tid;
+
+/* video source has to send images to video-# pipes */
+/* the format is defined in VIDEO_SOURCE_PIPEFORMAT */
+
+/*
+ * vsource_init(void *arg)
+ * arg is a pointer to a gaRect (if cropping is enabled)
+ */
 static int
 vsource_init(void *arg) {
 	struct RTSPConf *rtspconf = rtspconf_global();
-	//const char *pipeformat = (const char *) arg;
-	void **ptr = (void**) arg;
-	const char *pipeformat = (const char *) ptr[0];
-	struct gaRect *rect = (struct gaRect*) ptr[1];
+	struct gaRect *rect = (struct gaRect*) arg;
 	//
-	map<void*,bool>::iterator mi;
-	//
-	pthread_mutex_lock(&initMutex);
-	if((mi = initialized.find(arg)) != initialized.end()) {
-		if(mi->second != false) {
-			// has been initialized
-			pthread_mutex_unlock(&initMutex);
-			return 0;
-		}
-	}
-	pthread_mutex_unlock(&initMutex);
+	if(vsource_initialized != 0)
+		return 0;
 	//
 	if(rect != NULL) {
 		if(ga_fillrect(&croprect, rect->left, rect->top, rect->right, rect->bottom) == NULL) {
-			ga_error("image source: invalid rect (%d,%d)-(%d,%d)\n",
+			ga_error("video source: invalid rect (%d,%d)-(%d,%d)\n",
 				rect->left, rect->top,
 				rect->right, rect->bottom);
 			return -1;
@@ -133,20 +130,20 @@ vsource_init(void *arg) {
 #ifdef SOURCES
 	do {
 		int i;
-		vsource_config config[SOURCES];
+		vsource_config_t config[SOURCES];
 		bzero(config, sizeof(config));
 		for(i = 0; i < SOURCES; i++) {
-			config[i].rtp_id = i;
-			config[i].maxwidth = prect ? prect->width : image->width;
-			config[i].maxheight = prect ? prect->height : image->height;
-			config[i].maxstride = prect ? prect->linesize : image->bytes_per_line;
+			//config[i].rtp_id = i;
+			config[i].curr_width = prect ? prect->width : image->width;
+			config[i].curr_height = prect ? prect->height : image->height;
+			config[i].curr_stride = prect ? prect->linesize : image->bytes_per_line;
 		}
-		if(video_source_setup_ex(pipeformat, config, SOURCES) < 0) {
+		if(video_source_setup_ex(config, SOURCES) < 0) {
 			return -1;
 		}
 	} while(0);
 #else
-	if(video_source_setup(pipeformat, 0,
+	if(video_source_setup(
 			prect ? prect->width : image->width,
 			prect ? prect->height : image->height,
 			prect ? prect->linesize : image->bytes_per_line) < 0) {
@@ -154,31 +151,26 @@ vsource_init(void *arg) {
 	}
 #endif
 	//
-	pthread_mutex_lock(&initMutex);
-	initialized[arg] = true;
-	pthread_mutex_unlock(&initMutex);
-	//
+	vsource_initialized = 1;
 	return 0;
 }
 
+/*
+ * vsource_threadproc accepts no arguments
+ */
 static void *
 vsource_threadproc(void *arg) {
 	int i;
 	int frame_interval;
 	struct timeval tv;
-	struct pooldata *data;
-	struct vsource_frame *frame;
+	pooldata_t *data;
+	vsource_frame_t *frame;
 	pipeline *pipe[SOURCES];
 #ifdef WIN32
 	LARGE_INTEGER initialTv, captureTv, freq;
 #else
 	struct timeval initialTv, captureTv;
 #endif
-	const char *pipeformat = (const char *) arg;
-	//void **ptr = (void**) arg;
-	//const char *pipeformat = (const char *) ptr[0];
-	//struct gaRect *rect = (struct gaRect*) ptr[1];
-	//
 	struct RTSPConf *rtspconf = rtspconf_global();
 	//
 	frame_interval = 1000000/rtspconf->video_fps;	// in the unif of us
@@ -186,21 +178,21 @@ vsource_threadproc(void *arg) {
 	//
 	for(i = 0; i < SOURCES; i++) {
 		char pipename[64];
-		snprintf(pipename, sizeof(pipename), pipeformat, i);
+		snprintf(pipename, sizeof(pipename), VIDEO_SOURCE_PIPEFORMAT, i);
 		if((pipe[i] = pipeline::lookup(pipename)) == NULL) {
-			ga_error("image source: cannot find pipeline '%s'\n", pipename);
+			ga_error("video source: cannot find pipeline '%s'\n", pipename);
 			exit(-1);
 		}
 	}
 	//
-	ga_error("Image source thread started: tid=%ld\n", ga_gettid());
+	ga_error("video source thread started: tid=%ld\n", ga_gettid());
 #ifdef WIN32
 	QueryPerformanceFrequency(&freq);
 	QueryPerformanceCounter(&initialTv);
 #else
 	gettimeofday(&initialTv, NULL);
 #endif
-	while(true) {
+	while(vsource_started != 0) {
 		//
 		gettimeofday(&tv, NULL);
 		//if(pipe->client_count() <= 0) {
@@ -214,7 +206,7 @@ vsource_threadproc(void *arg) {
 		}
 		// copy image 
 		data = pipe[0]->allocate_data();
-		frame = (struct vsource_frame*) data->ptr;
+		frame = (vsource_frame_t*) data->ptr;
 #ifdef __APPLE__
 		frame->pixelformat = PIX_FMT_RGBA;
 #else
@@ -264,10 +256,10 @@ vsource_threadproc(void *arg) {
 #endif
 		// duplicate from channel 0 to other channels
 		for(i = 1; i < SOURCES; i++) {
-			struct pooldata *dupdata;
-			struct vsource_frame *dupframe;
+			pooldata_t *dupdata;
+			vsource_frame_t *dupframe;
 			dupdata = pipe[i]->allocate_data();
-			dupframe = (struct vsource_frame*) dupdata->ptr;
+			dupframe = (vsource_frame_t*) dupdata->ptr;
 			//
 			vsource_dup_frame(frame, dupframe);
 			//
@@ -280,13 +272,15 @@ vsource_threadproc(void *arg) {
 		ga_usleep(frame_interval, &tv);
 	}
 	//
-	ga_error("image capture thread terminated.\n");
+	ga_error("video source: thread terminated.\n");
 	//
 	return NULL;
 }
 
-static void
+static int
 vsource_deinit(void *arg) {
+	if(vsource_initialized == 0)
+		return 0;
 #ifdef WIN32
 	#ifdef D3D_CAPTURE
 	ga_win32_D3D_deinit();
@@ -302,7 +296,31 @@ vsource_deinit(void *arg) {
 	//ga_xwin_deinit(display, image);
 	ga_xwin_deinit();
 #endif
-	return;
+	vsource_initialized = 0;
+	return 0;
+}
+
+static int
+vsource_start(void *arg) {
+	if(vsource_started != 0)
+		return 0;
+	vsource_started = 1;
+	if(pthread_create(&vsource_tid, NULL, vsource_threadproc, arg) != 0) {
+		vsource_started = 0;
+		ga_error("video source: create thread failed.\n");
+		return -1;
+	}
+	pthread_detach(vsource_tid);
+	return 0;
+}
+
+static int
+vsource_stop(void *arg) {
+	if(vsource_started == 0)
+		return 0;
+	vsource_started = 0;
+	pthread_cancel(vsource_tid);
+	return 0;
 }
 
 ga_module_t *
@@ -312,7 +330,8 @@ module_load() {
 	m.type = GA_MODULE_TYPE_VSOURCE;
 	m.name = strdup("vsource-desktop");
 	m.init = vsource_init;
-	m.threadproc = vsource_threadproc;
+	m.start = vsource_start;
+	m.stop = vsource_stop;
 	m.deinit = vsource_deinit;
 	return &m;
 }

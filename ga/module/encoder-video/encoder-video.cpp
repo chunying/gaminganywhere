@@ -378,13 +378,6 @@ h264_get_sps_pps(int channelId, unsigned char *data, int datalen) {
 	int spslen = 0, ppslen = 0;
 	if(_sps[channelId] != NULL)
 		return 0;
-	ga_error("video encoder: extradata=%p(%d)\n", data, datalen);
-	for(int i = 0; i < datalen; i++) {
-		fprintf(stderr, "%02x ", data[i]);
-		if((i+1) % 16 == 0)
-			fprintf(stderr, "\n");
-	}
-	fprintf(stderr, "\n");
 	r = find_startcode(data, data + datalen);
 	while(r < data + datalen) {
 		unsigned char nal_type;

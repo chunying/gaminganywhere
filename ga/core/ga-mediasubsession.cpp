@@ -30,6 +30,7 @@
 #include <H265VideoStreamDiscreteFramer.hh>
 
 #include "ga-common.h"
+#include "ga-conf.h"
 #include "rtspconf.h"
 #include "encoder-common.h"
 #include "ga-mediasubsession.h"
@@ -54,11 +55,13 @@ FramedSource* GAMediaSubsession
 ::createNewStreamSource(unsigned clientSessionId,
 			unsigned& estBitrate) {
 	FramedSource *result = NULL;
+	struct RTSPConf *rtspconf = rtspconf_global();
 	if(strncmp("audio/", this->mimetype, 6) == 0) {
-		estBitrate = 128; /* Kbps */
+		estBitrate = rtspconf->audio_bitrate / 1000; /* Kbps */
 		result = GAAudioLiveSource::createNew(envir(), this->channelId);
 	} else if(strncmp("video/", this->mimetype, 6) == 0) {
-		estBitrate = 500; /* Kbps */
+		//estBitrate = 500; /* Kbps */
+		estBitrate = ga_conf_mapreadint("video-specific", "b") / 1000; /* Kbps */
 		OutPacketBuffer::increaseMaxSizeTo(300000);
 		result = GAVideoLiveSource::createNew(envir(), this->channelId);
 	}

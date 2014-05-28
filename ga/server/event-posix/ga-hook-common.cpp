@@ -28,6 +28,7 @@
 #include "ga-module.h"
 #include "rtspconf.h"
 #include "server.h"
+#include "ga-liveserver.h"
 #include "controller.h"
 #include "encoder-common.h"
 
@@ -309,7 +310,8 @@ ga_server(void *arg) {
 	if(init_modules() < 0)	 { return NULL; }
 	if(run_modules() < 0)	 { return NULL; }
 	//
-	rtspserver_main(NULL);
+	//rtspserver_main(NULL);
+	liveserver_main(NULL);
 	//
 	ga_deinit();
 	//

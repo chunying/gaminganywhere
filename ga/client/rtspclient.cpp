@@ -197,6 +197,59 @@ rtsperror(const char *fmt, ...) {
 	return;
 }
 
+static unsigned char *
+decode_sprop(AVCodecContext *ctx, const char *sprop) {
+	unsigned char startcode[] = {0, 0, 0, 1};
+	int sizemax = ctx->extradata_size + strlen(sprop) * 3;
+	unsigned char *extra = (unsigned char*) malloc(sizemax);
+	unsigned char *dest = extra;
+	int extrasize = 1;
+	int spropsize = strlen(sprop);
+	char *mysprop = strdup(sprop);
+	unsigned char *tmpbuf = (unsigned char *) strdup(sprop);
+	char *s0 = mysprop, *s1;
+	// already have extradata?
+	if(ctx->extradata) {
+		bcopy(ctx->extradata, extra, ctx->extradata_size);
+		extrasize = ctx->extradata_size;
+		dest += extrasize;
+	}
+	// start converting
+	while(*s0) {
+		int blen, more = 0;
+		for(s1 = s0; *s1; s1++) {
+			if(*s1 == ',' || *s1 == '\0')
+				break;
+		}
+		if(*s1 == ',')
+			more = 1;
+		*s1 = '\0';
+		if((blen = av_base64_decode(tmpbuf, s0, spropsize)) > 0) {
+			bcopy(startcode, dest, sizeof(startcode));
+			bcopy(tmpbuf, dest + sizeof(startcode), blen);
+			dest += sizeof(startcode) + blen;
+			extrasize += sizeof(startcode) + blen;
+		}
+		s0 = s1;
+		if(more) {
+			s0++;
+		}
+	}
+	// release
+	free(mysprop);
+	free(tmpbuf);
+	// show decoded sprop
+	if(extrasize > 0) {
+		if(ctx->extradata)
+			free(ctx->extradata);
+		ctx->extradata = extra;
+		ctx->extradata_size = extrasize;
+		return ctx->extradata;
+	}
+	free(extra);
+	return NULL;
+}
+
 int
 init_vdecoder(int channel, const char *sprop) {
 	AVCodec *codec = NULL; //rtspconf->video_decoder_codec;
@@ -238,15 +291,12 @@ init_vdecoder(int channel, const char *sprop) {
 		ctx->flags |= CODEC_FLAG_TRUNCATED;
 	}
 	if(sprop != NULL) {
-		unsigned char *extra = (unsigned char*) strdup(sprop);
-		int extrasize = strlen(sprop);
-		extrasize = av_base64_decode(extra, sprop, extrasize);
-		if(extrasize > 0) {
-			ctx->extradata = extra;
-			ctx->extradata_size = extrasize;
-			rtsperror("video decoder(%d): sprop configured with '%s', decoded-size=%d\n", channel, sprop, extrasize);
+		if(decode_sprop(ctx, sprop) != NULL) {
+			int extrasize = ctx->extradata_size;
+			rtsperror("video decoder(%d): sprop configured with '%s', decoded-size=%d\n",
+				channel, sprop, extrasize);
 			fprintf(stderr, "SPROP = [");
-			for(unsigned char *ptr = extra; extrasize > 0; extrasize--) {
+			for(unsigned char *ptr = ctx->extradata; extrasize > 0; extrasize--) {
 				fprintf(stderr, " %02x", *ptr++);
 			}
 			fprintf(stderr, " ]\n");
@@ -921,6 +971,7 @@ setupNextSubsession(RTSPClient* rtspClient) {
 #ifdef ANDROID
 					if(rtspconf->builtin_video_decoder != 0) {
 						video_codec_id = ga_lookup_codec_id(video_codec_name);
+						// TODO: retrieve SPS/PPS from sprop-parameter-sets
 					} else {
 					////// Work with ffmpeg
 #endif

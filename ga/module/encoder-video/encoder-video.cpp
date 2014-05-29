@@ -30,6 +30,9 @@
 
 #include "pipeline.h"
 
+//// Prevent use of GLOBAL_HEADER to pass parameters, disabled by default
+//#define STANDALONE_SDP	1
+
 static struct RTSPConf *rtspconf = NULL;
 
 static int vencoder_initialized = 0;
@@ -37,11 +40,13 @@ static int vencoder_started = 0;
 static pthread_t vencoder_tid[VIDEO_SOURCE_CHANNEL_MAX];
 //// encoders for encoding
 static AVCodecContext *vencoder[VIDEO_SOURCE_CHANNEL_MAX];
+#ifdef STANDALONE_SDP
 //// encoders for generating SDP
-/* we separate encoder and encoder_sdp because some ffmpeg codecs
+/* separate encoder and encoder_sdp because some ffmpeg codecs
  * only generate ctx->extradata when CODEC_FLAG_GLOBAL_HEADER flag
  * is set */
 static AVCodecContext *vencoder_sdp[VIDEO_SOURCE_CHANNEL_MAX];
+#endif
 
 // specific data for h.264/h.265
 static char *_sps[VIDEO_SOURCE_CHANNEL_MAX];
@@ -57,11 +62,15 @@ vencoder_deinit(void *arg) {
 			free(_sps[iid]);
 		if(_pps[iid] != NULL)
 			free(_pps[iid]);
+#ifdef STANDALONE_SDP
 		if(vencoder_sdp[iid] != NULL)
 			ga_avcodec_close(vencoder_sdp[iid]);
+#endif
 		if(vencoder[iid] != NULL)
 			ga_avcodec_close(vencoder[iid]);
+#ifdef STANDALONE_SDP
 		vencoder_sdp[iid] = NULL;
+#endif
 		vencoder[iid] = NULL;
 	}
 	bzero(_sps, sizeof(_sps));
@@ -109,6 +118,7 @@ vencoder_init(void *arg) {
 				rtspconf->video_fps, rtspconf->vso);
 		if(vencoder[iid] == NULL)
 			goto init_failed;
+#ifdef STANDALONE_SDP
 		// encoders for SDP generation
 		switch(rtspconf->video_encoder_codec->id) {
 		case AV_CODEC_ID_H264:
@@ -133,6 +143,7 @@ vencoder_init(void *arg) {
 			break;
 		}
 		vencoder_sdp[iid] = avc;
+#endif
 	}
 	vencoder_initialized = 1;
 	ga_error("video encoder: initialized.\n");
@@ -434,7 +445,11 @@ vencoder_opt1(void *arg, int *size) {
 	void *ret = NULL;
 	if(vencoder_initialized == 0)
 		return NULL;
+#ifdef STANDALONE_SDP
 	ve = vencoder_sdp[iid] ? vencoder_sdp[iid] : vencoder[iid];
+#else
+	ve = vencoder[iid];
+#endif
 	if(ve == NULL)
 		return NULL;
 	if(ve->extradata_size <= 0)
@@ -465,7 +480,11 @@ vencoder_opt2(void *arg, int *size) {
 	void *ret = NULL;
 	if(vencoder_initialized == 0)
 		return NULL;
+#ifdef STANDALONE_SDP
 	ve = vencoder_sdp[iid] ? vencoder_sdp[iid] : vencoder[iid];
+#else
+	ve = vencoder[iid];
+#endif
 	if(ve == NULL)
 		return NULL;
 	if(ve->extradata_size <= 0)

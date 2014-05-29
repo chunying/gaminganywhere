@@ -597,7 +597,7 @@ public class GAClient {
 		try {
 			vdecoder.configure(videoFormat, surface, null, 0);
 		} catch(Exception e) {
-			Log.e("ga_log", e.toString());
+			Log.e("ga_log", "vdecoder.configure: " + e.toString());
 			return null;
 		}
 		vdecoder.start();

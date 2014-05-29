@@ -269,12 +269,12 @@ public class PlayerActivity extends Activity implements SurfaceHolder.Callback, 
 
 	@Override
 	public void surfaceCreated(SurfaceHolder holder) {
-		Log.d("ga_log", "sufrace created.");
+		Log.d("ga_log", "surface created.");
 	}
 
 	@Override
 	public void surfaceDestroyed(SurfaceHolder holder) {
-		Log.d("ga_log", "sufrace destroyed.");
+		Log.d("ga_log", "surface destroyed.");
 	}
 
 	// GL
@@ -300,7 +300,7 @@ public class PlayerActivity extends Activity implements SurfaceHolder.Callback, 
 
 	@Override
 	public void onSurfaceChanged(GL10 gl, int width, int height) {
-		Log.d("ga_log", "GL sufrace changed, "
+		Log.d("ga_log", "GL surface changed, "
 				+ "width=" + Integer.toString(width)
 				+ "; height=" + Integer.toString(height));
 		if (client != null)
@@ -309,6 +309,6 @@ public class PlayerActivity extends Activity implements SurfaceHolder.Callback, 
 
 	@Override
 	public void onSurfaceCreated(GL10 gl, EGLConfig config) {
-		Log.d("ga_log", "GL sufrace created.");
+		Log.d("ga_log", "GL surface created.");
 	}
 }

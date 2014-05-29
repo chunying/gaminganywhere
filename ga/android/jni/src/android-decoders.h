@@ -28,6 +28,7 @@
 
 int android_prepare_audio(RTSPThreadParam *rtspParam, const char *mime, bool builtinDecoder);
 int android_decode_audio(RTSPThreadParam *rtspParam, unsigned char *buffer, int bufsize, struct timeval pts);
+int android_config_h264_sprop(RTSPThreadParam *rtspParam, const char *sprop);
 int android_decode_h264(RTSPThreadParam *rtspParam, unsigned char *buffer, int bufsize, struct timeval pts, bool marker);
 int android_decode_vp8(RTSPThreadParam *rtspParam, unsigned char *buffer, int bufsize, struct timeval pts, bool marker);
 

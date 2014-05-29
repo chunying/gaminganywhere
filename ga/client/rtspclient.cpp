@@ -972,6 +972,9 @@ setupNextSubsession(RTSPClient* rtspClient) {
 					if(rtspconf->builtin_video_decoder != 0) {
 						video_codec_id = ga_lookup_codec_id(video_codec_name);
 						// TODO: retrieve SPS/PPS from sprop-parameter-sets
+						if(video_codec_id == AV_CODEC_ID_H264) {
+							android_config_h264_sprop(rtspParam, scs.subsession->fmtp_spropparametersets());
+						}
 					} else {
 					////// Work with ffmpeg
 #endif

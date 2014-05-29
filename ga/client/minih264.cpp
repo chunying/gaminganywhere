@@ -128,6 +128,11 @@ parse_sps(struct mini_h264_context *ctx, unsigned char *buf, int len) {
 	int scalingList8x8[6][64];
 	int useDefaultScalingMatrix4x4Flag[6];
 	int useDefaultScalingMatrix8x8Flag[6];
+	unsigned char *newbuf = dupbuf(buf, len);
+	// copy buf, because we will modify its content
+	if(newbuf == NULL)
+		return -1;
+	buf = newbuf;
 	//
 	for(src = 0, rbsplen = 0; src < len; src++) {
 		if(src+2 < len && buf[src] == 0 && buf[src+1] == 0 && buf[src+2] == 3) {
@@ -212,6 +217,8 @@ parse_sps(struct mini_h264_context *ctx, unsigned char *buf, int len) {
 			- (sps->frame_crop_right_offset * 2)
 			- (sps->frame_crop_left_offset * 2);
 	//
+	free(buf);
+	//
 	return 0;
 }
 
@@ -242,10 +249,11 @@ parse_slice_layer_wo_partition(struct mini_h264_context *ctx, unsigned char *buf
 	return;
 }
 
-// assume: buf contains a single nal
-// return 0 on success, or -1 on fail
+// assume: buf contains a single nal, except when nal_type = sps
+// return 0 on success, >0 when two or more nals are found,  or -1 on fail
 int
 mini_h264_parse(struct mini_h264_context *ctx, unsigned char *buf, int len) {
+	int ret = 0;
 	//
 	if(len < 5)
 		return -1;
@@ -271,12 +279,21 @@ mini_h264_parse(struct mini_h264_context *ctx, unsigned char *buf, int len) {
 		// coded slice ...
 	} else if(ctx->type == 7) {
 		// sps
+		ret = 0;
+		// find next start code to determine nal length
+		for(unsigned char *s = &buf[4]; s < buf + len - 4; s++) {
+			if(s[0]==0 && s[1]==0 && s[2]==0 && s[3]==1) {
+				ret = s - buf;
+				break;
+			}
+		}
+		//
 		ctx->is_config = 1;
-		if((ctx->rawsps = dupbuf(buf, len)) == NULL)
+		if((ctx->rawsps = dupbuf(buf, ret > 0 ? ret : len)) == NULL)
 			return -1;
-		ctx->spslen = len;
-		// XXX: parse could change the content of the buffer!
-		if(parse_sps(ctx, &buf[5], len-5) < 0) {
+		ctx->spslen = ret > 0 ? ret : len;
+		//
+		if(parse_sps(ctx, ctx->rawsps + 5, ctx->spslen - 5) < 0) {
 			free(ctx->rawsps);
 			ctx->rawsps = NULL;
 			ctx->spslen = 0;
@@ -284,14 +301,23 @@ mini_h264_parse(struct mini_h264_context *ctx, unsigned char *buf, int len) {
 		}
 	} else if(ctx->type == 8) {
 		// pps
+		ret = 0;
+		// find next start code to determine nal length
+		for(unsigned char *s = &buf[4]; s < buf + len - 4; s++) {
+			if(s[0]==0 && s[1]==0 && s[2]==0 && s[3]==1) {
+				ret = s - buf;
+				break;
+			}
+		}
+		//
 		ctx->is_config = 1;
-		if((ctx->rawpps = dupbuf(buf, len)) == NULL)
+		if((ctx->rawpps = dupbuf(buf, ret > 0 ? ret : len)) == NULL)
 			return -1;
-		ctx->ppslen = len;
+		ctx->ppslen = ret > 0 ? ret : len;
 	} else {
 		ctx->is_config = 1;
 	}
 	//
-	return 0;
+	return ret;
 }
 

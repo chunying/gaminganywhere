@@ -153,14 +153,14 @@ encoder_register_client(void /*RTSPContext*/ *rtsp) {
 		if(vencoder != NULL && vencoder->init != NULL) {
 			if(vencoder->init(vencoder_param) < 0) {
 				ga_error("video encoder: init failed.\n");
-				return -1;
+				exit(-1);;
 			}
 		}
 		// initialize audio encoder
 		if(aencoder != NULL && aencoder->init != NULL) {
 			if(aencoder->init(aencoder_param) < 0) {
 				ga_error("audio encoder: init failed.\n");
-				return -1;
+				exit(-1);
 			}
 		}
 		// must be set before encoder starts!
@@ -171,7 +171,7 @@ encoder_register_client(void /*RTSPContext*/ *rtsp) {
 				pthread_rwlock_unlock(&encoder_lock);
 				ga_error("video encoder: start failed.\n");
 				threadLaunched = false;
-				return -1;
+				exit(-1);
 			}
 		}
 		// start audio encoder
@@ -180,7 +180,7 @@ encoder_register_client(void /*RTSPContext*/ *rtsp) {
 				pthread_rwlock_unlock(&encoder_lock);
 				ga_error("audio encoder: start failed.\n");
 				threadLaunched = false;
-				return -1;
+				exit(-1);
 			}
 		}
 	}

@@ -230,10 +230,15 @@ decode_sprop(AVCodecContext *ctx, const char *sprop) {
 			more = 1;
 		*s1 = '\0';
 		if((blen = av_base64_decode(tmpbuf, s0, spropsize)) > 0) {
-			bcopy(startcode, dest, sizeof(startcode));
-			bcopy(tmpbuf, dest + sizeof(startcode), blen);
-			dest += sizeof(startcode) + blen;
-			extrasize += sizeof(startcode) + blen;
+			int offset = 0;
+			// no start code?
+			if(memcmp(startcode, tmpbuf, sizeof(startcode)) != 0) {
+				bcopy(startcode, dest, sizeof(startcode));
+				offset += sizeof(startcode);
+			}
+			bcopy(tmpbuf, dest + offset, blen);
+			dest += offset + blen;
+			extrasize += offset + blen;
 		}
 		s0 = s1;
 		if(more) {

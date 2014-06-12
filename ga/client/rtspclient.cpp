@@ -49,6 +49,11 @@ using namespace std;
 
 #define	COUNT_FRAME_RATE	600	// every N frames
 
+//#define SAVEFILE        "save.raw"
+#ifdef SAVEFILE
+static FILE *fout = NULL;
+#endif
+
 struct RTSPConf *rtspconf;
 int image_rendered = 0;
 
@@ -244,6 +249,11 @@ decode_sprop(AVCodecContext *ctx, const char *sprop) {
 			free(ctx->extradata);
 		ctx->extradata = extra;
 		ctx->extradata_size = extrasize;
+#ifdef SAVEFILE
+		if(fout != NULL) {
+			fwrite(extra, sizeof(char), extrasize, fout);
+		}
+#endif
 		return ctx->extradata;
 	}
 	free(extra);
@@ -385,6 +395,11 @@ play_video_priv(int ch/*channel*/, unsigned char *buffer, int bufsize, struct ti
 #endif
 	pooldata_t *data = NULL;
 	AVPicture *dstframe = NULL;
+#ifdef SAVEFILE
+	if(fout != NULL) {
+		fwrite(buffer, sizeof(char), bufsize, fout);
+	}
+#endif
 	//
 	av_init_packet(&avpkt);
 	avpkt.size = bufsize;
@@ -951,7 +966,11 @@ setupNextSubsession(RTSPClient* rtspClient) {
 	UsageEnvironment& env = rtspClient->envir(); // alias
 	StreamClientState& scs = ((ourRTSPClient*)rtspClient)->scs; // alias
 	bool rtpOverTCP = false;
-
+#ifdef SAVEFILE
+	if(fout == NULL) {
+		fout = fopen("save.raw", "wb");
+	}
+#endif
 	if(rtspconf->proto == IPPROTO_TCP) {
 		rtpOverTCP = true;
 	}

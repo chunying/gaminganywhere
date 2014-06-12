@@ -973,7 +973,7 @@ setupNextSubsession(RTSPClient* rtspClient) {
 	bool rtpOverTCP = false;
 #ifdef SAVEFILE
 	if(fout == NULL) {
-		fout = fopen("save.raw", "wb");
+		fout = fopen(SAVEFILE, "wb");
 	}
 #endif
 	if(rtspconf->proto == IPPROTO_TCP) {

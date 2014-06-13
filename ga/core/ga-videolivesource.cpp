@@ -130,7 +130,7 @@ void GAVideoLiveSource
 	if(newFrameDataStart == NULL)
 		return;
 	newFrameSize = pkt.size;
-#if 1	// special handling for packets with startcode
+#ifdef DISCRETE_FRAMER	// special handling for packets with startcode
 	if(remove_startcode != 0) {
 		if(newFrameDataStart[0] == 0
 		&& newFrameDataStart[1] == 0) {
@@ -148,8 +148,12 @@ void GAVideoLiveSource
 	// Deliver the data here:
 	if (newFrameSize > fMaxSize) {
 		fFrameSize = fMaxSize;
+#ifdef DISCRETE_FRAMER
 		fNumTruncatedBytes = newFrameSize - fMaxSize;
 		ga_error("video encoder: packet truncated (%d > %d).\n", newFrameSize, fMaxSize);
+#else		// for regular H264Framer
+		encoder_pktqueue_split_packet(this->channelId, (char*) newFrameDataStart + fMaxSize);
+#endif
 	} else {
 		fFrameSize = newFrameSize;
 	}

@@ -28,6 +28,8 @@
 #include <T140TextRTPSink.hh>
 #include <H264VideoStreamDiscreteFramer.hh>
 #include <H265VideoStreamDiscreteFramer.hh>
+#include <H264VideoStreamFramer.hh>
+#include <H265VideoStreamFramer.hh>
 
 #include "ga-common.h"
 #include "ga-conf.h"
@@ -67,11 +69,19 @@ FramedSource* GAMediaSubsession
 	}
 	do if(result != NULL) {
 		if(strcmp("video/H264", this->mimetype) == 0) {
+#ifdef DISCRETE_FRAMER
 			result = H264VideoStreamDiscreteFramer::createNew(envir(), result);
+#else
+			result = H264VideoStreamFramer::createNew(envir(), result);
+#endif
 			break;
 		}
 		if(strcmp("video/H265", this->mimetype) == 0) {
+#ifdef DISCRETE_FRAMER
 			result = H265VideoStreamDiscreteFramer::createNew(envir(), result);
+#else
+			result = H265VideoStreamFramer::createNew(envir(), result);
+#endif
 			break;
 		}
 	} while(0);

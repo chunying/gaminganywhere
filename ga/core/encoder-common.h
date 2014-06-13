@@ -24,6 +24,8 @@
 #include "ga-avcodec.h"
 #include "ga-module.h"
 
+#define DISCRETE_FRAMER		/* use discrete framer */
+
 enum GARTSPServerType {
 	RTSPSERVER_TYPE_NULL = 0,
 	RTSPSERVER_TYPE_FFMPEG,

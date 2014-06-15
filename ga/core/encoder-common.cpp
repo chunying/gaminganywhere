@@ -53,16 +53,16 @@ static ga_module_t *aencoder = NULL;
 static void *vencoder_param = NULL;
 static void *aencoder_param = NULL;
 
-static int encoder_send_packet_all_default(const char *, int, AVPacket *, int64_t);
+static int encoder_send_packet_all_default(const char *, int, AVPacket *, int64_t, struct timeval *);
 // for ffmpeg-based rtsp server
-static int encoder_send_packet_all_ffmpeg(const char *, int, AVPacket *, int64_t);
-static int encoder_send_packet_ffmpeg(const char *, void *ctx, int, AVPacket*, int64_t);
+static int encoder_send_packet_all_ffmpeg(const char *, int, AVPacket *, int64_t, struct timeval *);
+static int encoder_send_packet_ffmpeg(const char *, void *ctx, int, AVPacket*, int64_t, struct timeval *);
 // for live-555 based rtsp server
-static int encoder_send_packet_live(const char *, void *ctx, int, AVPacket*, int64_t);
+static int encoder_send_packet_live(const char *, void *ctx, int, AVPacket*, int64_t, struct timeval *);
 
-static int (*encoder_send_packet_all_internal)(const char *, int, AVPacket *, int64_t)
+static int (*encoder_send_packet_all_internal)(const char *, int, AVPacket *, int64_t, struct timeval *)
 			= encoder_send_packet_all_ffmpeg;
-static int (*encoder_send_packet_internal)(const char *, void *, int, AVPacket *, int64_t)
+static int (*encoder_send_packet_internal)(const char *, void *, int, AVPacket *, int64_t, struct timeval *)
 			= encoder_send_packet_ffmpeg;
 
 int
@@ -218,12 +218,12 @@ encoder_unregister_client(void /*RTSPContext*/ *rtsp) {
 }
 
 int
-encoder_send_packet(const char *prefix, void *ctx, int channelId, AVPacket *pkt, int64_t encoderPts) {
-	return encoder_send_packet_internal(prefix, ctx, channelId, pkt, encoderPts);
+encoder_send_packet(const char *prefix, void *ctx, int channelId, AVPacket *pkt, int64_t encoderPts, struct timeval *ptv) {
+	return encoder_send_packet_internal(prefix, ctx, channelId, pkt, encoderPts, ptv);
 }
 
 static int
-encoder_send_packet_ffmpeg(const char *prefix, void *ctx, int channelId, AVPacket *pkt, int64_t encoderPts) {
+encoder_send_packet_ffmpeg(const char *prefix, void *ctx, int channelId, AVPacket *pkt, int64_t encoderPts, struct timeval *ptv) {
 	int iolen;
 	uint8_t *iobuf;
 	RTSPContext *rtsp = (RTSPContext*) ctx;
@@ -289,18 +289,18 @@ encoder_send_packet_ffmpeg(const char *prefix, void *ctx, int channelId, AVPacke
 }
 
 static int
-encoder_send_packet_live(const char *prefix, void *ctx, int channelId, AVPacket *pkt, int64_t encoderPts) {
-	encoder_pktqueue_append(channelId, pkt, encoderPts);
+encoder_send_packet_live(const char *prefix, void *ctx, int channelId, AVPacket *pkt, int64_t encoderPts, struct timeval *ptv) {
+	encoder_pktqueue_append(channelId, pkt, encoderPts, ptv);
 	return -1;
 }
 
 int
-encoder_send_packet_all(const char *prefix, int channelId, AVPacket *pkt, int64_t encoderPts) {
-	return encoder_send_packet_all_internal(prefix, channelId, pkt, encoderPts);
+encoder_send_packet_all(const char *prefix, int channelId, AVPacket *pkt, int64_t encoderPts, struct timeval *ptv) {
+	return encoder_send_packet_all_internal(prefix, channelId, pkt, encoderPts, ptv);
 }
 
 static int
-encoder_send_packet_all_ffmpeg(const char *prefix, int channelId, AVPacket *pkt, int64_t encoderPts) {
+encoder_send_packet_all_ffmpeg(const char *prefix, int channelId, AVPacket *pkt, int64_t encoderPts, struct timeval *ptv) {
 	map<void*,void*>::iterator mi;
 again:
 	if(pthread_rwlock_tryrdlock(&encoder_lock) != 0) {
@@ -311,7 +311,7 @@ again:
 	for(mi = encoder_clients.begin(); mi != encoder_clients.end(); mi++) {
 		if(((RTSPContext*) mi->second)->state != SERVER_STATE_PLAYING)
 			continue;
-		if(encoder_send_packet(prefix, mi->second, channelId, pkt, encoderPts) < 0) {
+		if(encoder_send_packet(prefix, mi->second, channelId, pkt, encoderPts, ptv) < 0) {
 			//rtsp_cleanup(mi->second, -1);
 		}
 	}
@@ -320,7 +320,7 @@ again:
 }
 
 static int
-encoder_send_packet_all_default(const char *prefix, int channelId, AVPacket *pkt, int64_t encoderPts) {
+encoder_send_packet_all_default(const char *prefix, int channelId, AVPacket *pkt, int64_t encoderPts, struct timeval *ptv) {
 	map<void*,void*>::iterator mi;
 again:
 	if(pthread_rwlock_tryrdlock(&encoder_lock) != 0) {
@@ -329,7 +329,7 @@ again:
 		goto again;
 	}
 	for(mi = encoder_clients.begin(); mi != encoder_clients.end(); mi++) {
-		encoder_send_packet(prefix, mi->second, channelId, pkt, encoderPts);
+		encoder_send_packet(prefix, mi->second, channelId, pkt, encoderPts, ptv);
 	}
 	pthread_rwlock_unlock(&encoder_lock);
 	return 0;
@@ -369,7 +369,7 @@ encoder_pktqueue_size(int channelId) {
 }
 
 int
-encoder_pktqueue_append(int channelId, AVPacket *pkt, int64_t encoderPts) {
+encoder_pktqueue_append(int channelId, AVPacket *pkt, int64_t encoderPts, struct timeval *ptv) {
 	encoder_packet_queue_t *q = &pktqueue[channelId];
 	encoder_packet_t qp;
 	map<qcallback_t,qcallback_t>::iterator mi;
@@ -400,7 +400,11 @@ size_check:
 	qp.data = q->buf + q->tail;
 	qp.size = pkt->size;
 	qp.pts_int64 = pkt->pts;
-	gettimeofday(&qp.pts_tv, NULL);
+	if(ptv != NULL) {
+		qp.pts_tv = *ptv;
+	} else {
+		gettimeofday(&qp.pts_tv, NULL);
+	}
 	//qp.pos = q->tail;
 	qp.padding = 0;
 	//

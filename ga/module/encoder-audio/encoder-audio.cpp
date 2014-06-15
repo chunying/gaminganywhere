@@ -351,7 +351,8 @@ aencoder_threadproc(void *arg) {
 			// send the packet
 			if(encoder_send_packet_all("audio-encoder",
 				rtp_id/*rtspconf->audio_id*/, pkt,
-				/*encoder->coded_frame->*/pkt->pts == AV_NOPTS_VALUE ? pts : /*encoder->coded_frame->*/pkt->pts) < 0) {
+				/*encoder->coded_frame->*/pkt->pts == AV_NOPTS_VALUE ? pts : /*encoder->coded_frame->*/pkt->pts,
+				NULL) < 0) {
 				goto audio_quit;
 			}
 			//

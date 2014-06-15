@@ -62,13 +62,13 @@ EXPORT ga_module_t *encoder_get_aencoder();
 EXPORT int encoder_register_client(void *ctx);
 EXPORT int encoder_unregister_client(void *ctx);
 
-EXPORT int encoder_send_packet(const char *prefix, void *ctx, int channelId, AVPacket *pkt, int64_t encoderPts);
-EXPORT int encoder_send_packet_all(const char *prefix, int channelId, AVPacket *pkt, int64_t encoderPts);
+EXPORT int encoder_send_packet(const char *prefix, void *ctx, int channelId, AVPacket *pkt, int64_t encoderPts, struct timeval *ptv);
+EXPORT int encoder_send_packet_all(const char *prefix, int channelId, AVPacket *pkt, int64_t encoderPts, struct timeval *ptv);
 
 // encoder packet queue - for async packet delivery
 EXPORT int encoder_pktqueue_init(int channels, int qsize);
 EXPORT int encoder_pktqueue_size(int channelId);
-EXPORT int encoder_pktqueue_append(int channelId, AVPacket *pkt, int64_t encoderPts);
+EXPORT int encoder_pktqueue_append(int channelId, AVPacket *pkt, int64_t encoderPts, struct timeval *ptv);
 EXPORT char * encoder_pktqueue_front(int channelId, encoder_packet_t *pkt);
 EXPORT void encoder_pktqueue_split_packet(int channelId, char *offset);
 EXPORT void encoder_pktqueue_pop_front(int channelId);

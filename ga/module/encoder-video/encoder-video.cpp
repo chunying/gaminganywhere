@@ -283,7 +283,7 @@ vencoder_threadproc(void *arg) {
 			// send the packet
 			if(encoder_send_packet_all("video-encoder",
 				iid/*rtspconf->video_id*/, &pkt,
-				pkt.pts) < 0) {
+				pkt.pts, NULL) < 0) {
 				goto video_quit;
 			}
 			// free unused side-data

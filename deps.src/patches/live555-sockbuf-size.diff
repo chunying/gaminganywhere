@@ -1,0 +1,16 @@
+diff -Naur live/groupsock/GroupsockHelper.cpp live.new/groupsock/GroupsockHelper.cpp
+--- live/groupsock/GroupsockHelper.cpp	2014-05-28 01:43:24.000000000 +0800
++++ live.new/groupsock/GroupsockHelper.cpp	2014-06-16 23:35:56.754122422 +0800
+@@ -410,10 +410,12 @@
+ }
+ unsigned increaseSendBufferTo(UsageEnvironment& env,
+ 			      int socket, unsigned requestedSize) {
++  if (requestedSize < 1024 * 1024) requestedSize = 1024 * 1024;
+   return increaseBufferTo(env, SO_SNDBUF, socket, requestedSize);
+ }
+ unsigned increaseReceiveBufferTo(UsageEnvironment& env,
+ 				 int socket, unsigned requestedSize) {
++  if (requestedSize < 1024 * 1024) requestedSize = 1024 * 1024;
+   return increaseBufferTo(env, SO_RCVBUF, socket, requestedSize);
+ }
+ 

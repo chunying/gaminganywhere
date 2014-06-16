@@ -62,8 +62,8 @@ FramedSource* GAMediaSubsession
 		estBitrate = rtspconf->audio_bitrate / 1000; /* Kbps */
 		result = GAAudioLiveSource::createNew(envir(), this->channelId);
 	} else if(strncmp("video/", this->mimetype, 6) == 0) {
-		estBitrate = 500; /* Kbps */
-		//estBitrate = ga_conf_mapreadint("video-specific", "b") / 1000; /* Kbps */
+		//estBitrate = 500; /* Kbps */
+		estBitrate = ga_conf_mapreadint("video-specific", "b") / 1000; /* Kbps */
 		OutPacketBuffer::increaseMaxSizeTo(300000);
 		result = GAVideoLiveSource::createNew(envir(), this->channelId);
 	}
@@ -152,7 +152,7 @@ RTPSink* GAMediaSubsession
 			mimetype,
 			SPS, SPSSize, PPS, PPSSize, profile_level_id);
 		result = H264VideoRTPSink::createNew(envir(), rtpGroupsock, rtpPayloadTypeIfDynamic,
-				SPS, SPSSize, PPS, PPSSize, profile_level_id);
+				SPS, SPSSize, PPS, PPSSize/*, profile_level_id*/);
 	} else if(strcmp(mimetype, "video/H265") == 0) {
 		unsigned profileSpace = 0; // general_profile_space
 		unsigned profileId = 0; // general_profile_idc
@@ -167,9 +167,9 @@ RTPSink* GAMediaSubsession
 		ga_error("GAMediaSubsession: %s NOT IMPLEMENTED\n", mimetype);
 		exit(-1);
 		result = H265VideoRTPSink::createNew(envir(), rtpGroupsock, rtpPayloadTypeIfDynamic,
-				VPS, VPSSize, SPS, SPSSize, PPS, PPSSize,
+				VPS, VPSSize, SPS, SPSSize, PPS, PPSSize/*,
 				profileSpace, profileId, tierFlag, levelId,
-				interopConstraintsStr);
+				interopConstraintsStr*/);
 	} else if(strcmp(mimetype, "video/VP8") == 0) {
 		result = VP8VideoRTPSink::createNew(envir(), rtpGroupsock, rtpPayloadTypeIfDynamic);
 	} 

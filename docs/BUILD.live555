@@ -4,6 +4,7 @@
 
 * On Windows (w/ Visual C++)
 	1. Extract live555 source code
+	   - also apply patch files in patches/live555-*
 	2. Modify live/win32config, set TOOLS32=/path/to/VC, e.g.
 	   TOOLS32 = C:\Program Files\Microsoft Visual Studio 10.0\VC
 	3. Modify live/win32config, ensure NODEBUG=1 is not commented out

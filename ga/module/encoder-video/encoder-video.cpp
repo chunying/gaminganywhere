@@ -53,6 +53,8 @@ static char *_sps[VIDEO_SOURCE_CHANNEL_MAX];
 static int _spslen[VIDEO_SOURCE_CHANNEL_MAX];
 static char *_pps[VIDEO_SOURCE_CHANNEL_MAX];
 static int _ppslen[VIDEO_SOURCE_CHANNEL_MAX];
+static char *_vps[VIDEO_SOURCE_CHANNEL_MAX];
+static int _vpslen[VIDEO_SOURCE_CHANNEL_MAX];
 
 static int
 vencoder_deinit(void *arg) {
@@ -99,7 +101,6 @@ vencoder_init(void *arg) {
 		char pipename[64];
 		int outputW, outputH;
 		pipeline *pipe;
-		AVCodecContext *avc = NULL;
 		//
 		_sps[iid] = _pps[iid] = NULL;
 		_spslen[iid] = _ppslen[iid] = 0;
@@ -382,81 +383,138 @@ find_startcode(unsigned char *data, unsigned char *end) {
 }
 
 static int
-h264_get_sps_pps(int channelId, unsigned char *data, int datalen) {
+h264or5_get_vparam(int type, int channelId, unsigned char *data, int datalen) {
 	int ret = -1;
 	unsigned char *r;
-	unsigned char *sps = NULL, *pps = NULL;
-	int spslen = 0, ppslen = 0;
+	unsigned char *sps = NULL, *pps = NULL, *vps = NULL;
+	int spslen = 0, ppslen = 0, vpslen = 0;
 	if(_sps[channelId] != NULL)
 		return 0;
 	r = find_startcode(data, data + datalen);
 	while(r < data + datalen) {
 		unsigned char nal_type;
 		unsigned char *r1;
+#if 0
 		if(sps != NULL && pps != NULL)
 			break;
+#endif
 		while(0 == (*r++))
 			;
-		nal_type = *r & 0x1f;
 		r1 = find_startcode(r, data + datalen);
-		if(nal_type == 7) {
-			// SPS
-			sps = r;
-			spslen = r1 - r;
-		} else if(nal_type == 8) {
-			// PPS
-			pps = r;
-			ppslen = r1 - r;
+		if(type == 265) {
+			nal_type = ((*r)>>1) & 0x3f;
+			if(nal_type == 32) {		// VPS
+				vps = r;
+				vpslen = r1 - r;
+			} else if(nal_type == 33) {	// SPS
+				sps = r;
+				spslen = r1 - r;
+			} else if(nal_type == 34) {	// PPS
+				pps = r;
+				ppslen = r1 - r;
+			}
+		} else {
+			// assume default is 264
+			nal_type = *r & 0x1f;
+			if(nal_type == 7) {		// SPS
+				sps = r;
+				spslen = r1 - r;
+			} else if(nal_type == 8) {	// PPS
+				pps = r;
+				ppslen = r1 - r;
+			}
 		}
 		r = r1;
 	}
 	if(sps != NULL && pps != NULL) {
 		// alloc and copy SPS
 		if((_sps[channelId] = (char*) malloc(spslen)) == NULL)
-			return -1;
+			goto error_get_h264or5_vparam;
 		_spslen[channelId] = spslen;
 		bcopy(sps, _sps[channelId], spslen);
 		// alloc and copy PPS
 		if((_pps[channelId] = (char*) malloc(ppslen)) == NULL) {
-			free(_sps[channelId]);
-			_sps[channelId] = NULL;
-			return -1;
+			goto error_get_h264or5_vparam;
 		}
 		_ppslen[channelId] = ppslen;
 		bcopy(pps, _pps[channelId], ppslen);
-		ga_error("video encoder: found sps@%d(%d); pps@%d(%d)\n",
-			sps-data, _spslen[channelId],
-			pps-data, _ppslen[channelId]);
+		// alloc and copy VPS
+		if(vps != NULL) {
+			if((_vps[channelId] = (char*) malloc(vpslen)) == NULL) {
+				goto error_get_h264or5_vparam;
+			}
+			_vpslen[channelId] = vpslen;
+			bcopy(vps, _vps[channelId], vpslen);
+		}
+		//
+		if(type == 265) {
+			if(vps == NULL)
+				goto error_get_h264or5_vparam;
+			ga_error("video encoder: h.265/found sps@%d(%d); pps@%d(%d); vps@%d(%d)\n",
+				sps-data, _spslen[channelId],
+				pps-data, _ppslen[channelId],
+				vps-data, _vpslen[channelId]);
+		} else {
+			ga_error("video encoder: h.264/found sps@%d(%d); pps@%d(%d)\n",
+				sps-data, _spslen[channelId],
+				pps-data, _ppslen[channelId]);
+		}
 		//
 		ret = 0;
 	}
 	return ret;
+error_get_h264or5_vparam:
+	if(_sps[channelId])	free(_sps[channelId]);
+	if(_pps[channelId])	free(_pps[channelId]);
+	if(_vps[channelId])	free(_vps[channelId]);
+	_sps[channelId]    = _pps[channelId]    = _vps[channelId]    = NULL;
+	_spslen[channelId] = _ppslen[channelId] = _vpslen[channelId] = 0;
+	return -1;
+}
+
+static int
+vencoder_opt_get_cid(void *arg) {
+#if defined __APPLE__
+	int64_t in = (int64_t) arg;
+	int cid = (int) (in & 0xffffffffLL);
+#else
+	int cid = (int) arg;
+#endif
+	return cid;
+}
+
+static AVCodecContext *
+vencoder_opt_get_encoder(int cid) {
+	AVCodecContext *ve = NULL;
+	if(vencoder_initialized == 0)
+		return NULL;
+#ifdef STANDALONE_SDP
+	ve = vencoder_sdp[cid] ? vencoder_sdp[cid] : vencoder[cid];
+#else
+	ve = vencoder[cid];
+#endif
+	return ve;
 }
 
 static void *
 vencoder_opt1(void *arg, int *size) {
 	AVCodecContext *ve = NULL;
-#if defined __APPLE__
-	int64_t in = (int64_t) arg;
-	int iid = (int) (in & 0xffffffffLL);
-#else
-	int iid = (int) arg;
-#endif
+	int iid = vencoder_opt_get_cid(arg);
 	void *ret = NULL;
-	if(vencoder_initialized == 0)
-		return NULL;
-#ifdef STANDALONE_SDP
-	ve = vencoder_sdp[iid] ? vencoder_sdp[iid] : vencoder[iid];
-#else
-	ve = vencoder[iid];
-#endif
-	if(ve == NULL)
+	//
+	if((ve = vencoder_opt_get_encoder(iid)) == NULL)
 		return NULL;
 	if(ve->extradata_size <= 0)
 		return NULL;
 	switch(ve->codec_id) {
 	case AV_CODEC_ID_H264:
-		if(h264_get_sps_pps(iid, ve->extradata, ve->extradata_size) < 0)
+		if(h264or5_get_vparam(264, iid, ve->extradata, ve->extradata_size) < 0)
+			return NULL;
+		*size = _spslen[iid];
+		return _sps[iid];
+		break;
+	case AV_CODEC_ID_H265:
+		if(h264or5_get_vparam(265, iid, ve->extradata, ve->extradata_size) < 0)
 			return NULL;
 		*size = _spslen[iid];
 		return _sps[iid];
@@ -471,31 +529,50 @@ vencoder_opt1(void *arg, int *size) {
 static void *
 vencoder_opt2(void *arg, int *size) {
 	AVCodecContext *ve = NULL;
-#if defined __APPLE__
-	int64_t in = (int64_t) arg;
-	int iid = (int) (in & 0xffffffffLL);
-#else
-	int iid = (int) arg;
-#endif
+	int iid = vencoder_opt_get_cid(arg);
 	void *ret = NULL;
-	if(vencoder_initialized == 0)
-		return NULL;
-#ifdef STANDALONE_SDP
-	ve = vencoder_sdp[iid] ? vencoder_sdp[iid] : vencoder[iid];
-#else
-	ve = vencoder[iid];
-#endif
-	if(ve == NULL)
+	//
+	if((ve = vencoder_opt_get_encoder(iid)) == NULL)
 		return NULL;
 	if(ve->extradata_size <= 0)
 		return NULL;
 	switch(ve->codec_id) {
 	case AV_CODEC_ID_H264:
 		// return PPS
-		if(h264_get_sps_pps(iid, ve->extradata, ve->extradata_size) < 0)
+		if(h264or5_get_vparam(264, iid, ve->extradata, ve->extradata_size) < 0)
 			return NULL;
 		*size = _ppslen[iid];
 		return _pps[iid];
+		break;
+	case AV_CODEC_ID_H265:
+		if(h264or5_get_vparam(265, iid, ve->extradata, ve->extradata_size) < 0)
+			return NULL;
+		*size = _ppslen[iid];
+		return _pps[iid];
+		break;
+	default:
+		*size = ve->extradata_size;
+		ret = ve->extradata;
+	}
+	return ret;
+}
+
+static void *
+vencoder_opt3(void *arg, int *size) {
+	AVCodecContext *ve = NULL;
+	int iid = vencoder_opt_get_cid(arg);
+	void *ret = NULL;
+	//
+	if((ve = vencoder_opt_get_encoder(iid)) == NULL)
+		return NULL;
+	if(ve->extradata_size <= 0)
+		return NULL;
+	switch(ve->codec_id) {
+	case AV_CODEC_ID_H265:
+		if(h264or5_get_vparam(265, iid, ve->extradata, ve->extradata_size) < 0)
+			return NULL;
+		*size = _vpslen[iid];
+		return _vps[iid];
 		break;
 	default:
 		*size = ve->extradata_size;
@@ -525,6 +602,7 @@ module_load() {
 	m.raw = vencoder_raw;
 	m.option1 = vencoder_opt1;
 	m.option2 = vencoder_opt2;
+	m.option3 = vencoder_opt3;
 	return &m;
 }
 

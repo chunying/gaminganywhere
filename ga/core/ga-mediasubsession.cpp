@@ -143,6 +143,7 @@ RTPSink* GAMediaSubsession
 		unsigned profile_level_id = 0;
 		u_int8_t* SPS = NULL; int SPSSize = 0;
 		u_int8_t* PPS = NULL; int PPSSize = 0;
+		//
 		SPS = (u_int8_t*) m->option1((void*) this->channelId, &SPSSize);
 		PPS = (u_int8_t*) m->option2((void*) this->channelId, &PPSSize);
 		if (SPSSize >= 1/*'profile_level_id' offset within SPS*/ + 3/*num bytes needed*/) {
@@ -154,18 +155,21 @@ RTPSink* GAMediaSubsession
 		result = H264VideoRTPSink::createNew(envir(), rtpGroupsock, rtpPayloadTypeIfDynamic,
 				SPS, SPSSize, PPS, PPSSize/*, profile_level_id*/);
 	} else if(strcmp(mimetype, "video/H265") == 0) {
-		unsigned profileSpace = 0; // general_profile_space
-		unsigned profileId = 0; // general_profile_idc
-		unsigned tierFlag = 0; // general_tier_flag
-		unsigned levelId = 0; // general_level_idc
-		char interopConstraintsStr[100];
-		//
-		u_int8_t* VPS = NULL; unsigned VPSSize = 0;
-		u_int8_t* SPS = NULL; unsigned SPSSize = 0;
-		u_int8_t* PPS = NULL; unsigned PPSSize = 0;
+		ga_module_t *m = encoder_get_vencoder();
+		u_int8_t* VPS = NULL; int VPSSize = 0;
+		u_int8_t* SPS = NULL; int SPSSize = 0;
+		u_int8_t* PPS = NULL; int PPSSize = 0;
 		// TODO: not implememted
+#if 0
 		ga_error("GAMediaSubsession: %s NOT IMPLEMENTED\n", mimetype);
 		exit(-1);
+#endif
+		SPS = (u_int8_t*) m->option1((void*) this->channelId, &SPSSize);
+		PPS = (u_int8_t*) m->option2((void*) this->channelId, &PPSSize);
+		VPS = (u_int8_t*) m->option3((void*) this->channelId, &VPSSize);
+		ga_error("GAMediaSubsession: %s SPS=%p(%d); PPS=%p(%d); VPS=%p(%d)\n",
+			mimetype,
+			SPS, SPSSize, PPS, PPSSize, VPS, VPSSize);
 		result = H265VideoRTPSink::createNew(envir(), rtpGroupsock, rtpPayloadTypeIfDynamic,
 				VPS, VPSSize, SPS, SPSSize, PPS, PPSSize/*,
 				profileSpace, profileId, tierFlag, levelId,

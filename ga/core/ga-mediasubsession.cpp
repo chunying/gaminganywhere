@@ -64,7 +64,7 @@ FramedSource* GAMediaSubsession
 	} else if(strncmp("video/", this->mimetype, 6) == 0) {
 		//estBitrate = 500; /* Kbps */
 		estBitrate = ga_conf_mapreadint("video-specific", "b") / 1000; /* Kbps */
-		OutPacketBuffer::increaseMaxSizeTo(300000);
+		OutPacketBuffer::increaseMaxSizeTo(600000);
 		result = GAVideoLiveSource::createNew(envir(), this->channelId);
 	}
 	do if(result != NULL) {

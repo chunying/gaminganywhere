@@ -4,12 +4,13 @@ MACHINE		= $(shell uname -m)
 SYSTEM		= $(shell uname -s)
 PARALLEL_MAKE	= -j5
 PACKAGES	= sdl2 sdl2_ttf yasm lame opus ogg vorbis theora vpx \
-		  x264 xvid ffmpeg live555
+		  x264 x265 xvid ffmpeg live555
 OSX_CLANG_PATCH	= echo '*** Not on OS X: not applied ***'
 
 ifeq ($(SYSTEM),Darwin)
 VPX_EXTRA_CONFIG =
 HAS_BREW	= $(shell if which -s brew; then echo 1; else echo 0; fi)
+#HAS_BREW	= 0	# work without homebrew
 MACHINE		= $(shell uname -m)-apple-darwin
 OSX_CLANG_PATCH = perl -p -i -e "s/-falign-loops=16//g" configure; \
 		  perl -p -i -e "s/-fforce-addr//g"     configure
@@ -29,9 +30,9 @@ all: $(PACKAGES)
 
 osx_brew:
 	brew install sdl2 sdl2_ttf yasm lame opus libogg libvorbis theora \
-		libvpx x264 xvid
+		libvpx x264 x265 xvid
 	brew install --with-libvorbis --with-libvpx --with-opus \
-		--with-theora --with-tools ffmpeg
+		--with-theora --with-x265 --with-tools ffmpeg
 
 sdl2:
 	$(TGZUNPACK) $(SDL2)
@@ -129,6 +130,7 @@ ffmpeg:
 		--enable-libmp3lame \
 		--enable-libtheora --enable-libvorbis \
 		--enable-libx264 --enable-libvpx \
+		--enable-libx265 \
 		--enable-libopus \
 		--enable-libxvid \
 		--enable-gpl --enable-nonfree --disable-outdev=sdl \

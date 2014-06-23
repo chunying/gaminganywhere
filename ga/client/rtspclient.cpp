@@ -987,6 +987,8 @@ setupNextSubsession(RTSPClient* rtspClient) {
 			setupNextSubsession(rtspClient); // give up on this subsession; go to the next one
 		} else {
 			if(strcmp("video", scs.subsession->mediumName()) == 0) {
+				char vparam[1024];
+				const char *pvparam = NULL;
 				video_sess_fmt = scs.subsession->rtpPayloadFormat();
 				video_codec_name = strdup(scs.subsession->codecName());
 				if(port2channel.find(scs.subsession->clientPortNum()) == port2channel.end()) {
@@ -1002,7 +1004,19 @@ setupNextSubsession(RTSPClient* rtspClient) {
 					} else {
 					////// Work with ffmpeg
 #endif
-					if(init_vdecoder(cid, scs.subsession->fmtp_spropparametersets()) < 0) {
+					video_codec_id = ga_lookup_codec_id(video_codec_name);
+					if(video_codec_id == AV_CODEC_ID_H264) {
+						pvparam = scs.subsession->fmtp_spropparametersets();
+					} else if(video_codec_id == AV_CODEC_ID_H265) {
+						snprintf(vparam, sizeof(vparam), "%s,%s,%s",
+							scs.subsession->fmtp_spropvps()==NULL ? "" : scs.subsession->fmtp_spropvps(),
+							scs.subsession->fmtp_spropsps()==NULL ? "" : scs.subsession->fmtp_spropsps(),
+							scs.subsession->fmtp_sproppps()==NULL ? "" : scs.subsession->fmtp_sproppps());
+						pvparam = vparam;
+					} else {
+						pvparam = NULL;
+					}
+					if(init_vdecoder(cid, pvparam/*scs.subsession->fmtp_spropparametersets()*/) < 0) {
 						rtsperror("cannot initialize video decoder(%d)\n", cid);
 						rtspParam->quitLive555 = 1;
 						return;
@@ -1367,7 +1381,8 @@ DummySink::DummySink(UsageEnvironment& env, MediaSubsession& subsession, char co
 	fReceiveBuffer = new u_int8_t[MAX_FRAMING_SIZE+DUMMY_SINK_RECEIVE_BUFFER_SIZE];
 	// setup framing if necessary
 	// H264 framing code
-	if(strcmp("H264", fSubsession.codecName()) == 0) {
+	if(strcmp("H264", fSubsession.codecName()) == 0
+	|| strcmp("H265", fSubsession.codecName()) == 0) {
 		video_framing = 4;
 		fReceiveBuffer[MAX_FRAMING_SIZE-video_framing+0]
 		= fReceiveBuffer[MAX_FRAMING_SIZE-video_framing+1]

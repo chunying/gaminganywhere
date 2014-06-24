@@ -1,10 +1,8 @@
 
 include ../Makefile.def
 
-CFLAGS	= -O2 -fPIC -g -Wall -I$(GADEPS)/include $(EXTRACFLAGS) -DPIPELINE_FILTER \
-	  -I../core $(AVCCF) $(L5CF) $(SDLCF)
-#	-D__STDC_CONSTANT_MACROS
-LDFLAGS	= -L../core -lga $(AVCLD) $(SDLLD) $(L5LD) -Wl,-rpath,\$$ORIGIN
+CFLAGS	+= -I../core $(AVCCF) $(L5CF) $(SDLCF)
+LDFLAGS	= $(EXTRALDFLAGS) -L../core -lga $(AVCLD) $(SDLLD) $(L5LD) -Wl,-rpath,\$$ORIGIN
 
 ifeq ($(OS), Linux)
 CFLAGS	+= $(X11CF)

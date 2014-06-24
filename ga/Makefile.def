@@ -2,6 +2,7 @@
 # Makefile.def for POSIX-based OSes
 
 OS	= $(shell uname -s)
+HAVE_X11 ?= 1
 
 CC	?= gcc
 CXX	?= g++
@@ -9,10 +10,10 @@ AR	?= ar
 GADEPS?= $(HOME)/myprog/gaminganywhere/deps.posix
 CFLAGS	= -O2 -fPIC -g -Wall -I$(GADEPS)/include $(EXTRACFLAGS) -DPIPELINE_FILTER
 #	-D__STDC_CONSTANT_MACROS
-LDFLAGS	= -L$(GADEPS)/lib -lpthread -Wl,-rpath,$$ORIGIN
+LDFLAGS	= $(EXTRALDFLAGS) -L$(GADEPS)/lib -lpthread -Wl,-rpath,$$ORIGIN
 
-X11CF	=
-X11LD	= -lX11 -lXext -lXtst
+X11CF	?=
+X11LD	?= -lX11 -lXext -lXtst
 
 AVCCF	= -D__STDC_CONSTANT_MACROS $(shell pkg-config --cflags libswscale libswresample libpostproc libavdevice libavfilter libavcodec libavformat)
 AVCLD	= $(shell pkg-config --libs libswscale libswresample libpostproc libavdevice libavfilter libavcodec libavformat libavutil)

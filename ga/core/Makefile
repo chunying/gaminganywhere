@@ -1,19 +1,21 @@
 
 include ../Makefile.def
 
-CFLAGS	= -O2 -fPIC -g -Wall -I$(GADEPS)/include $(EXTRACFLAGS) -DPIPELINE_FILTER \
-	  $(AVCCF) $(L5CF) $(SDLCF) $(L5CF)
-#	-D__STDC_CONSTANT_MACROS
+CFLAGS	+= $(AVCCF) $(L5CF) $(SDLCF)
 SO_EXT	= .so
+
+ifeq ($(HAVE_X11), 1)
+CFLAGS	+= -DHAVE_X11
+endif
 
 ifeq ($(OS), Linux)
 CFLAGS	+= $(ASNDCF) $(X11CF)
-LDFLAGS	= $(AVCLD) $(L5LD)
+LDFLAGS	= $(EXTRALDFLAGS) $(AVCLD) $(L5LD)
 endif
 
 ifeq ($(OS), Darwin)
 SO_EXT	= .dylib
-LDFLAGS	= -install_name @executable_path/libga$(SO_EXT) $(AVCLD) $(L5LD)
+LDFLAGS	= $(EXTRALDFLAGS) -install_name @executable_path/libga$(SO_EXT) $(AVCLD) $(L5LD)
 endif
 
 TARGET	= libga$(SO_EXT)

@@ -23,14 +23,14 @@ all: $(TARGET)
 .cpp.o:
 	$(CXX) -c -g $(CFLAGS) $<
 
-OBJS =	ga-common.o ga-conf.o ga-confvar.o  ga-module.o ga-avcodec.o \
+OBJS =	ga-common.o ga-conf.o ga-confvar.o ga-module.o ga-avcodec.o \
 	ga-videolivesource.o ga-audiolivesource.o ga-mediasubsession.o \
 	ga-liveserver.o \
 	rtspconf.o pipeline.o vconverter.o \
 	vsource.o asource.o encoder-common.o controller.o server.o rtspserver.o
 
 libga.a: $(OBJS)
-	ar rc $@ $^
+	$(AR) rc $@ $^
 
 libga$(SO_EXT): $(OBJS)
 	$(CXX) -shared -o $@ $^ $(LDFLAGS)

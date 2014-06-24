@@ -5,6 +5,7 @@ OS	= $(shell uname -s)
 
 CC	?= gcc
 CXX	?= g++
+AR	?= ar
 GADEPS?= $(HOME)/myprog/gaminganywhere/deps.posix
 CFLAGS	= -O2 -fPIC -g -Wall -I$(GADEPS)/include $(EXTRACFLAGS) -DPIPELINE_FILTER
 #	-D__STDC_CONSTANT_MACROS

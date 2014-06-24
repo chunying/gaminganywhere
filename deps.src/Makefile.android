@@ -1,6 +1,7 @@
 
 GADEPS		?= $(HOME)/myprog/gaminganywhere/deps.android
 MACHINE		= $(shell uname -m)
+PARALLEL_MAKE	= -j5
 PACKAGES	= sdl2 yasm lame opus ogg vorbis theora vpx x264 ffmpeg live555
 
 TBZUNPACK	= tar xjf
@@ -34,7 +35,7 @@ pkg-config:
 sdl2:
 	$(TGZUNPACK) $(SDL2)
 	-cd $(SDL2DIR); ln -sf . jni
-	cd $(SDL2DIR); V=1 ndk-build -j5 LOCAL_ARM_MODE=arm LOCAL_ARM_NEON=true \
+	cd $(SDL2DIR); V=1 ndk-build $(PARALLEL_MAKE) LOCAL_ARM_MODE=arm LOCAL_ARM_NEON=true \
 		APP_ABI=armeabi-v7a TARGET_CPU_ABI=armeabi-v7a TARGET_PLATFORM=$(TARGET_PLATFORM)
 	mkdir -p $(GADEPS)/lib $(GADEPS)/include/SDL2
 	cp $(SDL2DIR)/libs/armeabi-v7a/libSDL2.so $(GADEPS)/lib/
@@ -64,7 +65,7 @@ sdl2_ttf:
 	$(TGZUNPACK) $(SDL2_TTF)
 	mkdir -p $(SDL2_TTFDIR)/mybuild
 	cd $(SDL2_TTFDIR)/mybuild; ../configure --prefix=$(GADEPS) --with-sdl-prefix=$(GADEPS) $(CROSSCOMPILE)
-	make -C $(SDL2_TTFDIR)/mybuild -j5
+	make -C $(SDL2_TTFDIR)/mybuild $(PARALLEL_MAKE)
 	make -C $(SDL2_TTFDIR)/mybuild install
 	rm -rf $(SDL2_TTFDIR)
 
@@ -72,7 +73,7 @@ sdl2_ttf:
 yasm:
 	$(TGZUNPACK) $(YASM)
 	cd $(YASMDIR); ./configure --prefix=$(GADEPS)
-	make -C $(YASMDIR) -j5
+	make -C $(YASMDIR) $(PARALLEL_MAKE)
 	make -C $(YASMDIR) install
 	rm -rf $(YASMDIR)
 
@@ -83,7 +84,7 @@ lame:
 	cd $(LAMEDIR); ./configure --prefix=$(GADEPS) $(CROSSCOMPILE)
 	-cd $(LAMEDIR)/libmp3lame; ln -s $(ANDROID_LIBPATH)/crtbegin_so.o .
 	-cd $(LAMEDIR)/libmp3lame; ln -s $(ANDROID_LIBPATH)/crtend_so.o .
-	make -C $(LAMEDIR) -j5
+	make -C $(LAMEDIR) $(PARALLEL_MAKE)
 	make -C $(LAMEDIR) install
 	rm -rf $(LAMEDIR)
 
@@ -91,7 +92,7 @@ opus:
 	$(TGZUNPACK) $(OPUS)
 	-./patches/ltmain-avoid-version.sh $(OPUSDIR)/ltmain.sh
 	cd $(OPUSDIR); ./configure --prefix=$(GADEPS) $(CROSSCOMPILE) --with-pic
-	make -C $(OPUSDIR) -j5
+	make -C $(OPUSDIR) $(PARALLEL_MAKE)
 	make -C $(OPUSDIR) install
 	rm -rf $(OPUSDIR)
 
@@ -99,7 +100,7 @@ ogg:
 	$(TGZUNPACK) $(OGG)
 	-./patches/ltmain-avoid-version.sh $(OGGDIR)/ltmain.sh
 	cd $(OGGDIR); ./configure --prefix=$(GADEPS) $(CROSSCOMPILE)
-	make -C $(OGGDIR) -j5
+	make -C $(OGGDIR) $(PARALLEL_MAKE)
 	make -C $(OGGDIR) install
 	rm -rf $(OGGDIR)
 
@@ -107,7 +108,7 @@ vorbis:
 	$(TGZUNPACK) $(VORBIS)
 	-./patches/ltmain-avoid-version.sh $(VORBISDIR)/ltmain.sh
 	cd $(VORBISDIR); ./configure --prefix=$(GADEPS) --build=$(MACHINE) $(CROSSCOMPILE)
-	make -C $(VORBISDIR) -j5
+	make -C $(VORBISDIR) $(PARALLEL_MAKE)
 	make -C $(VORBISDIR) install
 	rm -rf $(VORBISDIR)
 
@@ -119,7 +120,7 @@ theora:
 	cd $(THEORADIR); ./configure --prefix=$(GADEPS) \
 		--enable-static --disable-shared PKG_CONFIG="" \
 		$(CROSSCOMPILE)
-	make -C $(THEORADIR) -j5
+	make -C $(THEORADIR) $(PARALLEL_MAKE)
 	make -C $(THEORADIR) install
 	rm -rf $(THEORADIR)
 
@@ -133,7 +134,7 @@ vpx:
 	mv $(VPXDIR)/vpx_config.h $(VPXDIR)/vpx_config.h.old
 	cat $(VPXDIR)/vpx_config.h.old | sed -e 's,CONFIG_RUNTIME_CPU_DETECT 1,CONFIG_RUNTIME_CPU_DETECT 0,' > $(VPXDIR)/vpx_config.h
 	#
-	make -C $(VPXDIR) -j5
+	make -C $(VPXDIR) $(PARALLEL_MAKE)
 	make -C $(VPXDIR) install
 	rm -rf $(VPXDIR)
 
@@ -151,7 +152,7 @@ x264:
 		--cross-prefix=$(CCPREFIX)  --host=$(TARGET) \
 		--extra-cflags="$(ANDROID_CFLAGS) -I$(GADEPS)/include" \
 		--extra-ldflags="$(ANDROID_LDFLAGS) -L$(GADEPS)/lib"
-	make -C $(X264DIR) -j5
+	make -C $(X264DIR) $(PARALLEL_MAKE)
 	make -C $(X264DIR) install
 	rm -rf $(X264DIR)
 
@@ -183,7 +184,7 @@ ffmpeg:
 		--extra-cflags="$(ANDROID_CFLAGS) -I$(GADEPS)/include $(ANDROID_EXTRA_HEADERS)" \
 		--extra-cxxflags="$(ANDROID_CFLAGS) -I$(GADEPS)/include $(ANDROID_EXTRA_HEADERS)"\
 		--extra-ldflags="$(ANDROID_LDFLAGS) -L$(GADEPS)/lib -Wl,--allow-shlib-undefined -Wl,-rpath-link=$(GADEPS)/lib"
-	make -C $(FFMPEGDIR) -j5
+	make -C $(FFMPEGDIR) $(PARALLEL_MAKE)
 	make -C $(FFMPEGDIR) install
 	rm -rf $(FFMPEGDIR)
 
@@ -193,10 +194,12 @@ ffmpeg:
 live555:
 	$(TGZUNPACK) $(LIVE555)
 	cp patches/android-live555-config.android $(LIVE555DIR)/config.android
+	cd $(LIVE555DIR); cat ../patches/live555-* | patch -p1 
 	cd $(LIVE555DIR); ./genMakefiles android
-	make -C $(LIVE555DIR) -j5
+	make -C $(LIVE555DIR) $(PARALLEL_MAKE)
+	-mkdir -p $(GADEPS)/lib
 	find $(LIVE555DIR) -name '*.a' -exec cp -f {} $(GADEPS)/lib \;
-	-mkdir $(GADEPS)/include/live555
+	-mkdir -p $(GADEPS)/include/live555
 	find $(LIVE555DIR) -name '*.hh' -exec cp -f {} $(GADEPS)/include/live555 \;
 	cp -f $(LIVE555DIR)/groupsock/include/NetCommon.h $(GADEPS)/include/live555
 	rm -rf $(LIVE555DIR)

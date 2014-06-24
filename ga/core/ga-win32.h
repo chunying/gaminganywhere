@@ -16,8 +16,8 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#ifndef __XCAP_WIN32_H__
-#define __XCAP_WIN32_H__
+#ifndef __GA_WIN32_H__
+#define __GA_WIN32_H__
 
 #ifdef WIN32
 /////////////////////////////////////////////////////////////////////////

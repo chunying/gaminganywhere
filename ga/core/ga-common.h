@@ -16,8 +16,8 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#ifndef __XCAP_COMMON_H__
-#define __XCAP_COMMON_H__
+#ifndef __GA_COMMON_H__
+#define __GA_COMMON_H__
 
 #ifndef WIN32
 #include <sys/time.h>

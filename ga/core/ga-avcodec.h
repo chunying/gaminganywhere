@@ -16,8 +16,8 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#ifndef __XCAP_AVCODEC_H__
-#define __XCAP_AVCODEC_H__
+#ifndef __GA_AVCODEC_H__
+#define __GA_AVCODEC_H__
 
 #ifdef __cplusplus
 extern "C" {

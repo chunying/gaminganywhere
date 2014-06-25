@@ -10,7 +10,7 @@ OSX_CLANG_PATCH	= echo '*** Not on OS X: not applied ***'
 ifeq ($(SYSTEM),Darwin)
 VPX_EXTRA_CONFIG =
 HAS_BREW	?= $(shell if which -s brew; then echo 1; else echo 0; fi)
-MACHINE		?= $(shell uname -m)-apple-darwin
+MACHINE		= $(shell uname -m)-apple-darwin
 OSX_CLANG_PATCH = perl -p -i -e "s/-falign-loops=16//g" configure; \
 		  perl -p -i -e "s/-fforce-addr//g"     configure
 ifeq ($(HAS_BREW),1)
@@ -110,7 +110,10 @@ x264:
 
 x265:
 	$(TBZUNPACK) $(X265)
-	cd $(X265DIR)/build/linux; cmake -D CMAKE_INSTALL_PREFIX:PATH=$(GADEPS) ../../source/
+	cd $(X265DIR)/build/linux; cmake \
+		-D CMAKE_INSTALL_PREFIX:PATH=$(GADEPS) \
+		-D CMAKE_CXX_FLAGS="-fPIC" -D CMAKE_C_FLAGS="-fPIC" \
+		../../source/
 	make -C $(X265DIR)/build/linux $(PARALLEL_MAKE)
 	make -C $(X265DIR)/build/linux install
 	rm -rf $(X265DIR)

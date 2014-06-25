@@ -1,6 +1,6 @@
 
 GADEPS		?= $(HOME)/myprog/gaminganywhere/deps.posix
-MACHINE		= $(shell uname -m)
+MACHINE		?= $(shell uname -m)
 SYSTEM		= $(shell uname -s)
 PARALLEL_MAKE	= -j5
 PACKAGES	= sdl2 sdl2_ttf yasm lame opus ogg vorbis theora vpx \
@@ -9,9 +9,8 @@ OSX_CLANG_PATCH	= echo '*** Not on OS X: not applied ***'
 
 ifeq ($(SYSTEM),Darwin)
 VPX_EXTRA_CONFIG =
-HAS_BREW	= $(shell if which -s brew; then echo 1; else echo 0; fi)
-#HAS_BREW	= 0	# work without homebrew
-MACHINE		= $(shell uname -m)-apple-darwin
+HAS_BREW	?= $(shell if which -s brew; then echo 1; else echo 0; fi)
+MACHINE		?= $(shell uname -m)-apple-darwin
 OSX_CLANG_PATCH = perl -p -i -e "s/-falign-loops=16//g" configure; \
 		  perl -p -i -e "s/-fforce-addr//g"     configure
 ifeq ($(HAS_BREW),1)

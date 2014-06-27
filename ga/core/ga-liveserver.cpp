@@ -20,6 +20,7 @@ liveserver_taskscheduler() {
 void *
 liveserver_main(void *arg) {
 	int cid;
+	ga_module_t *m;
 	RTSPConf *rtspconf = rtspconf_global();
 	TaskScheduler* scheduler = BasicTaskScheduler::createNew();
 	UserAuthenticationDatabase* authDB = NULL;
@@ -45,10 +46,18 @@ liveserver_main(void *arg) {
 	ServerMediaSession * sms
 		= ServerMediaSession::createNew(*env, "desktop", "desktop", 
 				"GamingAnywhere Server");
-	for(cid = 0; cid < video_source_channels(); cid++) {
-		sms->addSubsession(GAMediaSubsession::createNew(*env, cid, encoder_get_vencoder()->mimetype)); 
+	// add video session
+	if((m = encoder_get_vencoder()) == NULL) {
+		ga_error("live-server: FATAL - no video encoder registered.\n");
+		exit(-1);
 	}
-	sms->addSubsession(GAMediaSubsession::createNew(*env, cid, encoder_get_aencoder()->mimetype)); 
+	for(cid = 0; cid < video_source_channels(); cid++) {
+		sms->addSubsession(GAMediaSubsession::createNew(*env, cid, m->mimetype)); 
+	}
+	// add audio session, if necessary
+	if((m = encoder_get_aencoder()) != NULL) {
+		sms->addSubsession(GAMediaSubsession::createNew(*env, cid, m->mimetype)); 
+	}
 	rtspServer->addServerMediaSession(sms);
 
 	if(rtspServer->setUpTunnelingOverHTTP(80)

@@ -392,7 +392,7 @@ init_adecoder() {
 	return 0;
 }
 
-static void
+static int
 play_video_priv(int ch/*channel*/, unsigned char *buffer, int bufsize, struct timeval pts) {
 	AVPacket avpkt;
 	int got_picture, len;
@@ -484,7 +484,7 @@ skip_frame:
 		avpkt.size -= len;
 		avpkt.data += len;
 	}
-	return;
+	return avpkt.size;
 }
 
 #define	PRIVATE_BUFFER_SIZE	1048576
@@ -499,6 +499,7 @@ static void
 play_video(int channel, unsigned char *buffer, int bufsize, struct timeval pts, bool marker) {
 	static struct decoder_buffer db[VIDEO_SOURCE_CHANNEL_MAX];
 	struct decoder_buffer *pdb = &db[channel];
+	int left;
 	// buffer initialization
 	if(pdb->privbuf == NULL) {
 		pdb->privbuf = (unsigned char*) malloc(PRIVATE_BUFFER_SIZE);
@@ -533,25 +534,46 @@ play_video(int channel, unsigned char *buffer, int bufsize, struct timeval pts, 
 		if(pdb->privbuflen > 0) {
 			//fprintf(stderr, "DEBUG: video pts=%08ld.%06ld\n",
 			//	lastpts.tv_sec, lastpts.tv_usec);
-			play_video_priv(channel, pdb->privbuf,
+			left = play_video_priv(channel, pdb->privbuf,
 				pdb->privbuflen, pdb->lastpts);
+			if(left > 0) {
+				bcopy(pdb->privbuf + pdb->privbuflen - left,
+					pdb->privbuf, left);
+				pdb->privbuflen = left;
+				rtsperror("decoder: %d bytes left, leave for next round\n", left);
+			} else {
+				pdb->privbuflen = 0;
+			}
 		}
-		pdb->privbuflen = 0;
+		pdb->lastpts = pts;
 	}
 	if(pdb->privbuflen + bufsize <= PRIVATE_BUFFER_SIZE) {
 		bcopy(buffer, &pdb->privbuf[pdb->privbuflen], bufsize);
 		pdb->privbuflen += bufsize;
-		pdb->lastpts = pts;
 		if(marker && pdb->privbuflen > 0) {
-			play_video_priv(channel, pdb->privbuf,
+			left = play_video_priv(channel, pdb->privbuf,
 				pdb->privbuflen, pdb->lastpts);
-			pdb->privbuflen = 0;
+			if(left > 0) {
+				bcopy(pdb->privbuf + pdb->privbuflen - left,
+					pdb->privbuf, left);
+				pdb->privbuflen = left;
+				rtsperror("decoder: %d bytes left, leave for next round\n", left);
+			} else {
+				pdb->privbuflen = 0;
+			}
 		}
 	} else {
 		rtsperror("WARNING: video private buffer overflow.\n");
-		play_video_priv(channel, pdb->privbuf,
+		left = play_video_priv(channel, pdb->privbuf,
 				pdb->privbuflen, pdb->lastpts);
-		pdb->privbuflen = 0;
+		if(left > 0) {
+			bcopy(pdb->privbuf + pdb->privbuflen - left,
+				pdb->privbuf, left);
+			pdb->privbuflen = left;
+			rtsperror("decoder: %d bytes left, leave for next round\n", left);
+		} else {
+			pdb->privbuflen = 0;
+		}
 	}
 #ifdef ANDROID
 	}

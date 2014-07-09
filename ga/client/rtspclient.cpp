@@ -209,7 +209,7 @@ decode_sprop(AVCodecContext *ctx, const char *sprop) {
 	int sizemax = ctx->extradata_size + strlen(sprop) * 3;
 	unsigned char *extra = (unsigned char*) malloc(sizemax);
 	unsigned char *dest = extra;
-	int extrasize = 1;
+	int extrasize = 0;
 	int spropsize = strlen(sprop);
 	char *mysprop = strdup(sprop);
 	unsigned char *tmpbuf = (unsigned char *) strdup(sprop);

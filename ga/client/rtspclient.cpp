@@ -18,7 +18,14 @@
 
 #include "liveMedia.hh"
 #include "BasicUsageEnvironment.hh"
+#if 0
+/* XXX: not include GroupsockHelper.hh due to the conflict on gettimeofday() */
 #include "GroupsockHelper.hh"
+#else
+/* XXX: this one must be consistent to that defined in GroupsockHelper.hh" */
+unsigned increaseReceiveBufferTo(UsageEnvironment& env,
+		 int socket, unsigned requestedSize);
+#endif
 
 #ifndef ANDROID
 #include "vsource.h"

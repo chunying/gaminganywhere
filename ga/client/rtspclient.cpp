@@ -18,6 +18,7 @@
 
 #include "liveMedia.hh"
 #include "BasicUsageEnvironment.hh"
+#include "GroupsockHelper.hh"
 
 #ifndef ANDROID
 #include "vsource.h"
@@ -45,7 +46,7 @@ using namespace std;
 #define	AVCODEC_MAX_AUDIO_FRAME_SIZE	192000 // 1 second of 48khz 32bit audio
 #endif
 
-#define RCVBUF_SIZE		262144
+#define RCVBUF_SIZE		2097152
 
 #define	COUNT_FRAME_RATE	600	// every N frames
 
@@ -1076,47 +1077,6 @@ setupNextSubsession(RTSPClient* rtspClient) {
 }
 
 static void
-SetRecvBufSize(RTPSource *rtpsrc) {
-	Groupsock *gs = NULL;
-	int s;
-#ifdef WIN32
-	DWORD bufsz;
-	int buflen;
-#else
-	int bufsz;
-	socklen_t buflen;
-#endif
-	//
-	if(rtpsrc == NULL) {
-		rtsperror("Receiver buffer size: no RTPSource available.\n");
-		return;
-	}
-	//
-	gs = rtpsrc->RTPgs();
-	if(gs == NULL) {
-		rtsperror("Receiver buffer size: no Groupsock available.\n");
-		return;
-	}
-	//
-	s = gs->socketNum();
-	//
-	bufsz = RCVBUF_SIZE;
-	if(setsockopt(s, SOL_SOCKET, SO_RCVBUF, (char*) &bufsz, sizeof(bufsz)) != 0) {
-		rtsperror("Receiver buffer size: set failed (%d).\n", RCVBUF_SIZE);
-		return;
-	}
-	//
-	buflen = sizeof(bufsz);
-	if(getsockopt(s, SOL_SOCKET, SO_RCVBUF, (char*) &bufsz, &buflen) != 0) {
-		rtsperror("Receiver buffer size: get failed.\n");
-		return;
-	}
-	//
-	rtsperror("Receiver buffer size: %d bytes.\n", bufsz);
-	return;
-}
-
-static void
 NATHolePunch(RTPSource *rtpsrc, MediaSubsession *subsession) {
 	Groupsock *gs = NULL;
 	int s;
@@ -1199,7 +1159,12 @@ continueAfterSETUP(RTSPClient* rtspClient, int resultCode, char* resultString) {
 			scs.subsession->rtcpInstance()->setByeHandler(subsessionByeHandler, scs.subsession);
 		}
 		// Set receiver buffer size
-		SetRecvBufSize(scs.subsession->rtpSource());
+		if(scs.subsession->rtpSource()) {
+			int newsz;
+			newsz = increaseReceiveBufferTo(env,
+				scs.subsession->rtpSource()->RTPgs()->socketNum(), RCVBUF_SIZE);
+			rtsperror("Receiver buffer increased to %d\n", newsz);
+		}
 		// NAT hole-punching?
 		NATHolePunch(scs.subsession->rtpSource(), scs.subsession);
 	} while (0);
@@ -1368,7 +1333,7 @@ StreamClientState::~StreamClientState() {
 
 // Even though we're not going to be doing anything with the incoming data, we still need to receive it.
 // Define the size of the buffer that we'll use:
-#define DUMMY_SINK_RECEIVE_BUFFER_SIZE 262144	//100000
+#define DUMMY_SINK_RECEIVE_BUFFER_SIZE 1048576	//100000
 
 DummySink*
 DummySink::createNew(UsageEnvironment& env, MediaSubsession& subsession, char const* streamId) {

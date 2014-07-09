@@ -60,7 +60,7 @@ rmdir /s /q Pre-built.2
 echo Installing live555 ...
 @REM bin\7za x live.2013.04.30-bin.zip
 @REM bin\7za x live.2014.03.25-bin.zip
-bin\7za x live.2014.05.27-bin.zip
+bin\7za x live.2014.05.27v2-bin.zip
 move /y live555\include\*.* %GADEPS%\include\live555\
 move /y live555\lib\*.lib %GADEPS%\lib\
 rmdir /s /q live555

@@ -368,7 +368,7 @@ vencoder_raw(void *arg, int *size) {
 	return vencoder[iid];
 }
 
-/* find startcode: 00 00 00 01 - a simplified version */
+/* find startcode: XXX: only 00 00 00 01 - a simplified version */
 static unsigned char *
 find_startcode(unsigned char *data, unsigned char *end) {
 	unsigned char *r;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 Chun-Ying Huang
+ * Copyright (c) 2013-2014 Chun-Ying Huang
  *
  * This file is part of GamingAnywhere (GA).
  *
@@ -36,6 +36,7 @@ unsigned increaseReceiveBufferTo(UsageEnvironment& env,
 #include "ga-avcodec.h"
 #include "controller.h"
 #include "minih264.h"
+#include "qosreport.h"
 #ifdef ANDROID
 #include "android-decoders.h"
 #endif
@@ -547,7 +548,7 @@ play_video(int channel, unsigned char *buffer, int bufsize, struct timeval pts, 
 				bcopy(pdb->privbuf + pdb->privbuflen - left,
 					pdb->privbuf, left);
 				pdb->privbuflen = left;
-				rtsperror("decoder: %d bytes left, leave for next round\n", left);
+				rtsperror("decoder: %d bytes left, preserved for next round\n", left);
 			} else {
 				pdb->privbuflen = 0;
 			}
@@ -860,6 +861,11 @@ rtsp_thread(void *param) {
 	rtspParam = (RTSPThreadParam*) param;
 	rtspParam->videostate = RTSP_VIDEOSTATE_NULL;
 	//
+	if(qos_init(env) < 0) {
+		rtsperror("qos-measurement: init failed.\n");
+		return NULL;
+	}
+	//
 	if((client = openURL(*env, rtspParam->url)) == NULL) {
 		rtsperror("connect to %s failed.\n", rtspParam->url);
 		return NULL;
@@ -867,6 +873,8 @@ rtsp_thread(void *param) {
 	while(rtspParam->quitLive555 == 0) {
 		bs->SingleStep(1000000);
 	}
+	//
+	qos_deinit();
 	//
 	shutdownStream(client);
 	rtsperror("rtsp thread: terminated.\n");
@@ -1021,6 +1029,7 @@ setupNextSubsession(RTSPClient* rtspClient) {
 				const char *pvparam = NULL;
 				video_sess_fmt = scs.subsession->rtpPayloadFormat();
 				video_codec_name = strdup(scs.subsession->codecName());
+				qos_add_source(video_codec_name, scs.subsession->rtpSource());
 				if(port2channel.find(scs.subsession->clientPortNum()) == port2channel.end()) {
 					int cid = port2channel.size();
 					port2channel[scs.subsession->clientPortNum()] = cid;
@@ -1062,6 +1071,7 @@ setupNextSubsession(RTSPClient* rtspClient) {
 				const char *mime = NULL;
 				audio_sess_fmt = scs.subsession->rtpPayloadFormat();
 				audio_codec_name = strdup(scs.subsession->codecName());
+				qos_add_source(audio_codec_name, scs.subsession->rtpSource());
 #ifdef ANDROID
 				if((mime = ga_lookup_mime(audio_codec_name)) == NULL) {
 					showToast(rtspParam->jnienv, "codec %s not supported", audio_codec_name);
@@ -1225,6 +1235,8 @@ continueAfterPLAY(RTSPClient* rtspClient, int resultCode, char* resultString) {
 			env << " (for up to " << scs.duration << " seconds)";
 		}
 		env << "...\n";
+
+		qos_start();
 
 		return;
 	} while (0);

@@ -13,7 +13,7 @@ all: $(TARGET)
 .cpp.obj:
 	$(CXX) /c -I..\core /MD $(CXX_FLAGS) $<
 
-ga-client.exe: ga-client.obj rtspclient.obj ctrl-sdl.obj minih264.obj minivp8.obj
+ga-client.exe: ga-client.obj rtspclient.obj ctrl-sdl.obj minih264.obj minivp8.obj qosreport.obj
 	$(CXX) /MD $** $(LIBS) /link $(LIB_PATH) /libpath:..\core /subsystem:console /opt:noref
 
 #	link /out:$@ $(LDFLAGS) $**

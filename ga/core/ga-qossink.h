@@ -59,7 +59,7 @@ protected:
 
 class QoSSimpleRTPSink: public SimpleRTPSink {
 public:
-	  QoSSimpleRTPSink* createNew(UsageEnvironment& env, Groupsock* RTPgs,
+	static QoSSimpleRTPSink* createNew(UsageEnvironment& env, Groupsock* RTPgs,
 			  unsigned char rtpPayloadFormat,
 			  unsigned rtpTimestampFrequency,
 			  char const* sdpMediaTypeString,
@@ -81,6 +81,47 @@ protected:
 
 //////////////////////////////////////////////////////////////////////////////
 
+class QoSVorbisAudioRTPSink: public VorbisAudioRTPSink {
+public:
+	static QoSVorbisAudioRTPSink*
+		createNew(UsageEnvironment& env, Groupsock* RTPgs, u_int8_t rtpPayloadFormat,
+				u_int32_t rtpTimestampFrequency, unsigned numChannels,
+				u_int8_t* identificationHeader, unsigned identificationHeaderSize,
+				u_int8_t* commentHeader, unsigned commentHeaderSize,
+				u_int8_t* setupHeader, unsigned setupHeaderSize,
+				u_int32_t identField = 0xFACADE);
+protected:
+	QoSVorbisAudioRTPSink(UsageEnvironment& env, Groupsock* RTPgs,
+			u_int8_t rtpPayloadFormat, u_int32_t rtpTimestampFrequency, unsigned numChannels,
+			u_int8_t* identificationHeader, unsigned identificationHeaderSize,
+			u_int8_t* commentHeader, unsigned commentHeaderSize,
+			u_int8_t* setupHeader, unsigned setupHeaderSize,
+			u_int32_t identField);
+	~QoSVorbisAudioRTPSink();
+};
+
+//////////////////////////////////////////////////////////////////////////////
+
+class QoSTheoraVideoRTPSink: public TheoraVideoRTPSink {
+public:
+	static QoSTheoraVideoRTPSink*
+		createNew(UsageEnvironment& env, Groupsock* RTPgs, u_int8_t rtpPayloadFormat,
+				u_int8_t* identificationHeader, unsigned identificationHeaderSize,
+				u_int8_t* commentHeader, unsigned commentHeaderSize,
+				u_int8_t* setupHeader, unsigned setupHeaderSize,
+				u_int32_t identField = 0xFACADE);
+protected:
+	QoSTheoraVideoRTPSink(UsageEnvironment& env, Groupsock* RTPgs,
+			u_int8_t rtpPayloadFormat,
+			u_int8_t* identificationHeader, unsigned identificationHeaderSize,
+			u_int8_t* commentHeader, unsigned commentHeaderSize,
+			u_int8_t* setupHeader, unsigned setupHeaderSize,
+			u_int32_t identField);
+	~QoSTheoraVideoRTPSink();
+};
+
+//////////////////////////////////////////////////////////////////////////////
+
 class QoSH264VideoRTPSink: public H264VideoRTPSink {
 public:
 	static QoSH264VideoRTPSink*
@@ -94,5 +135,37 @@ protected:
 			u_int8_t const* pps = NULL, unsigned ppsSize = 0);
 	~QoSH264VideoRTPSink();
 };
+
+//////////////////////////////////////////////////////////////////////////////
+
+class QoSH265VideoRTPSink: public H265VideoRTPSink {
+public:
+	static QoSH265VideoRTPSink*
+		createNew(UsageEnvironment& env, Groupsock* RTPgs, unsigned char rtpPayloadFormat);
+	static QoSH265VideoRTPSink*
+		createNew(UsageEnvironment& env, Groupsock* RTPgs, unsigned char rtpPayloadFormat,
+				u_int8_t const* vps, unsigned vpsSize,
+				u_int8_t const* sps, unsigned spsSize,
+				u_int8_t const* pps, unsigned ppsSize);
+protected:
+	QoSH265VideoRTPSink(UsageEnvironment& env, Groupsock* RTPgs, unsigned char rtpPayloadFormat,
+			u_int8_t const* vps = NULL, unsigned vpsSize = 0,
+			u_int8_t const* sps = NULL, unsigned spsSize = 0,
+			u_int8_t const* pps = NULL, unsigned ppsSize = 0);
+	~QoSH265VideoRTPSink();
+};
+
+//////////////////////////////////////////////////////////////////////////////
+
+class QoSVP8VideoRTPSink: public VP8VideoRTPSink {
+public:
+	static QoSVP8VideoRTPSink*
+		createNew(UsageEnvironment& env, Groupsock* RTPgs, unsigned char rtpPayloadFormat);
+protected:
+	QoSVP8VideoRTPSink(UsageEnvironment& env, Groupsock* RTPgs, unsigned char rtpPayloadFormat);
+	~QoSVP8VideoRTPSink();
+};
+
+//////////////////////////////////////////////////////////////////////////////
 
 #endif	/* __GA_QOSSINK_H__ */

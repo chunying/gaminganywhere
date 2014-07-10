@@ -30,8 +30,8 @@ QoSMPEG1or2AudioRTPSink
 
 QoSMPEG1or2AudioRTPSink
 ::QoSMPEG1or2AudioRTPSink(UsageEnvironment& env, Groupsock* RTPgs)
-		: MPEG1or2AudioRTPSink(env, RTPgs) {
-	qos_server_add_sink("MPEG1or2", this);
+	: MPEG1or2AudioRTPSink(env, RTPgs) {
+		qos_server_add_sink("MPEG1or2", this);
 }
 
 QoSMPEG1or2AudioRTPSink
@@ -42,18 +42,18 @@ QoSMPEG1or2AudioRTPSink
 QoSAC3AudioRTPSink*
 QoSAC3AudioRTPSink
 ::createNew(UsageEnvironment& env,
-			Groupsock* RTPgs,
-			u_int8_t rtpPayloadFormat,
-			u_int32_t rtpTimestampFrequency) {
+		Groupsock* RTPgs,
+		u_int8_t rtpPayloadFormat,
+		u_int32_t rtpTimestampFrequency) {
 	return new QoSAC3AudioRTPSink(env, RTPgs, rtpPayloadFormat, rtpTimestampFrequency);
 }
 
 QoSAC3AudioRTPSink
 ::QoSAC3AudioRTPSink(UsageEnvironment& env, Groupsock* RTPgs,
-			u_int8_t rtpPayloadFormat,
-			u_int32_t rtpTimestampFrequency)
-		: AC3AudioRTPSink(env, RTPgs, rtpPayloadFormat, rtpTimestampFrequency) {
-	qos_server_add_sink("AC3", this);
+		u_int8_t rtpPayloadFormat,
+		u_int32_t rtpTimestampFrequency)
+	: AC3AudioRTPSink(env, RTPgs, rtpPayloadFormat, rtpTimestampFrequency) {
+		qos_server_add_sink("AC3", this);
 }
 
 QoSAC3AudioRTPSink
@@ -81,14 +81,14 @@ QoSSimpleRTPSink
 
 QoSSimpleRTPSink
 ::QoSSimpleRTPSink(UsageEnvironment& env, Groupsock* RTPgs,
-			  unsigned char rtpPayloadFormat,
-			  unsigned rtpTimestampFrequency,
-			  char const* sdpMediaTypeString,
-			  char const* rtpPayloadFormatName,
-			  unsigned numChannels,
-			  Boolean allowMultipleFramesPerPacket,
-			  Boolean doNormalMBitRule)
-		: SimpleRTPSink(env, RTPgs, rtpPayloadFormat,
+		unsigned char rtpPayloadFormat,
+		unsigned rtpTimestampFrequency,
+		char const* sdpMediaTypeString,
+		char const* rtpPayloadFormatName,
+		unsigned numChannels,
+		Boolean allowMultipleFramesPerPacket,
+		Boolean doNormalMBitRule)
+	: SimpleRTPSink(env, RTPgs, rtpPayloadFormat,
 			rtpTimestampFrequency, sdpMediaTypeString,
 			rtpPayloadFormatName, numChannels,
 			allowMultipleFramesPerPacket, doNormalMBitRule) {
@@ -97,6 +97,73 @@ QoSSimpleRTPSink
 
 QoSSimpleRTPSink
 ::~QoSSimpleRTPSink() { qos_server_remove_sink(this); }
+
+//////////////////////////////////////////////////////////////////////////////
+
+QoSVorbisAudioRTPSink*
+QoSVorbisAudioRTPSink::createNew(UsageEnvironment& env, Groupsock* RTPgs, u_int8_t rtpPayloadFormat,
+		u_int32_t rtpTimestampFrequency, unsigned numChannels,
+		u_int8_t* identificationHeader, unsigned identificationHeaderSize,
+		u_int8_t* commentHeader, unsigned commentHeaderSize,
+		u_int8_t* setupHeader, unsigned setupHeaderSize,
+		u_int32_t identField) {
+	return new QoSVorbisAudioRTPSink(env, RTPgs, rtpPayloadFormat,
+			rtpTimestampFrequency, numChannels,
+			identificationHeader, identificationHeaderSize,
+			commentHeader, commentHeaderSize,
+			setupHeader, setupHeaderSize, identField);
+}
+
+QoSVorbisAudioRTPSink
+::QoSVorbisAudioRTPSink(UsageEnvironment& env, Groupsock* RTPgs,
+		u_int8_t rtpPayloadFormat, u_int32_t rtpTimestampFrequency, unsigned numChannels,
+		u_int8_t* identificationHeader, unsigned identificationHeaderSize,
+		u_int8_t* commentHeader, unsigned commentHeaderSize,
+		u_int8_t* setupHeader, unsigned setupHeaderSize,
+		u_int32_t identField)
+	: VorbisAudioRTPSink(env, RTPgs, rtpPayloadFormat,
+			rtpTimestampFrequency, numChannels,
+			identificationHeader, identificationHeaderSize,
+			commentHeader, commentHeaderSize,
+			setupHeader, setupHeaderSize, identField) {
+	qos_server_add_sink("Vorbis", this);
+}
+
+
+QoSVorbisAudioRTPSink
+::~QoSVorbisAudioRTPSink() { qos_server_remove_sink(this); }
+
+//////////////////////////////////////////////////////////////////////////////
+
+QoSTheoraVideoRTPSink*
+QoSTheoraVideoRTPSink
+::createNew(UsageEnvironment& env, Groupsock* RTPgs, u_int8_t rtpPayloadFormat,
+		u_int8_t* identificationHeader, unsigned identificationHeaderSize,
+		u_int8_t* commentHeader, unsigned commentHeaderSize,
+		u_int8_t* setupHeader, unsigned setupHeaderSize,
+		u_int32_t identField) {
+	return new QoSTheoraVideoRTPSink(env, RTPgs, rtpPayloadFormat,
+			identificationHeader, identificationHeaderSize,
+			commentHeader, commentHeaderSize,
+			setupHeader, setupHeaderSize, identField);
+}
+
+QoSTheoraVideoRTPSink
+::QoSTheoraVideoRTPSink(UsageEnvironment& env, Groupsock* RTPgs,
+		u_int8_t rtpPayloadFormat,
+		u_int8_t* identificationHeader, unsigned identificationHeaderSize,
+		u_int8_t* commentHeader, unsigned commentHeaderSize,
+		u_int8_t* setupHeader, unsigned setupHeaderSize,
+		u_int32_t identField)
+	: TheoraVideoRTPSink(env, RTPgs, rtpPayloadFormat,
+			identificationHeader, identificationHeaderSize,
+			commentHeader, commentHeaderSize,
+			setupHeader, setupHeaderSize, identField) {
+	qos_server_add_sink("Theora", this);
+}
+
+QoSTheoraVideoRTPSink
+::~QoSTheoraVideoRTPSink() { qos_server_remove_sink(this); }
 
 //////////////////////////////////////////////////////////////////////////////
 
@@ -126,3 +193,51 @@ QoSH264VideoRTPSink
 ::~QoSH264VideoRTPSink() { qos_server_remove_sink(this); }
 
 //////////////////////////////////////////////////////////////////////////////
+
+QoSH265VideoRTPSink*
+QoSH265VideoRTPSink
+::createNew(UsageEnvironment& env, Groupsock* RTPgs, unsigned char rtpPayloadFormat) {
+	return new QoSH265VideoRTPSink(env, RTPgs, rtpPayloadFormat);
+}
+
+QoSH265VideoRTPSink*
+QoSH265VideoRTPSink
+::createNew(UsageEnvironment& env, Groupsock* RTPgs, unsigned char rtpPayloadFormat,
+		u_int8_t const* vps, unsigned vpsSize,
+		u_int8_t const* sps, unsigned spsSize,
+		u_int8_t const* pps, unsigned ppsSize) {
+	return new QoSH265VideoRTPSink(env, RTPgs, rtpPayloadFormat, vps, vpsSize, sps, spsSize, pps, ppsSize);
+}
+
+QoSH265VideoRTPSink
+::QoSH265VideoRTPSink(UsageEnvironment& env, Groupsock* RTPgs, unsigned char rtpPayloadFormat,
+		u_int8_t const* vps, unsigned vpsSize,
+		u_int8_t const* sps, unsigned spsSize,
+		u_int8_t const* pps, unsigned ppsSize)
+		: H265VideoRTPSink(env, RTPgs, rtpPayloadFormat, vps, vpsSize, sps, spsSize, pps, ppsSize) {
+
+	qos_server_add_sink("H.265", this);
+}
+
+QoSH265VideoRTPSink
+::~QoSH265VideoRTPSink() { qos_server_remove_sink(this); }
+
+//////////////////////////////////////////////////////////////////////////////
+
+QoSVP8VideoRTPSink*
+QoSVP8VideoRTPSink
+::createNew(UsageEnvironment& env, Groupsock* RTPgs, unsigned char rtpPayloadFormat) {
+	return new QoSVP8VideoRTPSink(env, RTPgs, rtpPayloadFormat);
+}
+
+QoSVP8VideoRTPSink
+::QoSVP8VideoRTPSink(UsageEnvironment& env, Groupsock* RTPgs, unsigned char rtpPayloadFormat)
+	: VP8VideoRTPSink(env, RTPgs, rtpPayloadFormat) {
+	qos_server_add_sink("VP8", this);
+}
+
+QoSVP8VideoRTPSink
+::~QoSVP8VideoRTPSink() { qos_server_remove_sink(this); }
+
+//////////////////////////////////////////////////////////////////////////////
+

@@ -101,7 +101,7 @@ RTPSink* GAMediaSubsession
 			::createNew(envir(), rtpGroupsock, rtpPayloadTypeIfDynamic,
 					rtspconf->audio_samplerate);
 	} else if(strcmp(mimetype, "audio/OPUS") == 0) {
-		result = SimpleRTPSink
+		result = QoSSimpleRTPSink
 			::createNew(envir(), rtpGroupsock, rtpPayloadTypeIfDynamic,
 					rtspconf->audio_samplerate,
 					"audio", "OPUS", 2, False/*only 1 Opus 'packet' in each RTP packet*/);
@@ -112,7 +112,7 @@ RTPSink* GAMediaSubsession
 		// TODO: not implememted
 		ga_error("GAMediaSubsession: %s NOT IMPLEMENTED\n", mimetype);
 		exit(-1);
-		result = VorbisAudioRTPSink
+		result = QoSVorbisAudioRTPSink
 			::createNew(envir(), rtpGroupsock, rtpPayloadTypeIfDynamic,
 					rtspconf->audio_samplerate,
 					rtspconf->audio_channels,
@@ -126,7 +126,7 @@ RTPSink* GAMediaSubsession
 		// TODO: not implememted
 		ga_error("GAMediaSubsession: %s NOT IMPLEMENTED\n", mimetype);
 		exit(-1);
-		result = TheoraVideoRTPSink
+		result = QoSTheoraVideoRTPSink
 			::createNew(envir(), rtpGroupsock, rtpPayloadTypeIfDynamic,
 					identificationHeader, identificationHeaderSize,
 					commentHeader, commentHeaderSize,
@@ -152,23 +152,19 @@ RTPSink* GAMediaSubsession
 		u_int8_t* VPS = NULL; int VPSSize = 0;
 		u_int8_t* SPS = NULL; int SPSSize = 0;
 		u_int8_t* PPS = NULL; int PPSSize = 0;
-		// TODO: not implememted
-#if 0
-		ga_error("GAMediaSubsession: %s NOT IMPLEMENTED\n", mimetype);
-		exit(-1);
-#endif
+		//
 		SPS = (u_int8_t*) m->option1((void*) this->channelId, &SPSSize);
 		PPS = (u_int8_t*) m->option2((void*) this->channelId, &PPSSize);
 		VPS = (u_int8_t*) m->option3((void*) this->channelId, &VPSSize);
 		ga_error("GAMediaSubsession: %s SPS=%p(%d); PPS=%p(%d); VPS=%p(%d)\n",
 			mimetype,
 			SPS, SPSSize, PPS, PPSSize, VPS, VPSSize);
-		result = H265VideoRTPSink::createNew(envir(), rtpGroupsock, rtpPayloadTypeIfDynamic,
+		result = QoSH265VideoRTPSink::createNew(envir(), rtpGroupsock, rtpPayloadTypeIfDynamic,
 				VPS, VPSSize, SPS, SPSSize, PPS, PPSSize/*,
 				profileSpace, profileId, tierFlag, levelId,
 				interopConstraintsStr*/);
 	} else if(strcmp(mimetype, "video/VP8") == 0) {
-		result = VP8VideoRTPSink::createNew(envir(), rtpGroupsock, rtpPayloadTypeIfDynamic);
+		result = QoSVP8VideoRTPSink::createNew(envir(), rtpGroupsock, rtpPayloadTypeIfDynamic);
 	} 
 	if(result == NULL) {
 		ga_error("GAMediaSubsession: create RTP sink for %s failed.\n", mimetype);

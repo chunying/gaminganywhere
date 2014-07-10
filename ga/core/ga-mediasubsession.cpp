@@ -16,16 +16,6 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include <MPEG1or2AudioRTPSink.hh>
-#include <MPEG4GenericRTPSink.hh>
-#include <AC3AudioRTPSink.hh>
-#include <SimpleRTPSink.hh>
-#include <VorbisAudioRTPSink.hh>
-#include <H264VideoRTPSink.hh>
-#include <H265VideoRTPSink.hh>
-#include <VP8VideoRTPSink.hh>
-#include <TheoraVideoRTPSink.hh>
-#include <T140TextRTPSink.hh>
 #include <H264VideoStreamDiscreteFramer.hh>
 #include <H265VideoStreamDiscreteFramer.hh>
 #include <H264VideoStreamFramer.hh>
@@ -35,9 +25,12 @@
 #include "ga-conf.h"
 #include "rtspconf.h"
 #include "encoder-common.h"
+#include "ga-liveserver.h"
 #include "ga-mediasubsession.h"
 #include "ga-audiolivesource.h"
 #include "ga-videolivesource.h"
+// This file contains supported live555's RTP sinks */
+#include "ga-qossink.h"
 
 GAMediaSubsession
 ::GAMediaSubsession(UsageEnvironment &env, int cid, const char *mimetype, portNumBits initialPortNum, Boolean multiplexRTCPWithRTP)
@@ -98,13 +91,13 @@ RTPSink* GAMediaSubsession
 	const char *mimetype = this->mimetype;
 	//
 	if(strcmp(mimetype, "audio/MPEG") == 0) {
-		result = MPEG1or2AudioRTPSink::createNew(envir(), rtpGroupsock);
+		result = QoSMPEG1or2AudioRTPSink::createNew(envir(), rtpGroupsock);
 	} else if(strcmp(mimetype, "audio/AAC") == 0) {
 		// TODO: not implememted
 		ga_error("GAMediaSubsession: %s NOT IMPLEMENTED\n", mimetype);
 		exit(-1);
 	} else if(strcmp(mimetype, "audio/AC3") == 0) {
-		result = AC3AudioRTPSink
+		result = QoSAC3AudioRTPSink
 			::createNew(envir(), rtpGroupsock, rtpPayloadTypeIfDynamic,
 					rtspconf->audio_samplerate);
 	} else if(strcmp(mimetype, "audio/OPUS") == 0) {
@@ -152,7 +145,7 @@ RTPSink* GAMediaSubsession
 		ga_error("GAMediaSubsession: %s SPS=%p(%d); PPS=%p(%d); profile_level_id=%x\n",
 			mimetype,
 			SPS, SPSSize, PPS, PPSSize, profile_level_id);
-		result = H264VideoRTPSink::createNew(envir(), rtpGroupsock, rtpPayloadTypeIfDynamic,
+		result = QoSH264VideoRTPSink::createNew(envir(), rtpGroupsock, rtpPayloadTypeIfDynamic,
 				SPS, SPSSize, PPS, PPSSize/*, profile_level_id*/);
 	} else if(strcmp(mimetype, "video/H265") == 0) {
 		ga_module_t *m = encoder_get_vencoder();

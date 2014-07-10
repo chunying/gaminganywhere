@@ -84,6 +84,7 @@ qos_schedule() {
 	gettimeofday(&now, NULL);
 	qos_task = env->taskScheduler().scheduleDelayedTask(
 			tvdiff_us(&timeout, &now), (TaskFunc*) qos_report, NULL);
+	return;
 }
 
 int
@@ -119,6 +120,7 @@ qos_deinit() {
 	if(env != NULL) {
 		env->taskScheduler().unscheduleDelayedTask(qos_task);
 	}
+	qos_task = NULL;
 	env = NULL;
 	n_qrec = 0;
 	bzero(qrec, sizeof(qrec));

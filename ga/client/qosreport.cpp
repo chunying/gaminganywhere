@@ -51,6 +51,8 @@ qos_report(void *clientData) {
 		unsigned pkts_received, dRcvd;
 		double KB_received, dKB;
 		//
+		if(stats == NULL)
+			continue;
 		pkts_expected = stats->totNumPacketsExpected();
 		pkts_received = stats->totNumPacketsReceived();
 		KB_received = stats->totNumKBytesReceived();

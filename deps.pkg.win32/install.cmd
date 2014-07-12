@@ -65,6 +65,14 @@ move /y live555\include\*.* %GADEPS%\include\live555\
 move /y live555\lib\*.lib %GADEPS%\lib\
 rmdir /s /q live555
 @REM
+echo Installing x264 ...
+bin\7za x x264-20140330-2245.zip
+move /y x264bin\include\*.h %GADEPS%\include\
+move /y x264bin\bin\*.exe %GADEPS%\bin\
+move /y x264bin\bin\*.dll %GADEPS%\bin\
+move /y x264bin\lib\*.lib %GADEPS%\lib\
+rmdir /s /q x264bin
+@REM
 echo Installing detour library ...
 bin\7za x detour.7z
 move /y detour\*.h %GADEPS%\include\

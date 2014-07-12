@@ -17,6 +17,7 @@ LOCAL_SRC_FILES := src/ga-common.cpp src/ga-conf.cpp src/ga-confvar.cpp \
 		   src/ga-avcodec.cpp src/pipeline.cpp \
 		   src/rtspconf.cpp src/controller.cpp src/ctrl-sdl.cpp \
 		   src/libgaclient.cpp src/rtspclient.cpp \
+		   src/qosreport.cpp \
 		   src/minih264.cpp src/minivp8.cpp \
 		   src/android-decoders.cpp
 # The order matters ...

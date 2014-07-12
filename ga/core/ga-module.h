@@ -63,6 +63,12 @@ typedef struct ga_ioctl_buffer_s {
 	int size;
 }	ga_ioctl_buffer_t;
 
+typedef struct ga_ioctl_reconfigure_s {
+	int id;
+	int bitrateKbps;
+	int framerate;
+}	ga_ioctl_reconfigure_t;
+
 #ifdef __cplusplus
 extern "C" {
 #endif

@@ -509,15 +509,19 @@ vencoder_ioctl(int command, int argsize, void *arg) {
 				buf->id, ve->extradata, ve->extradata_size) < 0) {
 			return GA_IOCTL_ERR_NOTFOUND;
 		}
-		if(buf->size < _spslen[buf->id])
-			return GA_IOCTL_ERR_BUFFERSIZE;
 		if(command == GA_IOCTL_GETSPS) {
+			if(buf->size < _spslen[buf->id])
+				return GA_IOCTL_ERR_BUFFERSIZE;
 			buf->size = _spslen[buf->id];
 			bcopy(_sps[buf->id], buf->ptr, buf->size);
 		} else if(command == GA_IOCTL_GETPPS) {
+			if(buf->size < _ppslen[buf->id])
+				return GA_IOCTL_ERR_BUFFERSIZE;
 			buf->size = _ppslen[buf->id];
 			bcopy(_pps[buf->id], buf->ptr, buf->size);
 		} else if(command == GA_IOCTL_GETVPS) {
+			if(buf->size < _vpslen[buf->id])
+				return GA_IOCTL_ERR_BUFFERSIZE;
 			buf->size = _vpslen[buf->id];
 			bcopy(_vps[buf->id], buf->ptr, buf->size);
 		}

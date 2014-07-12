@@ -49,11 +49,13 @@ enum ga_ioctl_commands {
 #define	GA_IOCTL_ERR_GENERAL		-1
 #define	GA_IOCTL_ERR_NULLMODULE		-2
 #define	GA_IOCTL_ERR_NOIOCTL		-3
-#define	GA_IOCTL_ERR_NOTSUPPORTED	-4
-#define	GA_IOCTL_ERR_INVALID_ARGUMENT	-5
-#define	GA_IOCTL_ERR_NOTFOUND		-6
-#define	GA_IOCTL_ERR_BUFFERSIZE		-7
-#define	GA_IOCTL_ERR_BADID		-8
+#define	GA_IOCTL_ERR_NOTINITIALIZED	-4
+#define	GA_IOCTL_ERR_NOTSUPPORTED	-5
+#define	GA_IOCTL_ERR_INVALID_ARGUMENT	-6
+#define	GA_IOCTL_ERR_NOTFOUND		-7
+#define	GA_IOCTL_ERR_BUFFERSIZE		-8
+#define	GA_IOCTL_ERR_BADID		-9
+#define	GA_IOCTL_ERR_NOMEM		-10
 
 typedef struct ga_ioctl_buffer_s {
 	int id;

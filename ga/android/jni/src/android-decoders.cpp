@@ -79,7 +79,7 @@ android_config_h264_internal(unsigned char *old, unsigned char *buf, int buflen,
 int
 android_config_h264_sprop(RTSPThreadParam *rtspParam, const char *sprop) {
 	unsigned char startcode[4] = { 0, 0, 0, 1 };
-	unsigned char frame[1024];	// assume less than 1024
+	unsigned char frame[1024];	// assume decoded SPS/PPS are less than 1024
 	unsigned char *mysprop, *s0, *s1;
 	//
 	if(sprop == NULL)
@@ -96,6 +96,7 @@ android_config_h264_sprop(RTSPThreadParam *rtspParam, const char *sprop) {
 	while(*s0) {
 		int more = 0;
 		int blen;
+		int framing = 0, minus_startcode = 0;
 		for(s1 = mysprop; *s1; s1++) {
 			if(*s1 == ',' || *s1 == '\0')
 				break;
@@ -107,11 +108,25 @@ android_config_h264_sprop(RTSPThreadParam *rtspParam, const char *sprop) {
 			struct timeval pts;
 			gettimeofday(&pts, NULL);
 			bcopy(startcode, frame, sizeof(startcode));
-			switch(frame[sizeof(startcode)] & 0x1f) {
+			// check if already has framing?
+			framing = 0;
+			minus_startcode = 0;
+			if(frame[sizeof(startcode)] == 0 && frame[sizeof(startcode)+1] == 0) {
+				if(frame[sizeof(startcode)+2] == 1) {
+					framing = 3;
+					minus_startcode = 4;
+				} else if(frame[sizeof(startcode)+2] == 0
+				       && frame[sizeof(startcode)+3] == 1) {
+					framing = 4;
+					minus_startcode = 4;
+				}
+			}
+			//
+			switch(frame[sizeof(startcode) + framing] & 0x1f) {
 			case 7: // SPS
 				config_h264_sps = android_config_h264_internal(
 							config_h264_sps,
-							frame, sizeof(startcode) + blen,
+							frame + minus_startcode, sizeof(startcode) + blen - minus_startcode,
 							&config_h264_spslen);
 				if(config_h264_sps) {
 					rtsperror("SPS configured (%d bytes)\n", config_h264_spslen);
@@ -120,7 +135,7 @@ android_config_h264_sprop(RTSPThreadParam *rtspParam, const char *sprop) {
 			case 8:	// PPS
 				config_h264_pps = android_config_h264_internal(
 							config_h264_pps,
-							frame, sizeof(startcode) + blen,
+							frame + minus_startcode, sizeof(startcode) + blen - minus_startcode,
 							&config_h264_ppslen);
 				if(config_h264_pps) {
 					rtsperror("PPS configured (%d bytes)\n", config_h264_ppslen);

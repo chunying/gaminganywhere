@@ -89,6 +89,7 @@ RTPSink* GAMediaSubsession
 	RTPSink *result = NULL;
 	struct RTSPConf *rtspconf = rtspconf_global();
 	const char *mimetype = this->mimetype;
+	int err;
 	//
 	if(strcmp(mimetype, "audio/MPEG") == 0) {
 		result = QoSMPEG1or2AudioRTPSink::createNew(envir(), rtpGroupsock);
@@ -133,12 +134,29 @@ RTPSink* GAMediaSubsession
 					setupHeader, setupHeaderSize);
 	} else if(strcmp(mimetype, "video/H264") == 0) {
 		ga_module_t *m = encoder_get_vencoder();
+		ga_ioctl_buffer_t mb;
 		unsigned profile_level_id = 0;
-		u_int8_t* SPS = NULL; int SPSSize = 0;
-		u_int8_t* PPS = NULL; int PPSSize = 0;
+		u_int8_t SPS[256]; int SPSSize = 0;
+		u_int8_t PPS[256]; int PPSSize = 0;
 		//
-		SPS = (u_int8_t*) m->option1((void*) this->channelId, &SPSSize);
-		PPS = (u_int8_t*) m->option2((void*) this->channelId, &PPSSize);
+		mb.id = this->channelId;
+		mb.ptr = SPS;
+		mb.size = sizeof(SPS);
+		if((err = ga_module_ioctl(m, GA_IOCTL_GETSPS, sizeof(mb), &mb)) < 0) {
+			ga_error("unable to get SPS from %s, err=%d\n", m->name, err);
+			exit(-1);
+		}
+		SPSSize = mb.size;
+		//
+		mb.id = this->channelId;
+		mb.ptr = PPS;
+		mb.size = sizeof(PPS);
+		if((err = ga_module_ioctl(m, GA_IOCTL_GETPPS, sizeof(mb), &mb)) < 0) {
+			ga_error("unable to get PPS from %s, err=%d\n", m->name, err);
+			exit(-1);
+		}
+		PPSSize = mb.size;
+		//
 		if (SPSSize >= 1/*'profile_level_id' offset within SPS*/ + 3/*num bytes needed*/) {
 			profile_level_id = (SPS[1]<<16) | (SPS[2]<<8) | SPS[3];
 		}
@@ -149,13 +167,38 @@ RTPSink* GAMediaSubsession
 				SPS, SPSSize, PPS, PPSSize/*, profile_level_id*/);
 	} else if(strcmp(mimetype, "video/H265") == 0) {
 		ga_module_t *m = encoder_get_vencoder();
-		u_int8_t* VPS = NULL; int VPSSize = 0;
-		u_int8_t* SPS = NULL; int SPSSize = 0;
-		u_int8_t* PPS = NULL; int PPSSize = 0;
+		ga_ioctl_buffer_t mb;
+		u_int8_t VPS[256]; int VPSSize = 0;
+		u_int8_t SPS[256]; int SPSSize = 0;
+		u_int8_t PPS[256]; int PPSSize = 0;
 		//
-		SPS = (u_int8_t*) m->option1((void*) this->channelId, &SPSSize);
-		PPS = (u_int8_t*) m->option2((void*) this->channelId, &PPSSize);
-		VPS = (u_int8_t*) m->option3((void*) this->channelId, &VPSSize);
+		mb.id = this->channelId;
+		mb.ptr = SPS;
+		mb.size = sizeof(SPS);
+		if((err = ga_module_ioctl(m, GA_IOCTL_GETSPS, sizeof(mb), &mb)) < 0) {
+			ga_error("unable to get SPS from %s, err=%d\n", m->name, err);
+			exit(-1);
+		}
+		SPSSize = mb.size;
+		//
+		mb.id = this->channelId;
+		mb.ptr = PPS;
+		mb.size = sizeof(PPS);
+		if((err = ga_module_ioctl(m, GA_IOCTL_GETPPS, sizeof(mb), &mb)) < 0) {
+			ga_error("unable to get PPS from %s, err=%d\n", m->name, err);
+			exit(-1);
+		}
+		PPSSize = mb.size;
+		//
+		mb.id = this->channelId;
+		mb.ptr = VPS;
+		mb.size = sizeof(VPS);
+		if((err = ga_module_ioctl(m, GA_IOCTL_GETVPS, sizeof(mb), &mb)) < 0) {
+			ga_error("unable to get VPS from %s, err=%d\n", m->name, err);
+			exit(-1);
+		}
+		VPSSize = mb.size;
+		//
 		ga_error("GAMediaSubsession: %s SPS=%p(%d); PPS=%p(%d); VPS=%p(%d)\n",
 			mimetype,
 			SPS, SPSSize, PPS, PPSSize, VPS, VPSSize);

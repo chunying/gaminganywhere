@@ -51,7 +51,6 @@ ga_load_module(const char *modname, const char *prefix) {
 		ga_error("ga_load_module: load module (%s) failed - %s.\n", fn, dlerror());
 		return NULL;
 	}
-	//if((loadfunc = ga_module_loadfunc(handle, prefix, "load")) == NULL) {
 	if((do_module_load = (ga_module_t * (*)()) dlsym(handle, "module_load")) == NULL) {
 		ga_error("ga_load_module: [%s] is not a valid module.\n", fn);
 		dlclose(handle);
@@ -62,17 +61,6 @@ ga_load_module(const char *modname, const char *prefix) {
 	}
 	//
 	return m;
-}
-
-void *
-ga_module_loadfunc(HMODULE h, const char *prefix, const char *funcname) {
-	void *ptr = NULL;
-	char fullname[512];
-	snprintf(fullname, sizeof(fullname), "%s%s", prefix, funcname);
-	if((ptr = dlsym(h, fullname)) == NULL)  {
-		ga_error("ga_module_loadfunc: %s - not defined.\n", fullname);
-	}
-	return ptr;
 }
 
 void
@@ -123,5 +111,14 @@ ga_run_single_module_or_quit(const char *name, void * (*threadproc)(void*), void
 	if(ga_run_single_module(name, threadproc, arg) < 0)
 		exit(-1);
 	return;
+}
+
+int
+ga_module_ioctl(ga_module_t *m, int command, int argsize, void *arg) {
+	if(m == NULL)
+		return GA_IOCTL_ERR_NULLMODULE;
+	if(m->ioctl == NULL)
+		return GA_IOCTL_ERR_NOIOCTL;
+	return m->ioctl(command, argsize, arg);
 }
 

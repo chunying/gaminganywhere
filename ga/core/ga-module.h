@@ -37,6 +37,30 @@ enum ga_module_types {
 	GA_MODULE_TYPE_VDECODER
 };
 
+enum ga_ioctl_commands {
+	GA_IOCTL_NULL = 0,
+	GA_IOCTL_RECONFIGURE,
+	GA_IOCTL_GETSPS = 0x100,
+	GA_IOCTL_GETPPS,
+	GA_IOCTL_GETVPS
+};
+
+#define	GA_IOCTL_ERR_NONE		0
+#define	GA_IOCTL_ERR_GENERAL		-1
+#define	GA_IOCTL_ERR_NULLMODULE		-2
+#define	GA_IOCTL_ERR_NOIOCTL		-3
+#define	GA_IOCTL_ERR_NOTSUPPORTED	-4
+#define	GA_IOCTL_ERR_INVALID_ARGUMENT	-5
+#define	GA_IOCTL_ERR_NOTFOUND		-6
+#define	GA_IOCTL_ERR_BUFFERSIZE		-7
+#define	GA_IOCTL_ERR_BADID		-8
+
+typedef struct ga_ioctl_buffer_s {
+	int id;
+	unsigned char *ptr;
+	int size;
+}	ga_ioctl_buffer_t;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -51,12 +75,9 @@ typedef struct ga_module_s {
 	//void * (*threadproc)(void *arg);
 	int (*stop)(void *arg);
 	int (*deinit)(void *arg);
+	int (*ioctl)(int command, int argsize, void *arg);
 	int (*notify)(void *arg);
 	void * (*raw)(void *arg, int *size);
-	void * (*option1)(void *arg, int *size);
-	void * (*option2)(void *arg, int *size);
-	void * (*option3)(void *arg, int *size);
-	void * (*option4)(void *arg, int *size);
 	void * privdata;
 }	ga_module_t;
 //////////////////////////////////////////////
@@ -72,12 +93,12 @@ typedef struct ga_module_s {
 #endif
 
 EXPORT ga_module_t * ga_load_module(const char *modname, const char *prefix);
-EXPORT void * ga_module_loadfunc(HMODULE h, const char *prefix, const char *funcname);
 EXPORT void ga_unload_module(ga_module_t *m);
 EXPORT int ga_init_single_module(const char *name, ga_module_t *m, void *arg);
 EXPORT void ga_init_single_module_or_quit(const char *name, ga_module_t *m, void *arg);
 EXPORT int ga_run_single_module(const char *name, void * (*threadproc)(void*), void *arg);
 EXPORT void ga_run_single_module_or_quit(const char *name, void * (*threadproc)(void*), void *arg);
+EXPORT int ga_module_ioctl(ga_module_t *m, int command, int argsize, void *arg);
 
 #ifdef GA_MODULE
 // a module must have exported the module_load function

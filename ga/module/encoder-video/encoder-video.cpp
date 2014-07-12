@@ -472,17 +472,6 @@ error_get_h264or5_vparam:
 	return -1;
 }
 
-static int
-vencoder_opt_get_cid(void *arg) {
-#if defined __APPLE__
-	int64_t in = (int64_t) arg;
-	int cid = (int) (in & 0xffffffffLL);
-#else
-	int cid = (int) arg;
-#endif
-	return cid;
-}
-
 static AVCodecContext *
 vencoder_opt_get_encoder(int cid) {
 	AVCodecContext *ve = NULL;
@@ -496,87 +485,46 @@ vencoder_opt_get_encoder(int cid) {
 	return ve;
 }
 
-static void *
-vencoder_opt1(void *arg, int *size) {
+static int
+vencoder_ioctl(int command, int argsize, void *arg) {
+	int ret = 0;
+	ga_ioctl_buffer_t *buf = (ga_ioctl_buffer_t*) arg;
 	AVCodecContext *ve = NULL;
-	int iid = vencoder_opt_get_cid(arg);
-	void *ret = NULL;
 	//
-	if((ve = vencoder_opt_get_encoder(iid)) == NULL)
-		return NULL;
-	if(ve->extradata_size <= 0)
-		return NULL;
-	switch(ve->codec_id) {
-	case AV_CODEC_ID_H264:
-		if(h264or5_get_vparam(264, iid, ve->extradata, ve->extradata_size) < 0)
-			return NULL;
-		*size = _spslen[iid];
-		return _sps[iid];
-		break;
-	case AV_CODEC_ID_H265:
-		if(h264or5_get_vparam(265, iid, ve->extradata, ve->extradata_size) < 0)
-			return NULL;
-		*size = _spslen[iid];
-		return _sps[iid];
+	switch(command) {
+	case GA_IOCTL_GETSPS:
+	case GA_IOCTL_GETPPS:
+	case GA_IOCTL_GETVPS:
+		if((ve = vencoder_opt_get_encoder(buf->id)) == NULL)
+			return GA_IOCTL_ERR_BADID;
+		if(argsize != sizeof(ga_ioctl_buffer_t))
+			return GA_IOCTL_ERR_INVALID_ARGUMENT;
+		if(ve->extradata_size <= 0)
+			return GA_IOCTL_ERR_NOTFOUND;
+		if(ve->codec_id != AV_CODEC_ID_H264 && ve->codec_id != AV_CODEC_ID_H265)
+			return GA_IOCTL_ERR_NOTSUPPORTED;
+		if(ve->codec_id == AV_CODEC_ID_H264 && command == GA_IOCTL_GETVPS)
+			return GA_IOCTL_ERR_NOTSUPPORTED;
+		if(h264or5_get_vparam(ve->codec_id == AV_CODEC_ID_H264 ? 264 : 265,
+				buf->id, ve->extradata, ve->extradata_size) < 0) {
+			return GA_IOCTL_ERR_NOTFOUND;
+		}
+		if(buf->size < _spslen[buf->id])
+			return GA_IOCTL_ERR_BUFFERSIZE;
+		if(command == GA_IOCTL_GETSPS) {
+			buf->size = _spslen[buf->id];
+			bcopy(_sps[buf->id], buf->ptr, buf->size);
+		} else if(command == GA_IOCTL_GETPPS) {
+			buf->size = _ppslen[buf->id];
+			bcopy(_pps[buf->id], buf->ptr, buf->size);
+		} else if(command == GA_IOCTL_GETVPS) {
+			buf->size = _vpslen[buf->id];
+			bcopy(_vps[buf->id], buf->ptr, buf->size);
+		}
 		break;
 	default:
-		*size = ve->extradata_size;
-		ret = ve->extradata;
-	}
-	return ret;
-}
-
-static void *
-vencoder_opt2(void *arg, int *size) {
-	AVCodecContext *ve = NULL;
-	int iid = vencoder_opt_get_cid(arg);
-	void *ret = NULL;
-	//
-	if((ve = vencoder_opt_get_encoder(iid)) == NULL)
-		return NULL;
-	if(ve->extradata_size <= 0)
-		return NULL;
-	switch(ve->codec_id) {
-	case AV_CODEC_ID_H264:
-		// return PPS
-		if(h264or5_get_vparam(264, iid, ve->extradata, ve->extradata_size) < 0)
-			return NULL;
-		*size = _ppslen[iid];
-		return _pps[iid];
+		ret = GA_IOCTL_ERR_NOTSUPPORTED;
 		break;
-	case AV_CODEC_ID_H265:
-		if(h264or5_get_vparam(265, iid, ve->extradata, ve->extradata_size) < 0)
-			return NULL;
-		*size = _ppslen[iid];
-		return _pps[iid];
-		break;
-	default:
-		*size = ve->extradata_size;
-		ret = ve->extradata;
-	}
-	return ret;
-}
-
-static void *
-vencoder_opt3(void *arg, int *size) {
-	AVCodecContext *ve = NULL;
-	int iid = vencoder_opt_get_cid(arg);
-	void *ret = NULL;
-	//
-	if((ve = vencoder_opt_get_encoder(iid)) == NULL)
-		return NULL;
-	if(ve->extradata_size <= 0)
-		return NULL;
-	switch(ve->codec_id) {
-	case AV_CODEC_ID_H265:
-		if(h264or5_get_vparam(265, iid, ve->extradata, ve->extradata_size) < 0)
-			return NULL;
-		*size = _vpslen[iid];
-		return _vps[iid];
-		break;
-	default:
-		*size = ve->extradata_size;
-		ret = ve->extradata;
 	}
 	return ret;
 }
@@ -584,7 +532,7 @@ vencoder_opt3(void *arg, int *size) {
 ga_module_t *
 module_load() {
 	static ga_module_t m;
-	struct RTSPConf *rtspconf = rtspconf_global();
+	//struct RTSPConf *rtspconf = rtspconf_global();
 	char mime[64];
 	//
 	bzero(&m, sizeof(m));
@@ -600,9 +548,7 @@ module_load() {
 	m.deinit = vencoder_deinit;
 	//
 	m.raw = vencoder_raw;
-	m.option1 = vencoder_opt1;
-	m.option2 = vencoder_opt2;
-	m.option3 = vencoder_opt3;
+	m.ioctl = vencoder_ioctl;
 	return &m;
 }
 

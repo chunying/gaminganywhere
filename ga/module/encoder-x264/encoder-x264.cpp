@@ -43,6 +43,8 @@ static struct RTSPConf *rtspconf = NULL;
 static int vencoder_initialized = 0;
 static int vencoder_started = 0;
 static pthread_t vencoder_tid[VIDEO_SOURCE_CHANNEL_MAX];
+static pthread_mutex_t vencoder_reconf_mutex[VIDEO_SOURCE_CHANNEL_MAX];
+static ga_ioctl_reconfigure_t vencoder_reconf[VIDEO_SOURCE_CHANNEL_MAX];
 //// encoders for encoding
 static x264_t* vencoder[VIDEO_SOURCE_CHANNEL_MAX];
 
@@ -62,6 +64,7 @@ vencoder_deinit(void *arg) {
 			free(_pps[iid]);
 		if(vencoder[iid] != NULL)
 			x264_encoder_close(vencoder[iid]);
+		pthread_mutex_destroy(&vencoder_reconf_mutex[iid]);
 		vencoder[iid] = NULL;
 	}
 	bzero(_sps, sizeof(_sps));
@@ -73,12 +76,20 @@ vencoder_deinit(void *arg) {
 	return 0;
 }
 
+static int /* XXX: we need this because many GA config values are in bits, not Kbits */
+ga_x264_param_parse_bit(x264_param_t *params, const char *name, const char *bitvalue) {
+	int v = strtol(bitvalue, NULL, 0);
+	char kbit[64];
+	snprintf(kbit, sizeof(kbit), "%d", v / 1000);
+	return x264_param_parse(params, name, kbit);
+}
+
 static int
 vencoder_init(void *arg) {
 	int iid;
 	char *pipefmt = (char*) arg;
 	struct RTSPConf *rtspconf = rtspconf_global();
-	char profile[16], preset[16], tune[16], me_method[16];
+	char profile[16], preset[16], tune[16];
 	char x264params[1024];
 	char tmpbuf[64];
 	//
@@ -97,6 +108,9 @@ vencoder_init(void *arg) {
 		//
 		_sps[iid] = _pps[iid] = NULL;
 		_spslen[iid] = _ppslen[iid] = 0;
+		pthread_mutex_init(&vencoder_reconf_mutex[iid], NULL);
+		vencoder_reconf[iid].id = -1;
+		//
 		snprintf(pipename, sizeof(pipename), pipefmt, iid);
 		outputW = video_source_out_width(iid);
 		outputH = video_source_out_height(iid);
@@ -126,11 +140,16 @@ vencoder_init(void *arg) {
 			}
 		}
 		//
-		if(ga_conf_mapreadv("video-specific", "b", tmpbuf, sizeof(tmpbuf)) != NULL) {
-			snprintf(tmpbuf, sizeof(tmpbuf), "%d",
-				ga_conf_mapreadint("video-specific", "b") / 1000);
-			x264_param_parse(&params, "bitrate", tmpbuf);
-		}
+		if(ga_conf_mapreadv("video-specific", "b", tmpbuf, sizeof(tmpbuf)) != NULL)
+			ga_x264_param_parse_bit(&params, "bitrate", tmpbuf);
+		if(ga_conf_mapreadv("video-specific", "crf", tmpbuf, sizeof(tmpbuf)) != NULL)
+			x264_param_parse(&params, "crf", tmpbuf);
+		if(ga_conf_mapreadv("video-specific", "vbv-init", tmpbuf, sizeof(tmpbuf)) != NULL)
+			x264_param_parse(&params, "vbv-init", tmpbuf);
+		if(ga_conf_mapreadv("video-specific", "maxrate", tmpbuf, sizeof(tmpbuf)) != NULL)
+			ga_x264_param_parse_bit(&params, "vbv-maxrate", tmpbuf);
+		if(ga_conf_mapreadv("video-specific", "bufsize", tmpbuf, sizeof(tmpbuf)) != NULL)
+			ga_x264_param_parse_bit(&params, "vbv-bufsize", tmpbuf);
 		if(ga_conf_mapreadv("video-specific", "refs", tmpbuf, sizeof(tmpbuf)) != NULL)
 			x264_param_parse(&params, "ref", tmpbuf);
 		if(ga_conf_mapreadv("video-specific", "me_method", tmpbuf, sizeof(tmpbuf)) != NULL)
@@ -203,6 +222,61 @@ init_failed:
 	return -1;
 }
 
+static int
+vencoder_reconfigure(int iid) {
+	int ret = 0;
+	x264_param_t params;
+	x264_t *encoder = vencoder[iid];
+	ga_ioctl_reconfigure_t *reconf = &vencoder_reconf[iid];
+	//
+	pthread_mutex_lock(&vencoder_reconf_mutex[iid]);
+	if(vencoder_reconf[iid].id >= 0) {
+		int doit = 0;
+		x264_encoder_parameters(encoder, &params);
+		//
+		if(reconf->crf > 0) {
+			params.rc.f_rf_constant = 1.0 * reconf->crf;
+			doit++;
+		}
+		if(reconf->framerate > 0) {
+			params.i_fps_num = reconf->framerate;
+			params.i_fps_den = 1;
+			doit++;
+		}
+		if(reconf->bitrateKbps > 0) {
+			// XXX: do not use x264_param_parse("bitrate"), it switches mode to ABR
+			// - although mode switching may be not allowed
+			params.rc.i_bitrate = reconf->bitrateKbps;
+			params.rc.i_vbv_max_bitrate = reconf->bitrateKbps;
+			doit++;
+		}
+		if(reconf->bufsize > 0) {
+			params.rc.i_vbv_buffer_size = reconf->bufsize;
+			doit++;
+		}
+		//
+		if(doit > 0) {
+			if(x264_encoder_reconfig(encoder, &params) < 0) {
+				ga_error("video encoder: reconfigure failed. crf=%d; framerate=%d; bitrate=%d; bufsize=%d.\n",
+						reconf->crf,
+						reconf->framerate,
+						reconf->bitrateKbps,
+						reconf->bufsize);
+				ret = -1;
+			} else {
+				ga_error("video encoder: reconfigured. crf=%.2f; framerate=%d/%d; bitrate=%d/%dKbps; bufsize=%dKbit.\n",
+						params.rc.f_rf_constant,
+						params.i_fps_num, params.i_fps_den,
+						params.rc.i_bitrate, params.rc.i_vbv_max_bitrate,
+						params.rc.i_vbv_buffer_size);
+			}
+		}
+		reconf->id = -1;
+	}
+	pthread_mutex_unlock(&vencoder_reconf_mutex[iid]);
+	return ret;
+}
+
 static void *
 vencoder_threadproc(void *arg) {
 	// arg is pointer to source pipename
@@ -249,6 +323,8 @@ vencoder_threadproc(void *arg) {
 		x264_picture_t pic_in, pic_out = {0};
 		x264_nal_t *nal;
 		int i, size, nnal;
+		// need reconfigure?
+		vencoder_reconfigure(iid);
 		// wait for notification
 		data = pipe->load_data();
 		if(data == NULL) {
@@ -410,6 +486,18 @@ vencoder_raw(void *arg, int *size) {
 }
 
 static int
+x264_reconfigure(ga_ioctl_reconfigure_t *reconf) {
+	if(vencoder_started == 0 || encoder_running() == 0) {
+		ga_error("video encoder: reconfigure - not running.\n");
+		return 0;
+	}
+	pthread_mutex_lock(&vencoder_reconf_mutex[reconf->id]);
+	bcopy(reconf, &vencoder_reconf[reconf->id], sizeof(ga_ioctl_reconfigure_t));
+	pthread_mutex_unlock(&vencoder_reconf_mutex[reconf->id]);
+	return 0;
+}
+
+static int
 x264_get_sps_pps(int iid) {
 	x264_nal_t *p_nal;
 	int ret = 0;
@@ -461,6 +549,11 @@ vencoder_ioctl(int command, int argsize, void *arg) {
 		return GA_IOCTL_ERR_NOTINITIALIZED;
 	//
 	switch(command) {
+	case GA_IOCTL_RECONFIGURE:
+		if(argsize != sizeof(ga_ioctl_reconfigure_t))
+			return GA_IOCTL_ERR_INVALID_ARGUMENT;
+		x264_reconfigure((ga_ioctl_reconfigure_t*) arg);
+		break;
 	case GA_IOCTL_GETSPS:
 		if(argsize != sizeof(ga_ioctl_buffer_t))
 			return GA_IOCTL_ERR_INVALID_ARGUMENT;

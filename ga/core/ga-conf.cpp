@@ -253,8 +253,17 @@ ga_conf_readint(const char *key) {
 	char buf[64];
 	char *ptr = ga_conf_readv(key, buf, sizeof(buf));
 	if(ptr == NULL)
-		return INT_MIN;
+		return 0;
 	return strtol(ptr, NULL, 0);
+}
+
+double
+ga_conf_readdouble(const char *key) {
+	char buf[64];
+	char *ptr = ga_conf_readv(key, buf, sizeof(buf));
+	if(ptr == NULL)
+		return 0.0;
+	return strtod(ptr, NULL);
 }
 
 static int
@@ -359,7 +368,7 @@ ga_conf_mapreadint(const char *mapname, const char *key) {
 	char buf[64];
 	char *ptr = ga_conf_mapreadv(mapname, key, buf, sizeof(buf));
 	if(ptr == NULL)
-		return INT_MIN;
+		return 0;
 	return strtol(ptr, NULL, 0);
 }
 
@@ -370,6 +379,15 @@ ga_conf_mapreadints(const char *mapname, const char *key, int *val, int n) {
 	if(ptr == NULL)
 		return 0;
 	return ga_conf_multiple_int(buf, val, n);
+}
+
+double
+ga_conf_mapreaddouble(const char *mapname, const char *key) {
+	char buf[64];
+	char *ptr = ga_conf_mapreadv(mapname, key, buf, sizeof(buf));
+	if(ptr == NULL)
+		return 0.0;
+	return strtod(ptr, NULL);
 }
 
 int

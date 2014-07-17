@@ -403,6 +403,105 @@ init_adecoder() {
 	return 0;
 }
 
+//// packet loss monitor
+
+typedef struct pktloss_record_s {
+	/* XXX: ssrc is 32-bit, and seqnum is 16-bit */
+	int reset;	/* 1 - this record should be reset */
+	int lost;	/* count of lost packets */
+	unsigned int ssrc;	/* SSRC */
+	unsigned short initseq;	/* the 1st seqnum in the observation */
+	unsigned short lastseq;	/* the last seqnum in the observation */
+}	pktloss_record_t;
+
+static map<unsigned int, pktloss_record_t> _pktmap;
+
+int
+pktloss_monitor_init() {
+	_pktmap.clear();
+}
+
+void
+pktloss_monitor_update(unsigned int ssrc, unsigned short seqnum) {
+	map<unsigned int, pktloss_record_t>::iterator mi;
+	if((mi = _pktmap.find(ssrc)) == _pktmap.end()) {
+		pktloss_record_t r;
+		r.reset = 0;
+		r.lost = 0;
+		r.ssrc = ssrc;
+		r.initseq = seqnum;
+		r.lastseq = seqnum;
+		_pktmap[ssrc] = r;
+		return;
+	}
+	if(mi->second.reset != 0) {
+		mi->second.reset = 0;
+		mi->second.lost = 0;
+		mi->second.initseq = seqnum;
+		mi->second.lastseq = seqnum;
+		return;
+	}
+	if((seqnum-1) != mi->second.lastseq) {
+		mi->second.lost += (seqnum - 1 - mi->second.lastseq);
+	}
+	mi->second.lastseq = seqnum;
+	return;
+}
+
+void
+pktloss_monitor_reset(unsigned int ssrc) {
+	map<unsigned int, pktloss_record_t>::iterator mi;
+	if((mi = _pktmap.find(ssrc)) != _pktmap.end()) {
+		mi->second.reset = 1;
+	}
+	return;
+}
+
+int
+pktloss_monitor_get(unsigned int ssrc, int *count = NULL, int reset = 0) {
+	map<unsigned int, pktloss_record_t>::iterator mi;
+	if((mi = _pktmap.find(ssrc)) == _pktmap.end())
+		return -1;
+	if(reset != 0)
+		mi->second.reset = 1;
+	if(count != NULL)
+		*count = (mi->second.lastseq - mi->second.initseq) + 1;
+	return mi->second.lost;
+}
+
+#ifdef WIN32
+#pragma pack(push, 1)
+#endif
+struct rtp_pkt_minimum_s {
+	unsigned short flags;
+	unsigned short seqnum;
+	unsigned int timestamp;
+	unsigned int ssrc;
+}
+#ifdef WIN32
+#pragma pack(pop)
+#else
+__attribute__((__packed__))
+#endif
+;
+
+typedef struct rtp_pkt_minimum_s rtp_pkt_minimum_t;
+
+void
+pktloss_monitor(void *clientData, unsigned char *packet, unsigned &packetSize) {
+	rtp_pkt_minimum_t *rtp = (rtp_pkt_minimum_t*) packet;
+	unsigned int ssrc;
+	unsigned short seqnum;
+	if(packet == NULL || packetSize < 12)
+		return;
+	ssrc = ntohl(rtp->ssrc);
+	seqnum = ntohs(rtp->seqnum);
+	pktloss_monitor_update(ssrc, seqnum);
+	return;
+}
+
+////
+
 static long long max_tolerable_video_delay_us = -1;
 static struct timeval tv_real_start[VIDEO_SOURCE_CHANNEL_MAX];
 static struct timeval tv_stream_start[VIDEO_SOURCE_CHANNEL_MAX];
@@ -442,7 +541,7 @@ drop_video_frame(int ch/*channel*/, struct timeval pts) {
 		delta = -delta;
 	}
 	if(delta > max_tolerable_video_delay_us) {
-		ga_error("video frame dropped (delta = %lldus)\n", delta);
+		ga_error("rtspclient: video frame dropped (delta = %lldus)\n", delta);
 		return 1;
 	}
 	return 0;
@@ -466,6 +565,7 @@ play_video_priv(int ch/*channel*/, unsigned char *buffer, int bufsize, struct ti
 	av_init_packet(&avpkt);
 	avpkt.size = bufsize;
 	avpkt.data = buffer;
+	//
 	while(avpkt.size > 0) {
 		//
 		if((len = avcodec_decode_video2(vdecoder[ch], vframe[ch], &got_picture, &avpkt)) < 0) {
@@ -895,6 +995,7 @@ rtsp_thread(void *param) {
 	UsageEnvironment* env = BasicUsageEnvironment::createNew(*scheduler);
 	// XXX: reset everything
 	drop_video_frame_init(ga_conf_readint("max-tolerable-video-delay"));
+	pktloss_monitor_init();
 	port2channel.clear();
 	video_sess_fmt = -1;
 	audio_sess_fmt = -1;
@@ -1079,6 +1180,7 @@ setupNextSubsession(RTSPClient* rtspClient) {
 				video_sess_fmt = scs.subsession->rtpPayloadFormat();
 				video_codec_name = strdup(scs.subsession->codecName());
 				qos_add_source(video_codec_name, scs.subsession->rtpSource());
+				scs.subsession->rtpSource()->setAuxilliaryReadHandler(pktloss_monitor, NULL);
 				if(port2channel.find(scs.subsession->clientPortNum()) == port2channel.end()) {
 					int cid = port2channel.size();
 					port2channel[scs.subsession->clientPortNum()] = cid;
@@ -1472,16 +1574,30 @@ DummySink::afterGettingFrame(unsigned frameSize, unsigned numTruncatedBytes,
 	if(fSubsession.rtpPayloadFormat() == video_sess_fmt) {
 		bool marker = false;
 		int channel = port2channel[fSubsession.clientPortNum()];
+		int lost = 0, count = 1;
 		RTPSource *rtpsrc = fSubsession.rtpSource();
+		RTPReceptionStatsDB::Iterator iter(rtpsrc->receptionStatsDB());
+		RTPReceptionStats* stats = iter.next(True);
 #ifdef ANDROID  // support only single channel
 		if(channel > 0) 
 			goto dropped;
 #endif
-		if(drop_video_frame(channel, presentationTime) > 0)
+		if(drop_video_frame(channel, presentationTime) > 0) {
+			if(stats != NULL)
+				pktloss_monitor_reset(rtpsrc->SSRC());
 			goto dropped;
+		}
 		if(rtpsrc != NULL) {
 			marker = rtpsrc->curPacketMarkerBit();
 		}
+		//
+		if(stats != NULL) {
+			lost = pktloss_monitor_get(stats->SSRC(), &count, 1/*reset*/);
+			if(lost > 0) {
+				ga_error("rtspclient: frame corrupted? lost=%d; count=%d (packets)\n", lost, count);
+			}
+		}
+		//
 		play_video(channel,
 			fReceiveBuffer+MAX_FRAMING_SIZE-video_framing,
 			frameSize+video_framing, presentationTime,

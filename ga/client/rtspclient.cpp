@@ -33,6 +33,7 @@ unsigned increaseReceiveBufferTo(UsageEnvironment& env,
 #include "rtspclient.h"
 
 #include "ga-common.h"
+#include "ga-conf.h"
 #include "ga-avcodec.h"
 #include "controller.h"
 #include "minih264.h"
@@ -57,6 +58,8 @@ using namespace std;
 #define RCVBUF_SIZE		2097152
 
 #define	COUNT_FRAME_RATE	600	// every N frames
+
+#define MAX_TOLERABLE_VIDEO_DELAY_US	200000LL	/* 200 ms */
 
 //#define SAVEFILE        "save.raw"
 #ifdef SAVEFILE
@@ -397,6 +400,51 @@ init_adecoder() {
 	}
 	rtsperror("audio decoder: codec %s (%s)\n", codec->name, codec->long_name);
 	adecoder = ctx;
+	return 0;
+}
+
+static long long max_tolerable_video_delay_us = -1;
+static struct timeval tv_real_start[VIDEO_SOURCE_CHANNEL_MAX];
+static struct timeval tv_stream_start[VIDEO_SOURCE_CHANNEL_MAX];
+static struct timeval tv_stream_curr[VIDEO_SOURCE_CHANNEL_MAX];
+
+static void
+drop_video_frame_init(long long max_delay_us) {
+	bzero(&tv_real_start, sizeof(tv_real_start));
+	bzero(&tv_stream_start, sizeof(tv_stream_start));
+	bzero(&tv_stream_curr, sizeof(tv_stream_curr));
+	max_tolerable_video_delay_us = max_delay_us;
+	if(max_tolerable_video_delay_us > 0) {
+		ga_error("rtspclient: max tolerable video delay = %lldus\n", max_tolerable_video_delay_us);
+	} else {
+		ga_error("rtspclient: max tolerable video delay disabled.\n");
+	}
+	return;
+}
+
+static int
+drop_video_frame(int ch/*channel*/, struct timeval pts) {
+	long long delta;
+	struct timeval now;
+	// disabled?
+	if(max_tolerable_video_delay_us <= 0)
+		return 0;
+	//
+	tv_stream_curr[ch] = pts;
+	if(tv_real_start[ch].tv_sec == 0) {
+		gettimeofday(&tv_real_start[ch], NULL);
+		tv_stream_start[ch] = pts;
+		return 0;
+	}
+	gettimeofday(&now, NULL);
+	delta = tvdiff_us(&pts, &tv_stream_start[ch]) - tvdiff_us(&now, &tv_real_start[ch]);
+	if(delta < 0) {
+		delta = -delta;
+	}
+	if(delta > max_tolerable_video_delay_us) {
+		ga_error("video frame dropped (delta = %lldus)\n", delta);
+		return 1;
+	}
 	return 0;
 }
 
@@ -846,6 +894,7 @@ rtsp_thread(void *param) {
 	TaskScheduler* scheduler = bs;
 	UsageEnvironment* env = BasicUsageEnvironment::createNew(*scheduler);
 	// XXX: reset everything
+	drop_video_frame_init(ga_conf_readint("max-tolerable-video-delay"));
 	port2channel.clear();
 	video_sess_fmt = -1;
 	audio_sess_fmt = -1;
@@ -1428,6 +1477,8 @@ DummySink::afterGettingFrame(unsigned frameSize, unsigned numTruncatedBytes,
 		if(channel > 0) 
 			goto dropped;
 #endif
+		if(drop_video_frame(channel, presentationTime) > 0)
+			goto dropped;
 		if(rtpsrc != NULL) {
 			marker = rtpsrc->curPacketMarkerBit();
 		}

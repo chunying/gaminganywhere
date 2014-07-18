@@ -419,6 +419,7 @@ static map<unsigned int, pktloss_record_t> _pktmap;
 int
 pktloss_monitor_init() {
 	_pktmap.clear();
+	return 0;
 }
 
 void

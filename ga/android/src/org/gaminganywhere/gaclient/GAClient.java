@@ -287,7 +287,7 @@ public class GAClient {
 		//outputBuffers = vdecoder.getOutputBuffers();
 		videoRendered = false;
 		Log.d("ga_log", "videoRenderer started.");
-		while(!Thread.interrupted() && !quitAudioRenderer) {
+		while(!Thread.interrupted() && !quitVideoRenderer) {
 			outbufIdx = vdecoder.dequeueOutputBuffer(bufinfo, 500000);
 			switch (outbufIdx) {
 			case MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED:

@@ -24,6 +24,7 @@ import javax.microedition.khronos.opengles.GL10;
 import org.gaminganywhere.gaclient.util.GAController;
 import org.gaminganywhere.gaclient.util.GAControllerBasic;
 import org.gaminganywhere.gaclient.util.GAControllerDualPad;
+import org.gaminganywhere.gaclient.util.GAControllerEmpty;
 import org.gaminganywhere.gaclient.util.GAControllerLimbo;
 import org.gaminganywhere.gaclient.util.GAControllerN64;
 import org.gaminganywhere.gaclient.util.GAControllerNDS;
@@ -200,6 +201,8 @@ public class PlayerActivity extends Activity implements SurfaceHolder.Callback, 
 			String cname = intent.getStringExtra("controller");
 			if(cname == null) {
 				controller = new GAControllerBasic(this);
+			} else if(cname.equals(GAControllerEmpty.getName())) {
+				controller = new GAControllerEmpty(this);
 			} else if(cname.equals(GAControllerDualPad.getName())) {
 				controller = new GAControllerDualPad(this);
 			} else if(cname.equals(GAControllerLimbo.getName())){

@@ -124,11 +124,8 @@ public class GAClient {
 	private int watchdogTimeout = 3;	// default
 
 	public boolean watchdogSetTimeout(int to) {
-		if(watchdogTimeout > 0) {
-			watchdogTimeout = to;
-			return true;
-		}
-		return false;
+		watchdogTimeout = to;
+		return true;
 	}
 	
 	private void watchdogThreadProc() {
@@ -138,6 +135,11 @@ public class GAClient {
 		while(!Thread.interrupted() && !quitWatchdog) {
 			try {
 				Thread.sleep(1000);
+				if(watchdogTimeout < 0) {
+					// disabled
+					lastTick = watchdogTick;
+					continue;
+				}
 				if(watchdogTick != lastTick) {
 					idle = 0;
 					lastTick = watchdogTick;

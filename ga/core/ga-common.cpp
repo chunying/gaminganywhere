@@ -245,6 +245,104 @@ ga_closelog() {
 	return;
 }
 
+// save file feature
+
+FILE *
+ga_save_init(const char *filename) {
+	FILE *fp = NULL;
+	if(filename != NULL) {
+		fp = fopen(filename, "wb");
+		if(fp == NULL) {
+			ga_error("save file: open %s failed.\n", filename);
+		}
+	}
+	return fp;
+}
+
+int
+ga_save_data(FILE *fp, unsigned char *buffer, int size) {
+	if(fp == NULL || buffer == NULL || size < 0)
+		return -1;
+	if(size == 0)
+		return 0;
+	return fwrite(buffer, sizeof(char), size, fp);
+}
+
+int
+ga_save_yuv420p(FILE *fp, int w, int h, unsigned char *planes[], int linesize[]) {
+	int i, j, wlen, written = 0;
+	int w2 = w/2;
+	int h2 = h/2;
+	int expected = w * h * 3 / 2;
+	unsigned char *src;
+	if(fp == NULL || w <= 0 || h <= 0 || planes == NULL || linesize == NULL)
+		return -1;
+	// write Y
+	src = planes[0];
+	for(i = 0; i < h; i++) {
+		if((wlen = fwrite(src, sizeof(char), w, fp)) < 0)
+			goto err_save_yuv;
+		written += wlen;
+		src += linesize[0];
+	}
+	// write U/V
+	for(j = 1; j < 3; j++) {
+		src = planes[j];
+		for(i = 0; i < h2; i++) {
+			if((wlen = fwrite(src, sizeof(char), w2, fp)) < 0)
+				goto err_save_yuv;
+			written += wlen;
+			src += linesize[j];
+		}
+	}
+	//
+	if(written != expected) {
+		ga_error("save YUV (%dx%d): expected %d, save %d (frame may be corrupted)\n",
+			w, h, expected, written);
+	}
+	//
+	fflush(fp);
+	return written;
+err_save_yuv:
+	return -1;
+}
+
+int
+ga_save_rgb4(FILE *fp, int w, int h, unsigned char *planes, int linesize) {
+	int i, wlen, written = 0;
+	int w4 = w*4;
+	int expected = w * h * 4;
+	if(fp == NULL || w <= 0 || h <= 0 || planes == NULL || linesize < w4)
+		return -1;
+	// write
+	for(i = 0; i < h; i++) {
+		if((wlen = fwrite(planes, sizeof(char), w4, fp)) < 0)
+			goto err_save_rgb4;
+		written += wlen;
+		planes += linesize;
+	}
+	//
+	if(written != expected) {
+		ga_error("save RGB4 (%dx%d): expected %d, save %d (frame may be corrupted)\n",
+			w, h, expected, written);
+	}
+	//
+	fflush(fp);
+	return written;
+err_save_rgb4:
+	return -1;
+}
+
+int
+ga_save_close(FILE *fp) {
+	if(fp != NULL) {
+		fclose(fp);
+	}
+	return 0;
+}
+
+//
+
 long
 ga_atoi(const char *str) {
 	// XXX: not sure why sometimes windows strtol failed on

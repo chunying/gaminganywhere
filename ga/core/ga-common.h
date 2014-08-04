@@ -73,6 +73,13 @@ EXPORT int	ga_init(const char *config, const char *url);
 EXPORT void	ga_deinit();
 EXPORT void	ga_openlog();
 EXPORT void	ga_closelog();
+// save file feature
+EXPORT FILE *	ga_save_init(const char *filename);
+EXPORT int	ga_save_data(FILE *fp, unsigned char *buffer, int size);
+EXPORT int	ga_save_yuv420p(FILE *fp, int w, int h, unsigned char *planes[], int linesize[]);
+EXPORT int	ga_save_rgb4(FILE *fp, int w, int h, unsigned char *planes, int linesize);
+EXPORT int	ga_save_close(FILE *fp);
+//
 EXPORT long	ga_atoi(const char *str);
 EXPORT struct gaRect * ga_fillrect(struct gaRect *rect, int left, int top, int right, int bottom);
 EXPORT int	ga_crop_window(struct gaRect *rect, struct gaRect **prect);

@@ -40,6 +40,7 @@ using namespace std;
 static int filter_initialized = 0;
 static int filter_started = 0;
 static pthread_t filter_tid[VIDEO_SOURCE_CHANNEL_MAX];
+static FILE *savefp = NULL;
 
 /* filter_RGB2YUV_init: arg is two pointers to pipeline format string */
 /*	1st ptr: source pipeline */
@@ -53,9 +54,15 @@ filter_RGB2YUV_init(void *arg) {
 	const char **filterpipe = (const char **) arg;
 	pipeline *srcpipe[VIDEO_SOURCE_CHANNEL_MAX];
 	pipeline *dstpipe[VIDEO_SOURCE_CHANNEL_MAX];
+	char savefile[128];
 	//
 	if(filter_initialized != 0)
 		return 0;
+	//
+	if(ga_conf_readv("save-yuv-image", savefile, sizeof(savefile)) != NULL) {
+		savefp = ga_save_init(savefile);
+	}
+	//
 	bzero(dstpipe, sizeof(dstpipe));
 	//
 	for(iid = 0; iid < video_source_channels(); iid++) {
@@ -110,7 +117,7 @@ filter_RGB2YUV_init(void *arg) {
 			ga_error("RGB2YUV filter: create dst-pipeline failed (%s).\n", dstpipename);
 			goto init_failed;
 		}
-#if 1		// XXX: to be removed
+#if 1		// XXX: to be removed?
 		// has privdata from the source?
 		if(srcpipe[iid]->get_privdata_size() > 0) {
 			if(dstpipe[iid]->alloc_privdata(srcpipe[iid]->get_privdata_size()) == NULL) {
@@ -234,6 +241,15 @@ init_failed:
 	return -1;
 }
 
+static int
+filter_RGB2YUV_deinit(void *arg) {
+	if(savefp != NULL) {
+		ga_save_close(savefp);
+		savefp = NULL;
+	}
+	return 0;
+}
+
 /* filter_RGB2YUV_threadproc: arg is two pointers to pipeline name */
 /*	1st ptr: source pipeline */
 /*	2nd ptr: destination pipeline */
@@ -340,6 +356,10 @@ filter_RGB2YUV_threadproc(void *arg) {
 			sws_scale(swsctx,
 				src, srcstride, 0, srcframe->realheight,
 				dst, dstframe->linesize);
+			// only save the first channel
+			if(iid == 0 && savefp != NULL) {
+				ga_save_yuv420p(savefp, outputW, outputH, dst, dstframe->linesize);
+			}
 		}
 		srcpipe->release_data(srcdata);
 		dstpipe->store_data(dstdata);
@@ -418,6 +438,7 @@ module_load() {
 	m.init = filter_RGB2YUV_init;
 	m.start = filter_RGB2YUV_start;
 	m.stop = filter_RGB2YUV_stop;
+	m.deinit = filter_RGB2YUV_deinit;
 	//m.threadproc = filter_RGB2YUV_threadproc;
 	return &m;
 }

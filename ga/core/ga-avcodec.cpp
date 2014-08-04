@@ -37,7 +37,7 @@ ga_swscale_init(PixelFormat format, int inW, int inH, int outW, int outH) {
 	if((swsctx = sws_getContext(
 				inW, inH, format, //PIX_FMT_BGRA/*PIX_FMT_ARGB*/,
 				outW, outH, PIX_FMT_YUV420P,
-				SWS_FAST_BILINEAR, NULL, NULL, NULL)) == NULL) {
+				SWS_BILINEAR, NULL, NULL, NULL)) == NULL) {
 		fprintf(stderr, "# ga-swscale-init: cannot create swscale context\n");
 	}
 	return swsctx;

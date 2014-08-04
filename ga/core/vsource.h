@@ -25,8 +25,8 @@
 #include "ga-avcodec.h"
 #include "pipeline.h"
 
-#define	VIDEO_SOURCE_DEF_MAXWIDTH	1920
-#define	VIDEO_SOURCE_DEF_MAXHEIGHT	1200
+#define	VIDEO_SOURCE_DEF_MAXWIDTH	2560	/* MAX: MBP Retina */
+#define	VIDEO_SOURCE_DEF_MAXHEIGHT	1600
 #define	VIDEO_SOURCE_MAX_STRIDE		4
 #define	VIDEO_SOURCE_CHANNEL_MAX	2
 #define	VIDEO_SOURCE_PIPEFORMAT		"video-%d"

@@ -208,6 +208,8 @@ encoder_unregister_client(void /*RTSPContext*/ *rtsp) {
 		if(aencoder != NULL && aencoder->deinit != NULL)
 			aencoder->deinit(aencoder_param);
 #endif
+		// reset packet queue
+		encoder_pktqueue_reset();
 		// reset sync pts
 		pthread_mutex_lock(&syncmutex);
 		sync_reset = true;
@@ -336,6 +338,8 @@ again:
 }
 
 // encoder packet queue functions - for async packet delivery
+static int pktqueue_initqsize = -1;
+static int pktqueue_initchannels = -1;
 static encoder_packet_queue_t pktqueue[VIDEO_SOURCE_CHANNEL_MAX+1];
 static list<encoder_packet_t> pktlist[VIDEO_SOURCE_CHANNEL_MAX+1];
 static map<qcallback_t,qcallback_t>queue_cb[VIDEO_SOURCE_CHANNEL_MAX+1];
@@ -358,8 +362,27 @@ encoder_pktqueue_init(int channels, int qsize) {
 		pktqueue[i].datasize = 0;
 		pktqueue[i].head = 0;
 		pktqueue[i].tail = 0;
+		pktlist[i].clear();
 	}
+	pktqueue_initqsize = qsize;
+	pktqueue_initchannels = channels;
 	ga_error("encoder: packet queue initialized (%dx%d bytes)\n", channels, qsize);
+	return 0;
+}
+
+int
+encoder_pktqueue_reset() {
+	int i;
+	if(pktqueue_initchannels <= 0)
+		return -1;
+	for(i = 0; i < pktqueue_initchannels; i++) {
+		pthread_mutex_lock(&pktqueue[i].mutex);
+		pktlist[i].clear();
+		pktqueue[i].head = pktqueue[i].tail = 0;
+		pktqueue[i].datasize = 0;
+		pktqueue[i].bufsize = pktqueue_initqsize;
+		pthread_mutex_unlock(&pktqueue[i].mutex);
+	}
 	return 0;
 }
 

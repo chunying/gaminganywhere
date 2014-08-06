@@ -59,10 +59,11 @@ using namespace std;
 
 #define	COUNT_FRAME_RATE	600	// every N frames
 
-#define MAX_TOLERABLE_VIDEO_DELAY_US	200000LL	/* 200 ms */
+#define MAX_TOLERABLE_VIDEO_DELAY_US		200000LL	/* 200 ms */
+#define	DEF_RTP_PACKET_REORDERING_THRESHOLD	300000		/* 300 ms */
 
-//#define SAVEFILE        "save.raw"
-#ifdef SAVEFILE
+//#define SAVE_ENC        "save.raw"
+#ifdef SAVE_ENC
 static FILE *fout = NULL;
 #endif
 
@@ -85,6 +86,11 @@ static struct timeval cf_tv0[VIDEO_SOURCE_CHANNEL_MAX];
 static struct timeval cf_tv1[VIDEO_SOURCE_CHANNEL_MAX];
 static long long cf_interval[VIDEO_SOURCE_CHANNEL_MAX];
 #endif
+
+// save files
+static FILE *savefp_yuv = NULL;
+
+static unsigned rtp_packet_reordering_threshold = DEF_RTP_PACKET_REORDERING_THRESHOLD;
 
 static unsigned rtspClientCount = 0; // Counts how many streams (i.e., "RTSPClient"s) are currently in use.
 
@@ -266,7 +272,7 @@ decode_sprop(AVCodecContext *ctx, const char *sprop) {
 			free(ctx->extradata);
 		ctx->extradata = extra;
 		ctx->extradata_size = extrasize;
-#ifdef SAVEFILE
+#ifdef SAVE_ENC
 		if(fout != NULL) {
 			fwrite(extra, sizeof(char), extrasize, fout);
 		}
@@ -557,7 +563,7 @@ play_video_priv(int ch/*channel*/, unsigned char *buffer, int bufsize, struct ti
 #endif
 	pooldata_t *data = NULL;
 	AVPicture *dstframe = NULL;
-#ifdef SAVEFILE
+#ifdef SAVE_ENC
 	if(fout != NULL) {
 		fwrite(buffer, sizeof(char), bufsize, fout);
 	}
@@ -623,6 +629,9 @@ play_video_priv(int ch/*channel*/, unsigned char *buffer, int bufsize, struct ti
 				0, vframe[ch]->height,
 				// destination: texture
 				dstframe->data, dstframe->linesize);
+			if(ch==0 && savefp_yuv != NULL) {
+				ga_save_yuv420p(savefp_yuv, vframe[0]->width, vframe[0]->height, dstframe->data, dstframe->linesize);
+			}
 			rtspParam->pipe[ch]->store_data(data);
 			// request to render it
 #ifdef ANDROID
@@ -994,8 +1003,19 @@ rtsp_thread(void *param) {
 	BasicTaskScheduler0 *bs = BasicTaskScheduler::createNew();
 	TaskScheduler* scheduler = bs;
 	UsageEnvironment* env = BasicUsageEnvironment::createNew(*scheduler);
+	char savefile_yuv[128];
 	// XXX: reset everything
 	drop_video_frame_init(ga_conf_readint("max-tolerable-video-delay"));
+	if(savefp_yuv != NULL)
+		ga_save_close(savefp_yuv);
+	if(ga_conf_readv("save-yuv-image", savefile_yuv, sizeof(savefile_yuv)) != NULL)
+		savefp_yuv = ga_save_init(savefile_yuv);
+	//
+	if(ga_conf_readint("rtp-reordering-threshold") > 0) {
+		rtp_packet_reordering_threshold = ga_conf_readint("rtp-reordering-threshold");
+	}
+	rtsperror("RTP reordering threshold = %d\n", rtp_packet_reordering_threshold);
+	//
 	pktloss_monitor_init();
 	port2channel.clear();
 	video_sess_fmt = -1;
@@ -1026,6 +1046,10 @@ rtsp_thread(void *param) {
 	}
 	//
 	qos_deinit();
+	if(savefp_yuv != NULL) {
+		ga_save_close(savefp_yuv);
+		savefp_yuv = NULL;
+	}
 	//
 	shutdownStream(client);
 	rtsperror("rtsp thread: terminated.\n");
@@ -1160,9 +1184,9 @@ setupNextSubsession(RTSPClient* rtspClient) {
 	UsageEnvironment& env = rtspClient->envir(); // alias
 	StreamClientState& scs = ((ourRTSPClient*)rtspClient)->scs; // alias
 	bool rtpOverTCP = false;
-#ifdef SAVEFILE
+#ifdef SAVE_ENC
 	if(fout == NULL) {
-		fout = fopen(SAVEFILE, "wb");
+		fout = fopen(SAVE_ENC, "wb");
 	}
 #endif
 	if(rtspconf->proto == IPPROTO_TCP) {
@@ -1182,6 +1206,8 @@ setupNextSubsession(RTSPClient* rtspClient) {
 				video_codec_name = strdup(scs.subsession->codecName());
 				qos_add_source(video_codec_name, scs.subsession->rtpSource());
 				scs.subsession->rtpSource()->setAuxilliaryReadHandler(pktloss_monitor, NULL);
+				if(rtp_packet_reordering_threshold > 0)
+					scs.subsession->rtpSource()->setPacketReorderingThresholdTime(rtp_packet_reordering_threshold);
 				if(port2channel.find(scs.subsession->clientPortNum()) == port2channel.end()) {
 					int cid = port2channel.size();
 					port2channel[scs.subsession->clientPortNum()] = cid;
@@ -1224,6 +1250,8 @@ setupNextSubsession(RTSPClient* rtspClient) {
 				audio_sess_fmt = scs.subsession->rtpPayloadFormat();
 				audio_codec_name = strdup(scs.subsession->codecName());
 				qos_add_source(audio_codec_name, scs.subsession->rtpSource());
+				if(rtp_packet_reordering_threshold > 0)
+					scs.subsession->rtpSource()->setPacketReorderingThresholdTime(rtp_packet_reordering_threshold);
 #ifdef ANDROID
 				if((mime = ga_lookup_mime(audio_codec_name)) == NULL) {
 					showToast(rtspParam->jnienv, "codec %s not supported", audio_codec_name);

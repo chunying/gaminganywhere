@@ -50,7 +50,8 @@
 
 #include "vsource-desktop.h"
 
-#define	SOURCES	1
+#define	SOURCES			1
+//#define	ENABLE_EMBED_COLORCODE	1	/* XXX: enabled at the filter, not here */
 
 using namespace std;
 
@@ -78,7 +79,9 @@ vsource_init(void *arg) {
 	//
 	if(vsource_initialized != 0)
 		return 0;
-	//
+#ifdef ENABLE_EMBED_COLORCODE
+	vsource_embed_colorcode_init(1/*RGBmode*/);
+#endif
 	if(rect != NULL) {
 		if(ga_fillrect(&croprect, rect->left, rect->top, rect->right, rect->bottom) == NULL) {
 			ga_error("video source: invalid rect (%d,%d)-(%d,%d)\n",
@@ -175,7 +178,9 @@ vsource_threadproc(void *arg) {
 	//
 	frame_interval = 1000000/rtspconf->video_fps;	// in the unif of us
 	frame_interval++;
-	//
+#ifdef ENABLE_EMBED_COLORCODE
+	vsource_embed_colorcode_reset();
+#endif
 	for(i = 0; i < SOURCES; i++) {
 		char pipename[64];
 		snprintf(pipename, sizeof(pipename), VIDEO_SOURCE_PIPEFORMAT, i);
@@ -253,6 +258,10 @@ vsource_threadproc(void *arg) {
 		frame->imgpts = pcdiff_us(captureTv, initialTv, freq)/frame_interval;
 #else
 		frame->imgpts = tvdiff_us(&captureTv, &initialTv)/frame_interval;
+#endif
+		// embed color code?
+#ifdef ENABLE_EMBED_COLORCODE
+		vsource_embed_colorcode_inc(frame);
 #endif
 		// duplicate from channel 0 to other channels
 		for(i = 1; i < SOURCES; i++) {

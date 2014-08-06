@@ -33,7 +33,8 @@
 #include "pipeline.h"
 #include "filter-rgb2yuv.h"
 
-#define	POOLSIZE	8
+#define	POOLSIZE		8
+#define	ENABLE_EMBED_COLORCODE	1
 
 using namespace std;
 
@@ -62,6 +63,9 @@ filter_RGB2YUV_init(void *arg) {
 	if(ga_conf_readv("save-yuv-image", savefile, sizeof(savefile)) != NULL) {
 		savefp = ga_save_init(savefile);
 	}
+#ifdef ENABLE_EMBED_COLORCODE
+	vsource_embed_colorcode_init(0/*RGBmode*/);
+#endif
 	//
 	bzero(dstpipe, sizeof(dstpipe));
 	//
@@ -284,6 +288,9 @@ filter_RGB2YUV_threadproc(void *arg) {
 		ga_error("RGB2YUV filter: bad pipeline (src=%p; dst=%p).\n", srcpipe, dstpipe);
 		goto filter_quit;
 	}
+#ifdef ENABLE_EMBED_COLORCODE
+	vsource_embed_colorcode_reset();
+#endif
 	//
 	if(dstpipe->get_privdata_size() <= 0) {
 		ga_error("RGB2YUV filter: no privdata found in %s\n", dstpipe);
@@ -320,6 +327,10 @@ filter_RGB2YUV_threadproc(void *arg) {
 		// basic info
 		dstframe->imgpts = srcframe->imgpts;
 		dstframe->pixelformat = PIX_FMT_YUV420P;	//yuv420p;
+		dstframe->realwidth = outputW;
+		dstframe->realheight = outputH;
+		dstframe->realstride = outputW;
+		dstframe->realsize = outputW * outputH * 3 / 2;
 		// scale image: XXX: RGBA or BGRA
 		if(srcframe->pixelformat == PIX_FMT_RGBA
 		|| srcframe->pixelformat == PIX_FMT_BGRA/*rgba*/) {
@@ -356,6 +367,10 @@ filter_RGB2YUV_threadproc(void *arg) {
 			sws_scale(swsctx,
 				src, srcstride, 0, srcframe->realheight,
 				dst, dstframe->linesize);
+			// embed first, and then save
+#ifdef ENABLE_EMBED_COLORCODE
+			vsource_embed_colorcode_inc(dstframe);
+#endif
 			// only save the first channel
 			if(iid == 0 && savefp != NULL) {
 				ga_save_yuv420p(savefp, outputW, outputH, dst, dstframe->linesize);

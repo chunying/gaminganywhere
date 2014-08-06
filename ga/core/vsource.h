@@ -85,6 +85,10 @@ typedef struct vsource_s {
 EXPORT vsource_frame_t * vsource_frame_init(int channel, vsource_frame_t *frame);
 EXPORT void vsource_frame_release(vsource_frame_t *frame);
 EXPORT void vsource_dup_frame(vsource_frame_t *src, vsource_frame_t *dst);
+EXPORT int vsource_embed_colorcode_init(int RGBmode);
+EXPORT void vsource_embed_colorcode_reset();
+EXPORT void vsource_embed_colorcode_inc(vsource_frame_t *frame);
+EXPORT void vsource_embed_colorcode(vsource_frame_t *frame, unsigned int value);
 
 EXPORT int video_source_channels();
 EXPORT vsource_t * video_source(int channel);

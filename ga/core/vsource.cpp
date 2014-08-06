@@ -22,10 +22,24 @@
 #include <errno.h>
 #include <pthread.h>
 #include <map>
+#ifndef WIN32
+#include <arpa/inet.h>
+#endif
 
 #include "vsource.h"
 #include "ga-common.h"
 #include "ga-conf.h"
+#include "ga-avcodec.h"
+#include "ga-crc.h"
+
+#define	COLORCODE_MAX_DIGIT	10
+#define	COLORCODE_MAX_WIDTH	128
+#define	COLORCODE_DEF_DIGIT	5
+#define	COLORCODE_DEF_WIDTH	80
+#define	COLORCODE_DEF_HEIGHT	80
+#define	COLORCODE_CRC		2	/* current 2 octals for CRC */
+#define	COLORCODE_ID		2	/* current 2 octals for ID */
+#define	COLORCODE_SUFFIX	(COLORCODE_CRC + COLORCODE_ID)
 
 // golbal image structure
 static int gChannels;
@@ -81,6 +95,285 @@ vsource_dup_frame(vsource_frame_t *src, vsource_frame_t *dst) {
 	dst->realstride = src->realstride;
 	dst->realsize = src->realsize;
 	bcopy(src->imgbuf, dst->imgbuf, src->realstride * src->realheight/*dst->imgbufsize*/);
+	return;
+}
+
+/* {  B,   G,   R}  // XXX: here is BGR
+   {  0,   0,   0}, //0 - black
+   {224,   0,   0}, //1 - blue
+   {  0, 224,   0}, //2 - green
+   {  0,   0, 224}, //3 - red
+   {  0, 224, 224}, //4 - yellow
+   {224,   0, 224}, //5 - magenta
+   {224, 224,   0}, //6 - cyan
+   {255, 255, 255}, //7 - white */
+
+static unsigned char rgbacolor[8][4] =  /* XXX: here is RGBA */
+	{ {   0,   0,   0, 255 },
+	  {   0,   0, 234, 255 },
+	  {   0, 234,   0, 255 },
+	  { 234,   0,   0, 255 },
+	  { 234, 234,   0, 255 },
+	  { 234,   0, 234, 255 },
+	  {   0, 234, 234, 255 },
+	  { 255, 255, 255, 255 } };
+
+static unsigned char bgracolor[8][4] =  /* XXX: here is BGRA */
+	{ {   0,   0,   0, 255 },
+	  { 234,   0,   0, 255 },
+	  {   0, 234,   0, 255 },
+	  {   0,   0, 234, 255 },
+	  {   0, 234, 234, 255 },
+	  { 234,   0, 234, 255 },
+	  { 234, 234,   0, 255 },
+	  { 255, 255, 255, 255 } };
+
+static unsigned char yuv_colorY[8] =	/* XXX: YUV: plane Y' */
+	//{ 0x10, 0x26, 0x81, 0x4a, 0xBA, 0x5F, 0x97, 0xEB }; // - 224
+	{ 0x10, 0x27, 0x86, 0x4C, 0xC2, 0x63, 0x9D, 0xEB }; // - 234
+static unsigned char yuv_colorU[8] =	/* XXX: YUV: plane U */
+	//{ 0x7C, 0xD9, 0x41, 0x70, 0x2A, 0xB5, 0x97, 0x85 }; // - 224
+	{ 0x7C, 0xDD, 0x3E, 0x6F, 0x26, 0xB7, 0x98, 0x85 }; // - 234
+static unsigned char yuv_colorV[8] =	/* XXX: YUV: plane V */
+	//{ 0x7A, 0x77, 0x3B, 0xD8, 0x80, 0xCD, 0x26, 0x86 }; // - 224
+	{ 0x79, 0x77, 0x38, 0xDC, 0x80, 0xD1, 0x22, 0x87 }; // - 234
+
+static int vsource_colorcode_initialized = 0;
+static unsigned int vsource_colorcode_counter = 0;
+static unsigned int vsource_colorcode_counter_mask = 0;
+static int vsource_colorcode_digits = COLORCODE_DEF_DIGIT;
+static int vsource_colorcode_width = COLORCODE_DEF_WIDTH;
+static int vsource_colorcode_height = COLORCODE_DEF_HEIGHT;
+static int vsource_colorcode_total_width = 0;
+static unsigned int vsource_colorcode_initmask = 0;
+static unsigned int vsource_colorcode_initshift = 0;
+static unsigned char * vsource_colorcode_planes[4];
+static unsigned char vsource_colorcode_buffer[4 * COLORCODE_MAX_WIDTH * (COLORCODE_MAX_DIGIT + COLORCODE_SUFFIX)];
+
+int
+vsource_embed_colorcode_init(int RGBmode) {
+	int i, param[3];
+	// read param
+	if(ga_conf_readints("embed-colorcode", param, 3) != 3)
+		return -1;
+	vsource_colorcode_digits = param[0];
+	vsource_colorcode_width = param[1];
+	vsource_colorcode_height = param[2];
+	// sanity checks
+	if(vsource_colorcode_digits <= 0)
+		return -1;
+	if(vsource_colorcode_digits > COLORCODE_MAX_DIGIT)
+		vsource_colorcode_digits = COLORCODE_MAX_DIGIT;
+	if(vsource_colorcode_width > COLORCODE_MAX_WIDTH)
+		vsource_colorcode_width = COLORCODE_MAX_WIDTH;
+	//
+	vsource_colorcode_initshift = (vsource_colorcode_digits - 1) * 3;
+	vsource_colorcode_initmask = (0x07 << vsource_colorcode_initshift);
+	vsource_colorcode_total_width =
+		(vsource_colorcode_digits + COLORCODE_SUFFIX) * vsource_colorcode_width;
+	vsource_colorcode_counter_mask = 0;
+	for(i = 0; i < vsource_colorcode_digits; i++) {
+		vsource_colorcode_counter_mask <<= 3;
+		vsource_colorcode_counter_mask |= 0x07;
+	}
+	//
+	ga_error("video source: color code initialized - %dx%d, %d digits, shift=%d, initmask=%08x, totalwidth=%d, counter-mask=%08x\n",
+		vsource_colorcode_width, vsource_colorcode_height,
+		vsource_colorcode_digits,
+		vsource_colorcode_initshift, vsource_colorcode_initmask,
+		vsource_colorcode_total_width,
+		vsource_colorcode_counter_mask);
+	// assign buffers
+	vsource_colorcode_planes[0] = vsource_colorcode_buffer;
+	if(RGBmode != 0) {
+		vsource_colorcode_planes[1] = NULL;
+	} else {
+		vsource_colorcode_planes[1] = vsource_colorcode_planes[0] + vsource_colorcode_total_width;
+		vsource_colorcode_planes[2] = vsource_colorcode_planes[1] + (vsource_colorcode_total_width>>2);
+		vsource_colorcode_planes[3] = NULL;
+	}
+	//
+	vsource_colorcode_initialized = 1;
+	return 0;
+}
+
+void
+vsource_embed_colorcode_reset() {
+	vsource_colorcode_counter = 0;
+	return;
+}
+
+static crc5_t
+vsource_crc5_usb(unsigned char *data, int length) {
+	crc5_t crc;
+	crc = crc5_init();
+	crc = crc5_update_usb(crc, data, length);
+	crc = crc5_finalize(crc);
+	return crc;
+}
+
+static crc5_t
+vsource_crc5_ccitt(unsigned char *data, int length) {
+	crc5_t crc;
+	crc = crc5_init();
+	crc = crc5_update_ccitt(crc, data, length);
+	crc = crc5_finalize(crc);
+	return crc;
+}
+
+static void
+vsource_embed_yuv_code(vsource_frame_t *frame, unsigned int value) {
+	int i, j, width, height;
+	/* CRC * 2 + ID * 2 */
+	unsigned char suffix[COLORCODE_SUFFIX] = {0, 0, 3, 7};
+	unsigned int shift = vsource_colorcode_initshift;
+	unsigned int mask = vsource_colorcode_initmask;
+	unsigned int digit;
+	unsigned char *srcY = vsource_colorcode_buffer;
+	unsigned char *srcU = srcY + vsource_colorcode_total_width;
+	unsigned char *srcV = srcU + (vsource_colorcode_total_width>>1);
+	unsigned char *dstY, *dstU, *dstV;
+	//// make the color code line
+	// compute crc
+#if 0
+	unsigned int crcin = htonl(value);
+	suffix[0] = 0x07 & vsource_crc5_ccitt((unsigned char*) &crcin, sizeof(crcin));
+	suffix[1] = 0x07 & vsource_crc5_usb((unsigned char*) &crcin, sizeof(crcin));
+#else
+	if(value != 0) {
+		suffix[0] = (43 * (((value * 32)/43) + 1) - 32 * value) & 0x07;
+		suffix[1] = (37 * (((value * 32)/37) + 1) - 32 * value) & 0x07;
+	}
+#endif
+	// value part
+	while(mask != 0) {
+		digit = ((value & mask) >> shift);
+		for(i = 0; i < vsource_colorcode_width; i++) {
+			*srcY++ = yuv_colorY[digit];
+		}
+		width = (vsource_colorcode_width>>1);
+		for(i = 0; i < width; i++) {
+			*srcU++ = yuv_colorU[digit];
+			*srcV++ = yuv_colorV[digit];
+		}
+		mask >>= 3;
+		shift -= 3;
+	}
+	// suffix part: crc + id
+	for(j = 0; j < sizeof(suffix); j++) {
+		for(i = 0; i < vsource_colorcode_width; i++) {
+			*srcY++ = yuv_colorY[suffix[j]];
+		}
+		width = (vsource_colorcode_width>>1);
+		for(i = 0; i < width; i++) {
+			*srcU++ = yuv_colorU[suffix[j]];
+			*srcV++ = yuv_colorV[suffix[j]];
+		}
+	}
+	// reset srcY, srcU, and srcV
+	srcY = vsource_colorcode_buffer;
+	srcU = srcY + vsource_colorcode_total_width;
+	srcV = srcU + (vsource_colorcode_total_width>>1);
+	//// fill color code line
+	height = frame->realheight < vsource_colorcode_height ?
+			frame->realheight : vsource_colorcode_height;
+	dstY = frame->imgbuf;
+	dstU = dstY + frame->linesize[0] * (frame->realheight);
+	dstV = dstU + frame->linesize[1] * (frame->realheight >> 1);
+	//
+	for(i = 0; i < height; i++) {
+		bcopy(srcY, dstY, vsource_colorcode_total_width);
+		dstY += frame->linesize[0];
+	}
+	height >>= 1;
+	for(i = 0; i < height; i++) {
+		bcopy(srcU, dstU, vsource_colorcode_total_width>>1);
+		bcopy(srcV, dstV, vsource_colorcode_total_width>>1);
+		dstU += frame->linesize[1];
+		dstV += frame->linesize[2];
+	}
+	//
+	return;
+}
+
+static void
+vsource_embed_rgba_code(vsource_frame_t *frame, unsigned int value, unsigned char color[8][4]) {
+	int i, j, height;
+	/* CRC * 2 + ID * 2 */
+	unsigned char suffix[COLORCODE_SUFFIX] = {0, 0, 3, 7};
+	unsigned int shift = vsource_colorcode_initshift;
+	unsigned int mask = vsource_colorcode_initmask;
+	unsigned int digit;
+	unsigned char *dst = vsource_colorcode_buffer;
+	//// make the color code line
+	// compute crc
+#if 0
+	unsigned int crcin = htonl(value);
+	suffix[0] = 0x07 & vsource_crc5_ccitt((unsigned char*) &crcin, sizeof(crcin));
+	suffix[1] = 0x07 & vsource_crc5_usb((unsigned char*) &crcin, sizeof(crcin));
+#else
+	if(value != 0) {
+		suffix[0] = (43 * (((value * 32)/43) + 1) - 32 * value) & 0x07;
+		suffix[1] = (37 * (((value * 32)/37) + 1) - 32 * value) & 0x07;
+	}
+#endif
+	// value part
+	while(mask != 0) {
+		digit = ((value & mask) >> shift);
+		for(i = 0; i < vsource_colorcode_width; i++) {
+			*dst++ = color[digit][0];
+			*dst++ = color[digit][1];
+			*dst++ = color[digit][2];
+			*dst++ = color[digit][3];
+		}
+		mask >>= 3;
+		shift -= 3;
+	}
+	// suffix part: crc + id
+	for(j = 0; j < sizeof(suffix); j++) {
+		for(i = 0; i < vsource_colorcode_width; i++) {
+			*dst++ = color[suffix[j]][0];
+			*dst++ = color[suffix[j]][1];
+			*dst++ = color[suffix[j]][2];
+			*dst++ = color[suffix[j]][3];
+		}
+	}
+	//// fill color code line
+	height = frame->realheight < vsource_colorcode_height ?
+			frame->realheight : vsource_colorcode_height;
+	dst = frame->imgbuf;
+	//
+	for(i = 0; i < height; i++) {
+		bcopy(vsource_colorcode_buffer, dst, vsource_colorcode_total_width * 4);
+		dst += frame->linesize[0];
+	}
+	//
+	return;
+}
+
+void
+vsource_embed_colorcode_inc(vsource_frame_t *frame) {
+	vsource_embed_colorcode(frame, vsource_colorcode_counter);
+	vsource_colorcode_counter++;
+	vsource_colorcode_counter &= vsource_colorcode_counter_mask;
+	return;
+}
+
+void
+vsource_embed_colorcode(vsource_frame_t *frame, unsigned int value) {
+	if(vsource_colorcode_initialized == 0)
+		return;
+	if(frame == NULL)
+		return;
+	if(frame->realwidth < vsource_colorcode_total_width)
+		return;
+	if(frame->pixelformat == PIX_FMT_YUV420P) {
+		vsource_embed_yuv_code(frame, value);
+	} else if(frame->pixelformat == PIX_FMT_RGBA) {
+		vsource_embed_rgba_code(frame, value, rgbacolor);
+	} else if(frame->pixelformat == PIX_FMT_BGRA) {
+		vsource_embed_rgba_code(frame, value, bgracolor);
+	}
 	return;
 }
 

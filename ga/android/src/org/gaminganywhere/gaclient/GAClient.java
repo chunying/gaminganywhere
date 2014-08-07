@@ -642,9 +642,17 @@ public class GAClient {
 				pos = inputVBuffers[currVInbufIdx].position();
 				remaining = inputVBuffers[currVInbufIdx].remaining();
 				if(flag==currVFlag && remaining >= size && currVPts == presentationTimeUs
+				&& rtpMarker == false
 				/*&&(pos < vbufferLevel || vbufferLevel<=0)*/) {
+					 /* Queue without decoding */
 					inputVBuffers[currVInbufIdx].put(data, 0, size);
 				} else {
+					boolean queued = false;
+					if(flag==currVFlag && remaining >= size && currVPts == presentationTimeUs
+					&& rtpMarker) {
+						inputVBuffers[currVInbufIdx].put(data, 0, size);
+						queued = true;
+					}
 //					Log.d("ga_log", "decodeVideo: submit,"
 //							+ " pts=" + Long.toString(currVPts)
 //							+ " position="+inputVBuffers[currVInbufIdx].position()
@@ -658,7 +666,9 @@ public class GAClient {
 						currVPts = presentationTimeUs;
 						currVFlag = flag;
 						inputVBuffers[currVInbufIdx].clear();
-						inputVBuffers[inbufIdx].put(data, 0, size);
+						if(queued == false) {
+							inputVBuffers[inbufIdx].put(data, 0, size);
+						}
 					} else {
 						currVInbufIdx = -1;
 						currVPts = -1;

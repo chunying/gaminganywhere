@@ -238,9 +238,9 @@ vencoder_reconfigure(int iid) {
 			params.rc.f_rf_constant = 1.0 * reconf->crf;
 			doit++;
 		}
-		if(reconf->framerate > 0) {
-			params.i_fps_num = reconf->framerate;
-			params.i_fps_den = 1;
+		if(reconf->framerate_n > 0) {
+			params.i_fps_num = reconf->framerate_n;
+			params.i_fps_den = reconf->framerate_d > 0 ? reconf->framerate_d : 1;
 			doit++;
 		}
 		if(reconf->bitrateKbps > 0) {
@@ -257,9 +257,9 @@ vencoder_reconfigure(int iid) {
 		//
 		if(doit > 0) {
 			if(x264_encoder_reconfig(encoder, &params) < 0) {
-				ga_error("video encoder: reconfigure failed. crf=%d; framerate=%d; bitrate=%d; bufsize=%d.\n",
+				ga_error("video encoder: reconfigure failed. crf=%d; framerate=%d/%d; bitrate=%d; bufsize=%d.\n",
 						reconf->crf,
-						reconf->framerate,
+						reconf->framerate_n, reconf->framerate_d,
 						reconf->bitrateKbps,
 						reconf->bufsize);
 				ret = -1;

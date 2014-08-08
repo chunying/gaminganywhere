@@ -66,7 +66,8 @@ typedef struct ga_ioctl_buffer_s {
 typedef struct ga_ioctl_reconfigure_s {
 	int id;
 	int crf;
-	int framerate;
+	int framerate_n;
+	int framerate_d;
 	int bitrateKbps;	/* affects both bitrate and vbv-maxrate */
 	int bufsize;		/* vbv-bufsize */
 }	ga_ioctl_reconfigure_t;

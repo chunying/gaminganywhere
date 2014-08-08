@@ -294,6 +294,7 @@ vencoder_threadproc(void *arg) {
 	unsigned char *pktbuf = NULL;
 	int pktbufsize = 0, pktbufmax = 0;
 	int video_written = 0;
+	int64_t x264_pts = 0;
 	//
 	if(pipe == NULL) {
 		ga_error("video encoder: invalid pipeline specified (%s).\n", pipename);
@@ -372,7 +373,8 @@ vencoder_threadproc(void *arg) {
 		} else {
 			pts++;
 		}
-		pic_in.i_pts = pts;
+		//pic_in.i_pts = pts;
+		pic_in.i_pts = x264_pts++;
 		// encode
 		if((size = x264_encoder_encode(encoder, &nal, &nnal, &pic_in, &pic_out)) < 0) {
 			ga_error("video encoder: encode failed, err = %d\n", size);

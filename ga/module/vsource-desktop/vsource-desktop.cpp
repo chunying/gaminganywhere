@@ -65,6 +65,11 @@ static int vsource_initialized = 0;
 static int vsource_started = 0;
 static pthread_t vsource_tid;
 
+/* support reconfiguration of frame rate */
+static int vsource_framerate_n = -1;
+static int vsource_framerate_d = -1;
+static int vsource_reconfigured = 0;
+
 /* video source has to send images to video-# pipes */
 /* the format is defined in VIDEO_SOURCE_PIPEFORMAT */
 
@@ -175,6 +180,10 @@ vsource_threadproc(void *arg) {
 	struct timeval initialTv, captureTv;
 #endif
 	struct RTSPConf *rtspconf = rtspconf_global();
+	// reset framerate setup
+	vsource_framerate_n = rtspconf->video_fps;
+	vsource_framerate_d = 1;
+	vsource_reconfigured = 0;
 	//
 	frame_interval = 1000000/rtspconf->video_fps;	// in the unif of us
 	frame_interval++;
@@ -277,6 +286,14 @@ vsource_threadproc(void *arg) {
 		}
 		pipe[0]->store_data(data);
 		pipe[0]->notify_all();
+		// reconfigured?
+		if(vsource_reconfigured != 0) {
+			frame_interval = (int) (1000000.0 * vsource_framerate_d / vsource_framerate_n);
+			frame_interval++;
+			vsource_reconfigured = 0;
+			ga_error("video source: reconfigured - framerate=%d/%d (interval=%d)\n",
+				vsource_framerate_n, vsource_framerate_d, frame_interval);
+		}
 		//
 		ga_usleep(frame_interval, &tv);
 	}
@@ -332,6 +349,39 @@ vsource_stop(void *arg) {
 	return 0;
 }
 
+static int
+vsource_ioctl(int command, int argsize, void *arg) {
+	int ret = 0;
+	ga_ioctl_reconfigure_t *reconf = (ga_ioctl_reconfigure_t*) arg;
+	//
+	if(vsource_initialized == 0)
+		return GA_IOCTL_ERR_NOTINITIALIZED;
+	//
+	switch(command) {
+	case GA_IOCTL_RECONFIGURE:
+		if(argsize != sizeof(ga_ioctl_reconfigure_t))
+			return GA_IOCTL_ERR_INVALID_ARGUMENT;
+		if(reconf->framerate_n > 0 && reconf->framerate_d > 0) {
+			double framerate;
+			if(vsource_framerate_n == reconf->framerate_n
+			&& vsource_framerate_d == reconf->framerate_d)
+				break;
+			framerate = 1.0 * reconf->framerate_n / reconf->framerate_d;
+			if(framerate < 2 || framerate > 120) {
+				return GA_IOCTL_ERR_INVALID_ARGUMENT;
+			}
+			vsource_framerate_n = reconf->framerate_n;
+			vsource_framerate_d = reconf->framerate_d;
+			vsource_reconfigured = 1;
+		}
+		break;
+	default:
+		ret = GA_IOCTL_ERR_NOTSUPPORTED;
+		break;
+	}
+	return ret;
+}
+
 ga_module_t *
 module_load() {
 	static ga_module_t m;
@@ -342,6 +392,7 @@ module_load() {
 	m.start = vsource_start;
 	m.stop = vsource_stop;
 	m.deinit = vsource_deinit;
+	m.ioctl = vsource_ioctl;
 	return &m;
 }
 

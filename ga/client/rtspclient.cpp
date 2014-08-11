@@ -62,7 +62,9 @@ using namespace std;
 #define MAX_TOLERABLE_VIDEO_DELAY_US		200000LL	/* 200 ms */
 #define	DEF_RTP_PACKET_REORDERING_THRESHOLD	300000		/* 300 ms */
 
+//#define PRINT_LATENCY	1
 //#define SAVE_ENC        "save.raw"
+
 #ifdef SAVE_ENC
 static FILE *fout = NULL;
 #endif
@@ -563,6 +565,9 @@ play_video_priv(int ch/*channel*/, unsigned char *buffer, int bufsize, struct ti
 #endif
 	pooldata_t *data = NULL;
 	AVPicture *dstframe = NULL;
+#ifdef PRINT_LATENCY
+	struct timeval ptv0, ptv1;
+#endif
 #ifdef SAVE_ENC
 	if(fout != NULL) {
 		fwrite(buffer, sizeof(char), bufsize, fout);
@@ -575,6 +580,9 @@ play_video_priv(int ch/*channel*/, unsigned char *buffer, int bufsize, struct ti
 	//
 	while(avpkt.size > 0) {
 		//
+#ifdef PRINT_LATENCY
+		gettimeofday(&ptv0, NULL);
+#endif
 		if((len = avcodec_decode_video2(vdecoder[ch], vframe[ch], &got_picture, &avpkt)) < 0) {
 			//rtsperror("decode video frame %d error\n", frame);
 			break;
@@ -644,6 +652,10 @@ play_video_priv(int ch/*channel*/, unsigned char *buffer, int bufsize, struct ti
 			evt.user.data1 = rtspParam;
 			evt.user.data2 = (void*) ch;
 			SDL_PushEvent(&evt);
+#endif
+#ifdef PRINT_LATENCY
+			gettimeofday(&ptv1, NULL);
+			ga_aggregated_print(0, 600, tvdiff_us(&ptv1, &ptv0));
 #endif
 		}
 skip_frame:

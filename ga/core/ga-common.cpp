@@ -47,6 +47,10 @@
 #endif
 #include "rtspconf.h"
 
+#include <map>
+#include <list>
+using namespace std;
+
 #ifndef NIPQUAD
 #define NIPQUAD(x)	((unsigned char*)&(x))[0],	\
 			((unsigned char*)&(x))[1],	\
@@ -339,6 +343,53 @@ ga_save_close(FILE *fp) {
 		fclose(fp);
 	}
 	return 0;
+}
+
+//
+
+static map<int,list<int> > aggmap;
+
+void
+ga_aggregated_print(int key, int limit, int value) {
+	map<int,list<int> >::iterator mi;
+	// push data
+	if((mi = aggmap.find(key)) == aggmap.end()) {
+		aggmap[key].push_back(value);
+		return;
+	} else {
+		mi->second.push_back(value);
+	}
+	// output?
+	if(mi->second.size() >= limit) {
+		int pos, left, wlen;
+		char *ptr, buf[16384] = "AGGREGATED-VALUES:";
+		list<int>::iterator li;
+		struct timeval tv;
+		//
+		pos = snprintf(buf, sizeof(buf), "AGGREGATED-OUTPUT[%04x]:", key);
+		left = sizeof(buf) - pos;
+		ptr = buf + pos;
+		for(li = mi->second.begin(); li != mi->second.end() && left>16; li++) {
+			wlen = snprintf(ptr, left, " %d", *li);
+			ptr += wlen;
+			left -= wlen;
+		}
+		if(li != mi->second.end()) {
+			ga_error("insufficeient space for aggregated messages.\n");
+		}
+		mi->second.clear();
+		//
+		gettimeofday(&tv, NULL);
+#ifdef ANDROID
+		__android_log_write(ANDROID_LOG_INFO, "ga_log.native", buf);
+#else
+		fprintf(stderr, "# [%d] %ld.%06ld %s\n",
+			getpid(), tv.tv_sec, tv.tv_usec, buf);
+#endif
+		ga_writelog(tv, buf);
+	}
+	//
+	return;
 }
 
 //

@@ -655,7 +655,7 @@ play_video_priv(int ch/*channel*/, unsigned char *buffer, int bufsize, struct ti
 #endif
 #ifdef PRINT_LATENCY
 			gettimeofday(&ptv1, NULL);
-			ga_aggregated_print(0, 600, tvdiff_us(&ptv1, &ptv0));
+			ga_aggregated_print(0x8001, 601, tvdiff_us(&ptv1, &ptv0));
 #endif
 		}
 skip_frame:

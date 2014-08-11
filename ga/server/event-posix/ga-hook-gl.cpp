@@ -177,6 +177,7 @@ hook_glFlush() {
 			src -= frameLinesize;
 		}
 		frame->imgpts = tvdiff_us(&captureTv, &initialTv)/frame_interval;
+		frame->timestamp = captureTv;
 	} while(0);
 	// duplicate from channel 0 to other channels
 	ga_hook_capture_dupframe(frame);

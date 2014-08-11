@@ -878,6 +878,7 @@ hook_SDL_capture_screen(const char *caller) {
 		frame->linesize[0] = dupsurface->pitch;
 		bcopy(dupsurface->pixels, frame->imgbuf, frame->realsize);
 		frame->imgpts = tvdiff_us(&captureTv, &initialTv)/frame_interval;
+		frame->timestamp = captureTv;
 	} while(0);
 	// duplicate from channel 0 to other channels
 	ga_hook_capture_dupframe(frame);
@@ -1019,6 +1020,7 @@ hook_SDL_GL_SwapBuffers() {
 			src -= frameLinesize;
 		}
 		frame->imgpts = tvdiff_us(&captureTv, &initialTv)/frame_interval;
+		frame->timestamp = captureTv;
 	} while(0);
 
 	// duplicate from channel 0 to other channels

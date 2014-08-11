@@ -326,6 +326,7 @@ filter_RGB2YUV_threadproc(void *arg) {
 		dstframe = (vsource_frame_t*) dstdata->ptr;
 		// basic info
 		dstframe->imgpts = srcframe->imgpts;
+		dstframe->timestamp = srcframe->timestamp;
 		dstframe->pixelformat = PIX_FMT_YUV420P;	//yuv420p;
 		dstframe->realwidth = outputW;
 		dstframe->realheight = outputH;

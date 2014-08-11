@@ -265,8 +265,10 @@ vsource_threadproc(void *arg) {
 		//gImgPts++;
 #ifdef WIN32
 		frame->imgpts = pcdiff_us(captureTv, initialTv, freq)/frame_interval;
+		gettimeofday(&frame->timestamp, NULL);
 #else
 		frame->imgpts = tvdiff_us(&captureTv, &initialTv)/frame_interval;
+		frame->timestamp = captureTv;
 #endif
 		// embed color code?
 #ifdef ENABLE_EMBED_COLORCODE

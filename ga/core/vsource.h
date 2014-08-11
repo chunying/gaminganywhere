@@ -42,6 +42,7 @@ typedef struct vsource_frame_s {
 	int realheight;
 	int realstride;
 	int realsize;
+	struct timeval timestamp;
 	// internal data - should not change after initialized
 	int maxstride;
 	int imgbufsize;

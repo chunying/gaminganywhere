@@ -193,6 +193,7 @@ D3D9_screen_capture(IDirect3DDevice9 * pDevice) {
 			dst += frame->realstride;//frame->stride;
 		}
 		frame->imgpts = pcdiff_us(captureTv, initialTv, freq)/frame_interval;
+		gettimeofday(&frame->timestamp, NULL);
 	} while(0);
 
 	// duplicate from channel 0 to other channels
@@ -757,6 +758,7 @@ hook_DXGISwapChainPresent(
 				dst += frame->realstride;//frame->stride;
 			}
 			frame->imgpts = pcdiff_us(captureTv, initialTv, freq)/frame_interval;
+			gettimeofday(&frame->timestamp, NULL);
 		} while(0);
 	
 		// duplicate from channel 0 to other channels
@@ -840,6 +842,7 @@ hook_DXGISwapChainPresent(
 				dst += frame->realstride;//frame->stride;
 			}
 			frame->imgpts = pcdiff_us(captureTv, initialTv, freq)/frame_interval;
+			gettimeofday(&frame->timestamp, NULL);
 		} while(0);
 	
 		// duplicate from channel 0 to other channels

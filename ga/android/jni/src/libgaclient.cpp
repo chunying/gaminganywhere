@@ -38,6 +38,7 @@
 #include <map>
 using namespace std;
 
+//#define PRINT_LATENCY	1
 #define	POOLSIZE	16
 
 // JNI config
@@ -353,6 +354,10 @@ gl_render() {
 	extern int image_rendered;
 	pooldata_t *data = NULL;
 	AVPicture *vframe = NULL;
+#ifdef PRINT_LATENCY
+	struct timeval ptv0, ptv1;
+	gettimeofday(&ptv0, NULL);
+#endif
 	//
 	//ga_log("XXX: img=%dx%d; pipeline=0x%p\n",
 	//	img_width, img_height, rtspThreadParam.pipe[0]);
@@ -391,6 +396,10 @@ gl_render() {
 	glDrawTexiOES(0, 0, 0, gl_width, gl_height);
 	rtspThreadParam.pipe[0]->release_data(data);
 	image_rendered = 1;
+#ifdef PRINT_LATENCY
+	gettimeofday(&ptv1, NULL);
+	ga_aggregated_print(0x8005, 619, tvdiff_us(&ptv1, &ptv0));
+#endif
 	return 0;
 }
 

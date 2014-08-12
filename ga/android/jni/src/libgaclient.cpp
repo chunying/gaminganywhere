@@ -71,6 +71,11 @@ static pthread_t rtspthread;
 
 static map<pthread_t,JNIEnv*> threadEnv;
 
+#ifdef PRINT_LATENCY
+static int ptv0locked = 0;
+static struct timeval ptv0;
+#endif
+
 JNIEnv *
 attachThread(JNIEnv *jnienv) {
 	JNIEnv *env = NULL;
@@ -179,6 +184,12 @@ goBack(JNIEnv *jnienv, jint exitCode) {
 void
 requestRender(JNIEnv *jnienv) {
 	JNIEnv *env;
+#ifdef PRINT_LATENCY
+	if(ptv0locked == 0) {
+		ptv0locked = 1;
+		gettimeofday(&ptv0, NULL);
+	}
+#endif
 	if((env = attachThread(jnienv)) == NULL)
 		return;
 	env->CallVoidMethod(g_obj, g_mid_requestRender);
@@ -355,8 +366,7 @@ gl_render() {
 	pooldata_t *data = NULL;
 	AVPicture *vframe = NULL;
 #ifdef PRINT_LATENCY
-	struct timeval ptv0, ptv1;
-	gettimeofday(&ptv0, NULL);
+	struct timeval ptv1;
 #endif
 	//
 	//ga_log("XXX: img=%dx%d; pipeline=0x%p\n",
@@ -397,8 +407,11 @@ gl_render() {
 	rtspThreadParam.pipe[0]->release_data(data);
 	image_rendered = 1;
 #ifdef PRINT_LATENCY
-	gettimeofday(&ptv1, NULL);
-	ga_aggregated_print(0x8005, 619, tvdiff_us(&ptv1, &ptv0));
+	if(ptv0locked != 0) {
+		gettimeofday(&ptv1, NULL);
+		ga_aggregated_print(0x8005, 619, tvdiff_us(&ptv1, &ptv0));
+		ptv0locked = 0;
+	}
 #endif
 	return 0;
 }
@@ -408,6 +421,9 @@ create_overlay(int ch, int w, int h, PixelFormat format) {
 	struct SwsContext *swsctx = NULL;
 	pipeline *pipe = NULL;
 	pooldata_t *data = NULL;
+#ifdef PRINT_LATENCY
+	ptv0locked = 0;
+#endif
 	//
 	setScreenDimension(rtspThreadParam.jnienv, w, h);
 	// XXX: assume surfaceMutex[ch] locked

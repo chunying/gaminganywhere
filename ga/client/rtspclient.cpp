@@ -566,7 +566,16 @@ play_video_priv(int ch/*channel*/, unsigned char *buffer, int bufsize, struct ti
 	pooldata_t *data = NULL;
 	AVPicture *dstframe = NULL;
 #ifdef PRINT_LATENCY
-	struct timeval ptv0, ptv1;
+	static struct timeval btv0 = {0, 0};
+	struct timeval ptv0, ptv1, btv1;
+	// measure buffering time
+	if(btv0.tv_sec == 0) {
+		gettimeofday(&btv0, NULL);
+	} else {
+		gettimeofday(&btv1, NULL);
+		ga_aggregated_print(0x8000, 599, tvdiff_us(&btv1, &btv0));
+		btv0 = btv1;
+	}
 #endif
 #ifdef SAVE_ENC
 	if(fout != NULL) {

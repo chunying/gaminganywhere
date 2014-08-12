@@ -642,6 +642,10 @@ play_video_priv(int ch/*channel*/, unsigned char *buffer, int bufsize, struct ti
 			}
 			rtspParam->pipe[ch]->store_data(data);
 			// request to render it
+#ifdef PRINT_LATENCY
+			gettimeofday(&ptv1, NULL);
+			ga_aggregated_print(0x8001, 601, tvdiff_us(&ptv1, &ptv0));
+#endif
 #ifdef ANDROID
 			requestRender(rtspParam->jnienv);
 #else
@@ -652,10 +656,6 @@ play_video_priv(int ch/*channel*/, unsigned char *buffer, int bufsize, struct ti
 			evt.user.data1 = rtspParam;
 			evt.user.data2 = (void*) ch;
 			SDL_PushEvent(&evt);
-#endif
-#ifdef PRINT_LATENCY
-			gettimeofday(&ptv1, NULL);
-			ga_aggregated_print(0x8001, 601, tvdiff_us(&ptv1, &ptv0));
 #endif
 		}
 skip_frame:

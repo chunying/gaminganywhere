@@ -54,9 +54,20 @@ static int _spslen[VIDEO_SOURCE_CHANNEL_MAX];
 static char *_pps[VIDEO_SOURCE_CHANNEL_MAX];
 static int _ppslen[VIDEO_SOURCE_CHANNEL_MAX];
 
+//#define	SAVEENC	"save.264"
+#ifdef SAVEENC
+static FILE *fsaveenc = NULL;
+#endif
+
 static int
 vencoder_deinit(void *arg) {
 	int iid;
+#ifdef SAVEENC
+	if(fsaveenc != NULL) {
+		fclose(fsaveenc);
+		fsaveenc = NULL;
+	}
+#endif
 	for(iid = 0; iid < video_source_channels(); iid++) {
 		if(_sps[iid] != NULL)
 			free(_sps[iid]);
@@ -214,6 +225,9 @@ vencoder_init(void *arg) {
 			params.i_threads, params.i_slice_count,
 			params.b_repeat_headers, params.b_annexb);
 	}
+#ifdef SAVEENC
+	fsaveenc = fopen(SAVEENC, "wb");
+#endif
 	vencoder_initialized = 1;
 	ga_error("video encoder: initialized.\n");
 	return 0;
@@ -385,6 +399,7 @@ vencoder_threadproc(void *arg) {
 		// encode
 		if(size > 0) {
 			AVPacket pkt;
+#if 1
 			av_init_packet(&pkt);
 			pkt.pts = pic_in.i_pts;
 			pkt.stream_index = 0;
@@ -406,6 +421,62 @@ vencoder_threadproc(void *arg) {
 					pkt.pts, NULL) < 0) {
 				goto video_quit;
 			}
+#ifdef SAVEENC
+			if(fsaveenc != NULL)
+				fwrite(pkt.data, sizeof(char), pkt.size, fsaveenc);
+#endif
+#else
+			// handling special nals (type > 5)
+			for(i = 0; i < nnal; i++) {
+				unsigned char *ptr;
+				int offset;
+				if((ptr = ga_find_startcode(nal[i].p_payload, nal[i].p_payload + nal[i].i_payload, &offset))
+				!= nal[i].p_payload) {
+					ga_error("video encoder: no startcode found for nals\n");
+					goto video_quit;
+				}
+				if((*(ptr+offset) & 0x1f) <= 5)
+					break;
+				av_init_packet(&pkt);
+				pkt.pts = pic_in.i_pts;
+				pkt.stream_index = 0;
+				pkt.size = nal[i].i_payload;
+				pkt.data = ptr;
+				if(encoder_send_packet_all("video-encoder",
+					iid/*rtspconf->video_id*/, &pkt, pkt.pts, NULL) < 0) {
+					goto video_quit;
+				}
+#ifdef SAVEENC
+				if(fsaveenc != NULL)
+					fwrite(pkt.data, sizeof(char), pkt.size, fsaveenc);
+#endif
+			}
+			// handling video frame data
+			pktbufsize = 0;
+			for(; i < nnal; i++) {
+				if(pktbufsize + nal[i].i_payload > pktbufmax) {
+					ga_error("video encoder: nal dropped (%d < %d).\n", i+1, nnal);
+					break;
+				}
+				bcopy(nal[i].p_payload, pktbuf + pktbufsize, nal[i].i_payload);
+				pktbufsize += nal[i].i_payload;
+			}
+			if(pktbufsize > 0) {
+				av_init_packet(&pkt);
+				pkt.pts = pic_in.i_pts;
+				pkt.stream_index = 0;
+				pkt.size = pktbufsize;
+				pkt.data = pktbuf;
+				if(encoder_send_packet_all("video-encoder",
+					iid/*rtspconf->video_id*/, &pkt, pkt.pts, NULL) < 0) {
+					goto video_quit;
+				}
+#ifdef SAVEENC
+				if(fsaveenc != NULL)
+					fwrite(pkt.data, sizeof(char), pkt.size, fsaveenc);
+#endif
+			}
+#endif
 			// free unused side-data
 			if(pkt.side_data_elems > 0) {
 				int i;

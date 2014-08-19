@@ -529,3 +529,21 @@ encoder_pktqueue_unregister_callback(int channelId, qcallback_t cb) {
 	return 0;
 }
 
+// find startcode
+unsigned char *
+ga_find_startcode(unsigned char *buf, unsigned char *end, int *startcode_len) {
+	unsigned char *ptr;
+	for(ptr = buf; ptr < end-4; ptr++) {
+		if(*ptr == 0 && *(ptr+1)==0) {
+			if(*(ptr+2) == 1) {
+				*startcode_len = 3;
+				return ptr;
+			} else if(*(ptr+2)==0 && *(ptr+3)==1) {
+				*startcode_len = 4;
+				return ptr;
+			}
+		}
+	}
+	return NULL;
+}
+

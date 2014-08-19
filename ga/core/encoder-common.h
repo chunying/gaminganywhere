@@ -76,4 +76,7 @@ EXPORT void encoder_pktqueue_pop_front(int channelId);
 EXPORT int encoder_pktqueue_register_callback(int channelId, qcallback_t cb);
 EXPORT int encoder_pktqueue_unregister_callback(int channelId, qcallback_t cb);
 
+// many encoder would require this!
+EXPORT unsigned char * ga_find_startcode(unsigned char *buf, unsigned char *end, int *startcode_len);
+
 #endif

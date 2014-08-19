@@ -18,7 +18,7 @@ Note:	In this document, a prompt of '$' means that the command is launched
 	$ make
 	$ copy *.exe /path/to/MinGW/bin
 
-** Build x265
+** Build x264
 
 - In x264 source code directory
 	$ ./configure --prefix=../x264bin --enable-shared \

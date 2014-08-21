@@ -157,7 +157,7 @@ create_overlay(struct RTSPThreadParam *rtspParam, int ch) {
 	pthread_mutex_unlock(&rtspParam->surfaceMutex[ch]);
 	// swsctx
 	if((swsctx = sws_getContext(w, h, format, w, h, PIX_FMT_YUV420P,
-			SWS_BILINEAR, NULL, NULL, NULL)) == NULL) {
+			SWS_BICUBIC, NULL, NULL, NULL)) == NULL) {
 		rtsperror("ga-client: cannot create swsscale context.\n");
 		exit(-1);
 	}

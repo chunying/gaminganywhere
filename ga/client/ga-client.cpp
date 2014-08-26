@@ -76,6 +76,9 @@ static int nativeSizeX[VIDEO_SOURCE_CHANNEL_MAX];
 static int nativeSizeY[VIDEO_SOURCE_CHANNEL_MAX];
 static map<unsigned int, int> windowId2ch;
 
+// save files
+static FILE *savefp_keyts = NULL;
+
 #ifndef ANDROID
 #define	DEFAULT_FONT		"FreeSans.ttf"
 #define	DEFAULT_FONTSIZE	24
@@ -411,6 +414,7 @@ ProcessEvent(SDL_Event *event) {
 	sdlmsg_t m;
 	map<unsigned int,int>::iterator mi;
 	int ch;
+	struct timeval tv;
 	//
 	switch(event->type) {
 	case SDL_KEYUP:
@@ -440,6 +444,14 @@ ProcessEvent(SDL_Event *event) {
 			0/*event->key.keysym.unicode*/);
 		ctrl_client_sendmsg(&m, sizeof(sdlmsg_keyboard_t));
 		}
+		if(savefp_keyts != NULL) {
+			gettimeofday(&tv, NULL);
+			ga_save_printf(savefp_keyts, "KEY-UP: %u.%06u scan 0x%04x sym 0x%04x mod 0x%04x\n",
+				tv.tv_sec, tv.tv_usec,
+				event->key.keysym.scancode,
+				event->key.keysym.sym,
+				event->key.keysym.mod);
+		}
 		break;
 	case SDL_KEYDOWN:
 		// switch between fullscreen?
@@ -455,6 +467,14 @@ ProcessEvent(SDL_Event *event) {
 			event->key.keysym.mod,
 			0/*event->key.keysym.unicode*/);
 		ctrl_client_sendmsg(&m, sizeof(sdlmsg_keyboard_t));
+		}
+		if(savefp_keyts != NULL) {
+			gettimeofday(&tv, NULL);
+			ga_save_printf(savefp_keyts, "KEY-DN: %u.%06u scan 0x%04x sym 0x%04x mod 0x%04x\n",
+				tv.tv_sec, tv.tv_usec,
+				event->key.keysym.scancode,
+				event->key.keysym.sym,
+				event->key.keysym.mod);
 		}
 		break;
 	case SDL_MOUSEBUTTONUP:
@@ -667,6 +687,7 @@ main(int argc, char *argv[]) {
 	pthread_t rtspthread;
 	pthread_t ctrlthread;
 	pthread_t watchdog;
+	char savefile_keyts[128];
 	//
 #ifdef ANDROID
 	if(ga_init("/sdcard/ga/android.conf", NULL) < 0) {
@@ -688,6 +709,12 @@ main(int argc, char *argv[]) {
 	if(ga_conf_readbool("control-relative-mouse-mode", 0) != 0) {
 		rtsperror("*** Relative mouse mode enabled.\n");
 		relativeMouseMode = 1;
+	}
+	//
+	if(ga_conf_readv("save-key-timestamp", savefile_keyts, sizeof(savefile_keyts)) != NULL) {
+		savefp_keyts = ga_save_init_txt(savefile_keyts);
+		rtsperror("*** SAVEFILE: key timestamp saved fo '%s'\n",
+			savefp_keyts ? savefile_keyts : "NULL");
 	}
 	//
 	rtspconf = rtspconf_global();
@@ -789,6 +816,10 @@ main(int argc, char *argv[]) {
 #endif
 	//SDL_WaitThread(thread, &status);
 	//
+	if(savefp_keyts != NULL) {
+		ga_save_close(savefp_keyts);
+		savefp_keyts = NULL;
+	}
 	SDL_Quit();
 	ga_deinit();
 	exit(0);

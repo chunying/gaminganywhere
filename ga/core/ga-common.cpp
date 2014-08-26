@@ -251,16 +251,26 @@ ga_closelog() {
 
 // save file feature
 
-FILE *
-ga_save_init(const char *filename) {
+static FILE *
+ga_save_init_internal(const char *filename, const char *mode) {
 	FILE *fp = NULL;
 	if(filename != NULL) {
-		fp = fopen(filename, "wb");
+		fp = fopen(filename, mode);
 		if(fp == NULL) {
 			ga_error("save file: open %s failed.\n", filename);
 		}
 	}
 	return fp;
+}
+
+FILE *
+ga_save_init(const char *filename) {
+	return ga_save_init_internal(filename, "wb");
+}
+
+FILE *
+ga_save_init_txt(const char *filename) {
+	return ga_save_init_internal(filename, "wt");
 }
 
 int
@@ -270,6 +280,19 @@ ga_save_data(FILE *fp, unsigned char *buffer, int size) {
 	if(size == 0)
 		return 0;
 	return fwrite(buffer, sizeof(char), size, fp);
+}
+
+int
+ga_save_printf(FILE *fp, const char *fmt, ...) {
+	int wlen;
+	va_list ap;
+	if(fp == NULL)
+		return -1;
+	va_start(ap, fmt);
+	wlen = vfprintf(fp, fmt, ap);
+	va_end(ap);
+	fflush(fp);
+	return wlen;
 }
 
 int

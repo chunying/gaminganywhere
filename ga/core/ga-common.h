@@ -75,7 +75,9 @@ EXPORT void	ga_openlog();
 EXPORT void	ga_closelog();
 // save file feature
 EXPORT FILE *	ga_save_init(const char *filename);
+EXPORT FILE *	ga_save_init_txt(const char *filename);
 EXPORT int	ga_save_data(FILE *fp, unsigned char *buffer, int size);
+EXPORT int	ga_save_printf(FILE *fp, const char *fmt, ...);
 EXPORT int	ga_save_yuv420p(FILE *fp, int w, int h, unsigned char *planes[], int linesize[]);
 EXPORT int	ga_save_rgb4(FILE *fp, int w, int h, unsigned char *planes, int linesize);
 EXPORT int	ga_save_close(FILE *fp);

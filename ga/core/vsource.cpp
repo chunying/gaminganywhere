@@ -149,13 +149,18 @@ static unsigned int vsource_colorcode_initmask = 0;
 static unsigned int vsource_colorcode_initshift = 0;
 static unsigned char * vsource_colorcode_planes[4];
 static unsigned char vsource_colorcode_buffer[4 * COLORCODE_MAX_WIDTH * (COLORCODE_MAX_DIGIT + COLORCODE_SUFFIX)];
+//
+static FILE *savefp_ccodets = NULL;
 
 int
 vsource_embed_colorcode_init(int RGBmode) {
 	int i, param[3];
+	char savefile_ccodets[128];
 	// read param
 	if(ga_conf_readints("embed-colorcode", param, 3) != 3)
 		return -1;
+	if(ga_conf_readv("save-colorcode-timestamp", savefile_ccodets, sizeof(savefile_ccodets)) != NULL)
+		savefp_ccodets = ga_save_init_txt(savefile_ccodets);
 	vsource_colorcode_digits = param[0];
 	vsource_colorcode_width = param[1];
 	vsource_colorcode_height = param[2];
@@ -233,6 +238,13 @@ vsource_embed_yuv_code(vsource_frame_t *frame, unsigned int value) {
 	unsigned char *srcU = srcY + vsource_colorcode_total_width;
 	unsigned char *srcV = srcU + (vsource_colorcode_total_width>>1);
 	unsigned char *dstY, *dstU, *dstV;
+	// save code-timestamp mapping
+	struct timeval ccodets;
+	if(savefp_ccodets != NULL) {
+		gettimeofday(&ccodets, NULL);
+		ga_save_printf(savefp_ccodets, "COLORCODE-TIMESTAMP: %08u -> %u.%06u\n",
+			value, ccodets.tv_sec, ccodets.tv_usec);
+	}
 	//// make the color code line
 	// compute crc
 #if 0
@@ -305,6 +317,13 @@ vsource_embed_rgba_code(vsource_frame_t *frame, unsigned int value, unsigned cha
 	unsigned int mask = vsource_colorcode_initmask;
 	unsigned int digit;
 	unsigned char *dst = vsource_colorcode_buffer;
+	// save code-timestamp mapping
+	struct timeval ccodets;
+	if(savefp_ccodets != NULL) {
+		gettimeofday(&ccodets, NULL);
+		ga_save_printf(savefp_ccodets, "COLORCODE-TIMESTAMP: %u -> %u.%06u\n",
+			value, ccodets.tv_sec, ccodets.tv_usec);
+	}
 	//// make the color code line
 	// compute crc
 #if 0

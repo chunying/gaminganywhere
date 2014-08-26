@@ -91,6 +91,7 @@ static long long cf_interval[VIDEO_SOURCE_CHANNEL_MAX];
 
 // save files
 static FILE *savefp_yuv = NULL;
+static FILE *savefp_yuvts = NULL;
 
 static unsigned rtp_packet_reordering_threshold = DEF_RTP_PACKET_REORDERING_THRESHOLD;
 
@@ -565,6 +566,8 @@ play_video_priv(int ch/*channel*/, unsigned char *buffer, int bufsize, struct ti
 #endif
 	pooldata_t *data = NULL;
 	AVPicture *dstframe = NULL;
+	struct timeval ftv;
+	static unsigned fcount = 0;
 #ifdef PRINT_LATENCY
 	static struct timeval btv0 = {0, 0};
 	struct timeval ptv0, ptv1, btv1;
@@ -648,6 +651,10 @@ play_video_priv(int ch/*channel*/, unsigned char *buffer, int bufsize, struct ti
 				dstframe->data, dstframe->linesize);
 			if(ch==0 && savefp_yuv != NULL) {
 				ga_save_yuv420p(savefp_yuv, vframe[0]->width, vframe[0]->height, dstframe->data, dstframe->linesize);
+				if(savefp_yuvts != NULL) {
+					gettimeofday(&ftv, NULL);
+					ga_save_printf(savefp_yuvts, "Frame #%08d: %u.%06u\n", fcount++, ftv.tv_sec, ftv.tv_usec);
+				}
 			}
 			rtspParam->pipe[ch]->store_data(data);
 			// request to render it
@@ -1025,12 +1032,24 @@ rtsp_thread(void *param) {
 	TaskScheduler* scheduler = bs;
 	UsageEnvironment* env = BasicUsageEnvironment::createNew(*scheduler);
 	char savefile_yuv[128];
+	char savefile_yuvts[128];
 	// XXX: reset everything
 	drop_video_frame_init(ga_conf_readint("max-tolerable-video-delay"));
+	// save-file features
 	if(savefp_yuv != NULL)
 		ga_save_close(savefp_yuv);
+	if(savefp_yuvts != NULL)
+		ga_save_close(savefp_yuvts);
+	savefp_yuv = savefp_yuvts = NULL;
+	//
 	if(ga_conf_readv("save-yuv-image", savefile_yuv, sizeof(savefile_yuv)) != NULL)
 		savefp_yuv = ga_save_init(savefile_yuv);
+	if(savefp_yuv != NULL
+	&& ga_conf_readv("save-yuv-image-timestamp", savefile_yuvts, sizeof(savefile_yuvts)) != NULL)
+		savefp_yuvts = ga_save_init_txt(savefile_yuvts);
+	rtsperror("*** SAVEFILE: YUV image saved to '%s'; timestamp saved to '%s'.\n",
+		savefp_yuv   ? savefile_yuv   : "NULL",
+		savefp_yuvts ? savefile_yuvts : "NULL");
 	//
 	if(ga_conf_readint("rtp-reordering-threshold") > 0) {
 		rtp_packet_reordering_threshold = ga_conf_readint("rtp-reordering-threshold");
@@ -1070,6 +1089,10 @@ rtsp_thread(void *param) {
 	if(savefp_yuv != NULL) {
 		ga_save_close(savefp_yuv);
 		savefp_yuv = NULL;
+	}
+	if(savefp_yuvts != NULL) {
+		ga_save_close(savefp_yuvts);
+		savefp_yuvts = NULL;
 	}
 	//
 	shutdownStream(client);

@@ -340,8 +340,8 @@ gl_resize(int width, int height) {
 	//
 	glGenTextures(1, &img_texture);
 	glBindTexture(GL_TEXTURE_2D, img_texture);
-	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST/*GL_LINEAR*/);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST/*GL_LINEAR*/);
 	glShadeModel(GL_FLAT);
 	glColor4x(0x10000, 0x10000, 0x10000, 0x10000);
 	int rect[4] = {0, img_height, img_width, -img_height};
@@ -381,8 +381,8 @@ gl_render() {
 	vframe = (AVPicture*) data->ptr;
 	//
 	//glClear(GL_COLOR_BUFFER_BIT);
-	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST/*GL_LINEAR*/);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST/*GL_LINEAR*/);
 	int rect[4] = {0, img_height, img_width, -img_height};
 	glTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_CROP_RECT_OES, rect);
 	glTexImage2D(GL_TEXTURE_2D,		/* target */
@@ -428,7 +428,7 @@ create_overlay(int ch, int w, int h, PixelFormat format) {
 	setScreenDimension(rtspThreadParam.jnienv, w, h);
 	// XXX: assume surfaceMutex[ch] locked
 	if((swsctx = sws_getContext(w, h, format, w, h, PIX_FMT_RGB565,
-			SWS_FAST_BILINEAR, NULL, NULL, NULL)) == NULL) {
+			SWS_BICUBIC, NULL, NULL, NULL)) == NULL) {
 		rtsperror("ga-client: cannot create swsscale context.\n");
 		rtspThreadParam.quitLive555 = 1;
 		return -1;

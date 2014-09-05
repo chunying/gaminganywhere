@@ -99,6 +99,11 @@ filter_RGB2YUV_init(void *arg) {
 						inputW, inputH, PIX_FMT_BGRA,
 						outputW, outputH, PIX_FMT_YUV420P);
 				ga_error("RGB2YUV filter: BGRA source specified.\n");
+			} else if(strcasecmp("yuv420p", pixelfmt) == 0) {
+				swsctx = create_frame_converter(
+						inputW, inputH, PIX_FMT_YUV420P,
+						outputW, outputH, PIX_FMT_YUV420P);
+				ga_error("RGB2YUV filter: YUV source specified.\n");
 			}
 		}
 		if(swsctx == NULL) {
@@ -252,51 +257,67 @@ filter_RGB2YUV_threadproc(void *arg) {
 		dstframe->realheight = outputH;
 		dstframe->realstride = outputW;
 		dstframe->realsize = outputW * outputH * 3 / 2;
-		// scale image: XXX: RGBA or BGRA
+		// scale image: RGBA, BGRA, or YUV
+		swsctx = lookup_frame_converter(
+				srcframe->realwidth,
+				srcframe->realheight,
+				srcframe->pixelformat);
+		if(swsctx == NULL) {
+			swsctx = create_frame_converter(
+				srcframe->realwidth,
+				srcframe->realheight,
+				srcframe->pixelformat,
+				outputW,
+				outputH,
+				PIX_FMT_YUV420P);
+		}
+		if(swsctx == NULL) {
+			ga_error("RGB2YUV filter: fatal - cannot create frame converter (%d,%d,%d)->(%x,%d,%d)\n",
+				srcframe->realwidth, srcframe->realheight, srcframe->pixelformat,
+				outputW, outputH, PIX_FMT_YUV420P);
+		}
+		//
 		if(srcframe->pixelformat == PIX_FMT_RGBA
 		|| srcframe->pixelformat == PIX_FMT_BGRA/*rgba*/) {
-			swsctx = lookup_frame_converter(
-					srcframe->realwidth,
-					srcframe->realheight,
-					srcframe->pixelformat);
-			if(swsctx == NULL) {
-				swsctx = create_frame_converter(
-					srcframe->realwidth,
-					srcframe->realheight,
-					srcframe->pixelformat,
-					outputW,
-					outputH,
-					PIX_FMT_YUV420P);
-			}
-			if(swsctx == NULL) {
-				ga_error("RGB2YUV filter: fatal - cannot create frame converter (%d,%d)->(%x,%d)\n",
-					srcframe->realwidth, srcframe->realheight,
-					outputW, outputH);
-			}
 			src[0] = srcframe->imgbuf;
 			src[1] = NULL;
 			srcstride[0] = srcframe->realstride; //srcframe->stride;
 			srcstride[1] = 0;
-			dst[0] = dstframe->imgbuf;
-			dst[1] = dstframe->imgbuf + outputH*outputW;
-			dst[2] = dstframe->imgbuf + outputH*outputW + (outputH*outputW>>2);
-			dst[3] = NULL;
-			dstframe->linesize[0] = dststride[0] = outputW;
-			dstframe->linesize[1] = dststride[1] = outputW>>1;
-			dstframe->linesize[2] = dststride[2] = outputW>>1;
-			dstframe->linesize[3] = dststride[3] = 0;
-			sws_scale(swsctx,
-				src, srcstride, 0, srcframe->realheight,
-				dst, dstframe->linesize);
-			// embed first, and then save
-#ifdef ENABLE_EMBED_COLORCODE
-			vsource_embed_colorcode_inc(dstframe);
-#endif
-			// only save the first channel
-			if(iid == 0 && savefp != NULL) {
-				ga_save_yuv420p(savefp, outputW, outputH, dst, dstframe->linesize);
-			}
+		} else if(srcframe->pixelformat == PIX_FMT_YUV420P) {
+			src[0] = srcframe->imgbuf;
+			src[1] = src[0] + ((srcframe->realwidth * srcframe->realheight));
+			src[2] = src[1] + ((srcframe->realwidth * srcframe->realheight)>>2);
+			src[3] = NULL;
+			srcstride[0] = srcframe->linesize[0];
+			srcstride[1] = srcframe->linesize[1];
+			srcstride[2] = srcframe->linesize[2];
+			srcstride[3] = NULL;
+		} else {
+			ga_error("filter-RGB2YUV: unsupported pixel format (%d)\n", srcframe->pixelformat);
+			exit(-1);
 		}
+		//
+		dst[0] = dstframe->imgbuf;
+		dst[1] = dstframe->imgbuf + outputH*outputW;
+		dst[2] = dstframe->imgbuf + outputH*outputW + (outputH*outputW>>2);
+		dst[3] = NULL;
+		dstframe->linesize[0] = dststride[0] = outputW;
+		dstframe->linesize[1] = dststride[1] = outputW>>1;
+		dstframe->linesize[2] = dststride[2] = outputW>>1;
+		dstframe->linesize[3] = dststride[3] = 0;
+		//
+		sws_scale(swsctx,
+			src, srcstride, 0, srcframe->realheight,
+			dst, dstframe->linesize);
+		// embed first, and then save
+#ifdef ENABLE_EMBED_COLORCODE
+		vsource_embed_colorcode_inc(dstframe);
+#endif
+		// only save the first channel
+		if(iid == 0 && savefp != NULL) {
+			ga_save_yuv420p(savefp, outputW, outputH, dst, dstframe->linesize);
+		}
+		//
 		srcpipe->release_data(srcdata);
 		dstpipe->store_data(dstdata);
 		dstpipe->notify_all();

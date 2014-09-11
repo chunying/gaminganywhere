@@ -575,8 +575,12 @@ play_video_priv(int ch/*channel*/, unsigned char *buffer, int bufsize, struct ti
 	if(btv0.tv_sec == 0) {
 		gettimeofday(&btv0, NULL);
 	} else {
+		long long dt;
 		gettimeofday(&btv1, NULL);
-		ga_aggregated_print(0x8000, 599, tvdiff_us(&btv1, &btv0));
+		dt = tvdiff_us(&btv1, &btv0);
+		if(dt < 2000000) {
+			ga_aggregated_print(0x8000, 599, dt);
+		}
 		btv0 = btv1;
 	}
 #endif
@@ -1034,6 +1038,7 @@ rtsp_thread(void *param) {
 	char savefile_yuv[128];
 	char savefile_yuvts[128];
 	// XXX: reset everything
+	ga_aggregated_reset();
 	drop_video_frame_init(ga_conf_readint("max-tolerable-video-delay"));
 	// save-file features
 	if(savefp_yuv != NULL)

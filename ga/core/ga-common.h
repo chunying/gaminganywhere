@@ -82,6 +82,7 @@ EXPORT int	ga_save_yuv420p(FILE *fp, int w, int h, unsigned char *planes[], int 
 EXPORT int	ga_save_rgb4(FILE *fp, int w, int h, unsigned char *planes, int linesize);
 EXPORT int	ga_save_close(FILE *fp);
 // aggregated output feature
+EXPORT void	ga_aggregated_reset();
 EXPORT void	ga_aggregated_print(int key, int limit, int value);
 //
 EXPORT long	ga_atoi(const char *str);

@@ -373,6 +373,12 @@ ga_save_close(FILE *fp) {
 static map<int,list<int> > aggmap;
 
 void
+ga_aggregated_reset() {
+	aggmap.clear();
+	return;
+}
+
+void
 ga_aggregated_print(int key, int limit, int value) {
 	map<int,list<int> >::iterator mi;
 	// push data

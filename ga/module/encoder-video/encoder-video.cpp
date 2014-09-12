@@ -195,7 +195,7 @@ vencoder_threadproc(void *arg) {
 	}
 	nalbuf_a = nalbuf + nalign;
 	//
-	if((pic_in = avcodec_alloc_frame()) == NULL) {
+	if((pic_in = av_frame_alloc()) == NULL) {
 		ga_error("video encoder: picture allocation failed, terminated.\n");
 		goto video_quit;
 	}

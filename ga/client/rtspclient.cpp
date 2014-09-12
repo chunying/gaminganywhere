@@ -314,7 +314,7 @@ init_vdecoder(int channel, const char *sprop) {
 	rtspconf->video_decoder_codec = codec;
 	rtsperror("video decoder: use decoder %s\n", names[0]);
 	//
-	if((frame = avcodec_alloc_frame()) == NULL) {
+	if((frame = av_frame_alloc()) == NULL) {
 		rtsperror("video decoder(%d): allocate frame failed\n", channel);
 		return -1;
 	}
@@ -380,7 +380,7 @@ init_adecoder() {
 	}
 #endif
 	//
-	if((aframe = avcodec_alloc_frame()) == NULL) {
+	if((aframe = av_frame_alloc()) == NULL) {
 		rtsperror("audio decoder: allocate frame failed\n");
 		return -1;
 	}
@@ -691,23 +691,55 @@ struct decoder_buffer {
 	unsigned int privbuflen;
 	unsigned char *privbuf;
 	struct timeval lastpts;
+	// for alignment
+	unsigned int offset;
+	unsigned char *privbuf_unaligned;
 };
+
+static struct decoder_buffer db[VIDEO_SOURCE_CHANNEL_MAX];
+
+static void
+deinit_decoder_buffer() {
+	int i;
+	for(i = 0; i < VIDEO_SOURCE_CHANNEL_MAX; i++) {
+		if(db[i].privbuf_unaligned != NULL) {
+			free(db[i].privbuf_unaligned);
+		}
+	}
+	bzero(db, sizeof(db));
+	return;
+}
+
+static int
+init_decoder_buffer() {
+	int i;
+	//
+	deinit_decoder_buffer();
+	//
+	for(i = 0; i < VIDEO_SOURCE_CHANNEL_MAX; i++) {
+		db[i].privbuf_unaligned = (unsigned char*) malloc(PRIVATE_BUFFER_SIZE+16);
+		if(db[i].privbuf_unaligned == NULL) {
+			rtsperror("FATAL: cannot allocate private buffer (%d:%d bytes): %s\n",
+				i, PRIVATE_BUFFER_SIZE, strerror(errno));
+			goto adb_failed;
+		}
+#ifdef __LP64__ /* 64-bit */
+		db[i].offset = 16 - (((unsigned long long) db[i].privbuf_unaligned) & 0x0f);
+#else
+		db[i].offset = 16 - (((unsigned) db[i].privbuf_unaligned) & 0x0f);
+#endif
+		db[i].privbuf = db[i].privbuf_unaligned + db[i].offset;
+	}
+	return 0;
+adb_failed:
+	deinit_decoder_buffer();
+	return -1;
+}
 
 static void
 play_video(int channel, unsigned char *buffer, int bufsize, struct timeval pts, bool marker) {
-	static struct decoder_buffer db[VIDEO_SOURCE_CHANNEL_MAX];
 	struct decoder_buffer *pdb = &db[channel];
 	int left;
-	// buffer initialization
-	if(pdb->privbuf == NULL) {
-		pdb->privbuf = (unsigned char*) malloc(PRIVATE_BUFFER_SIZE);
-		if(pdb->privbuf == NULL) {
-			rtsperror("FATAL: cannot allocate private buffer (%d bytes): %s\n", PRIVATE_BUFFER_SIZE, strerror(errno));
-			//exit(-1);
-			rtspParam->quitLive555 = 1;
-			return;
-		}
-	}
 	//
 	if(bufsize <= 0 || buffer == NULL) {
 		rtsperror("empty buffer?\n");
@@ -813,7 +845,7 @@ audio_buffer_decode(AVPacket *pkt, unsigned char *dstbuf, int dstlen) {
 		unsigned char *srcbuf = NULL;
 		int datalen = 0;
 		//
-		avcodec_get_frame_defaults(aframe);
+		av_frame_unref(aframe);
 		if((len = avcodec_decode_audio4(adecoder, aframe, &got_frame, pkt)) < 0) {
 			rtsperror("decode audio failed.\n");
 			return -1;
@@ -1077,12 +1109,19 @@ rtsp_thread(void *param) {
 	rtspParam = (RTSPThreadParam*) param;
 	rtspParam->videostate = RTSP_VIDEOSTATE_NULL;
 	//
+	if(init_decoder_buffer() < 0) {
+		rtsperror("init decode buffer failed.\n");
+		return NULL;
+	}
+	//
 	if(qos_init(env) < 0) {
+		deinit_decoder_buffer();
 		rtsperror("qos-measurement: init failed.\n");
 		return NULL;
 	}
 	//
 	if((client = openURL(*env, rtspParam->url)) == NULL) {
+		deinit_decoder_buffer();
 		rtsperror("connect to %s failed.\n", rtspParam->url);
 		return NULL;
 	}
@@ -1101,6 +1140,7 @@ rtsp_thread(void *param) {
 	}
 	//
 	shutdownStream(client);
+	deinit_decoder_buffer();
 	rtsperror("rtsp thread: terminated.\n");
 #ifndef ANDROID
 	exit(0);

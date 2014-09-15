@@ -510,18 +510,20 @@ pktloss_monitor(void *clientData, unsigned char *packet, unsigned &packetSize) {
 	return;
 }
 
-////
+//// drop frame feature
+
+typedef struct drop_vframe_s {
+	struct timeval tv_real_start;	// 1st wall-clock timestamp
+	struct timeval tv_stream_start;	// 1st pkt timestamp
+	int no_drop;			// keep N frames not dropped
+}	drop_vframe_t;
 
 static long long max_tolerable_video_delay_us = -1;
-static struct timeval tv_real_start[VIDEO_SOURCE_CHANNEL_MAX];
-static struct timeval tv_stream_start[VIDEO_SOURCE_CHANNEL_MAX];
-static struct timeval tv_stream_curr[VIDEO_SOURCE_CHANNEL_MAX];
+static drop_vframe_t drop_vframe_ctx[VIDEO_SOURCE_CHANNEL_MAX];
 
 static void
 drop_video_frame_init(long long max_delay_us) {
-	bzero(&tv_real_start, sizeof(tv_real_start));
-	bzero(&tv_stream_start, sizeof(tv_stream_start));
-	bzero(&tv_stream_curr, sizeof(tv_stream_curr));
+	bzero(&drop_vframe_ctx, sizeof(drop_vframe_ctx));
 	max_tolerable_video_delay_us = max_delay_us;
 	if(max_tolerable_video_delay_us > 0) {
 		ga_error("rtspclient: max tolerable video delay = %lldus\n", max_tolerable_video_delay_us);
@@ -532,30 +534,64 @@ drop_video_frame_init(long long max_delay_us) {
 }
 
 static int
-drop_video_frame(int ch/*channel*/, struct timeval pts) {
+drop_video_frame(int ch/*channel*/, unsigned char *buffer, int bufsize, struct timeval pts) {
 	long long delta;
 	struct timeval now;
 	// disabled?
 	if(max_tolerable_video_delay_us <= 0)
 		return 0;
 	//
-	tv_stream_curr[ch] = pts;
-	if(tv_real_start[ch].tv_sec == 0) {
-		gettimeofday(&tv_real_start[ch], NULL);
-		tv_stream_start[ch] = pts;
+	gettimeofday(&now, NULL);
+	if(drop_vframe_ctx[ch].tv_real_start.tv_sec == 0) {
+		drop_vframe_ctx[ch].tv_real_start = now;
+		drop_vframe_ctx[ch].tv_stream_start = pts;
+		ga_error("rtspclient: frame dropping initialized real=%lu.%06ld stream=%lu.%06ld (latency=%lld).\n",
+			now.tv_sec, now.tv_usec, pts.tv_sec, pts.tv_usec,
+			max_tolerable_video_delay_us);
 		return 0;
 	}
-	gettimeofday(&now, NULL);
-	delta = tvdiff_us(&pts, &tv_stream_start[ch]) - tvdiff_us(&now, &tv_real_start[ch]);
-	if(delta < 0) {
-		delta = -delta;
-	}
-	if(delta > max_tolerable_video_delay_us) {
-		ga_error("rtspclient: video frame dropped (delta = %lldus)\n", delta);
-		return 1;
-	}
+	//
+	do {
+		if(video_codec_id == AV_CODEC_ID_H264) {
+			int offset, nalt;
+			// no frame start?
+			if(buffer[0] != 0 && buffer[1] != 0) {
+				break;
+			}
+			// valid framing?
+			if(buffer[2] == 1) {
+				offset = 3;
+			} else if(buffer[2] == 0 && buffer[3] == 1) {
+				offset = 4;
+			} else {
+				break;
+			}
+			nalt = buffer[offset] & 0x1f;
+			if(nalt == 0x1c) { /* first byte 0x7c is an I-frame? */ 
+				drop_vframe_ctx[ch].no_drop = 2;
+			} else if(nalt == 0x07) { /* sps */
+				drop_vframe_ctx[ch].no_drop = 4;
+			} else if(nalt == 0x08) { /* pps */
+				drop_vframe_ctx[ch].no_drop = 3;
+			}
+			//
+			long long dstream = tvdiff_us(&pts, &drop_vframe_ctx[ch].tv_stream_start);
+			long long dreal = tvdiff_us(&now, &drop_vframe_ctx[ch].tv_real_start);
+			if(drop_vframe_ctx[ch].no_drop > 0)
+				drop_vframe_ctx[ch].no_drop--;
+			if(dreal-dstream > max_tolerable_video_delay_us) {
+				if(drop_vframe_ctx[ch].no_drop > 0)
+					break;
+				ga_error("drop_frame: packet dropped (delay=%lldus)\n", dreal-dstream);
+				return 1;
+			}
+		}
+	} while(0);
+	//
 	return 0;
 }
+
+////
 
 static int
 play_video_priv(int ch/*channel*/, unsigned char *buffer, int bufsize, struct timeval pts) {
@@ -584,6 +620,11 @@ play_video_priv(int ch/*channel*/, unsigned char *buffer, int bufsize, struct ti
 		btv0 = btv1;
 	}
 #endif
+	// drop the frame?
+	if(drop_video_frame(ch, buffer, bufsize, pts)) {
+		return bufsize;
+	}
+	//
 #ifdef SAVE_ENC
 	if(fout != NULL) {
 		fwrite(buffer, sizeof(char), bufsize, fout);
@@ -1700,11 +1741,11 @@ DummySink::afterGettingFrame(unsigned frameSize, unsigned numTruncatedBytes,
 		if(channel > 0) 
 			goto dropped;
 #endif
-		if(drop_video_frame(channel, presentationTime) > 0) {
-			if(stats != NULL)
-				pktloss_monitor_reset(rtpsrc->SSRC());
-			goto dropped;
-		}
+		//if(drop_video_frame(channel, presentationTime) > 0) {
+		//	if(stats != NULL)
+		//		pktloss_monitor_reset(rtpsrc->SSRC());
+		//	goto dropped;
+		//}
 		if(rtpsrc != NULL) {
 			marker = rtpsrc->curPacketMarkerBit();
 		}

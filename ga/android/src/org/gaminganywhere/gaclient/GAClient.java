@@ -741,6 +741,7 @@ public class GAClient {
 		setBuiltinVideoInternal(enable);
 	}
 	public native void setAudioCodec(int samplerate, int channels);
+	public native void setDropLateVideoFrame(int ms);
 	// control methods
 	public native void sendKeyEvent(boolean pressed, int scancode, int sym, int mod, int unicode);
 	public native void sendMouseKey(boolean pressed, int button, int x, int y);

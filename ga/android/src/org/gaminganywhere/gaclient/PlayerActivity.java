@@ -114,6 +114,7 @@ public class PlayerActivity extends Activity implements SurfaceHolder.Callback, 
 			Intent intent = getIntent();
 			String s = intent.getStringExtra("profile");
 			int watchdogTimeout = intent.getIntExtra("watchdogTimeout", 3);
+			int dropLateVideoFrame = intent.getIntExtra("dropLateVFrame", -1);
 			//
 			if(s == null || s.equals("")) {
 				showToast("Player: No profile provided");
@@ -132,6 +133,11 @@ public class PlayerActivity extends Activity implements SurfaceHolder.Callback, 
 			client.setBuiltinAudio(intent.getBooleanExtra("builtinAudio", true));
 			client.setBuiltinVideo(intent.getBooleanExtra("builtinVideo", true));
 			client.startRTSPClient();
+			if(dropLateVideoFrame > 0) {
+				client.setDropLateVideoFrame(dropLateVideoFrame);
+			} else {
+				client.setDropLateVideoFrame(-1);
+			}
 			if(watchdogTimeout > 0) {
 				client.watchdogSetTimeout(watchdogTimeout);
 				client.startWatchdog();

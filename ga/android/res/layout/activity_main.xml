@@ -46,6 +46,29 @@
         android:text="Portrait mode" />
 
     <CheckBox
+        android:id="@+id/cb_drop_late_vframe"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Drop late video frame" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" >
+
+        <Space
+            android:layout_width="64dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1" />
+
+        <SeekBar
+            android:id="@+id/sb_drop_late_frame"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_weight="1" />
+
+    </LinearLayout>
+    
+    <CheckBox
         android:id="@+id/cb_watchdog_timeout"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"

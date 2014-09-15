@@ -29,6 +29,7 @@
 #include <GLES/glext.h>
 
 #include "ga-common.h"
+#include "ga-conf.h"
 #include "libgaclient.h"
 #include "rtspconf.h"
 #include "rtspclient.h"
@@ -714,6 +715,18 @@ Java_org_gaminganywhere_gaclient_GAClient_setAudioCodec(
 #if 0
 	env->ReleaseStringUTFChars(codecname, scodec);
 #endif
+	return;
+}
+
+//public native void setDropLateVideoFrame(int ms);
+JNIEXPORT void JNICALL
+Java_org_gaminganywhere_gaclient_GAClient_setDropLateVideoFrame(JNIEnv *env, jobject thisObj, jint ms) {
+	char value[16] = "-1";
+	if(ms > 0) {
+		snprintf(value, sizeof(value), "%d", ms * 1000);
+	}
+	ga_conf_writev("max-tolerable-video-delay", value);
+	ga_error("libgaclient: configured max-tolerable-video-delay = %s\n", value);
 	return;
 }
 

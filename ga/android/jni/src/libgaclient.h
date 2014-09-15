@@ -78,6 +78,8 @@ JNIEXPORT void JNICALL
 Java_org_gaminganywhere_gaclient_GAClient_setAudioCodec(
 		JNIEnv *env, jobject thisObj,
 		/*jstring codecname,*/ jint samplerate, jint channels);
+JNIEXPORT void JNICALL
+Java_org_gaminganywhere_gaclient_GAClient_setDropLateVideoFrame(JNIEnv *env, jobject thisObj, jint ms);
 ////////////////////////////////////////////////////////////////////////
 JNIEXPORT void JNICALL Java_org_gaminganywhere_gaclient_GAClient_sendKeyEvent(
 		JNIEnv *env, jobject thisObj, jboolean pressed, jint scancode, jint sym, jint mod, jint unicode);

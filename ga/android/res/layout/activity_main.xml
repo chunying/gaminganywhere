@@ -67,7 +67,7 @@
             android:layout_weight="1" />
 
     </LinearLayout>
-    
+
     <CheckBox
         android:id="@+id/cb_watchdog_timeout"
         android:layout_width="wrap_content"

@@ -132,12 +132,14 @@ public class PlayerActivity extends Activity implements SurfaceHolder.Callback, 
 			}
 			client.setBuiltinAudio(intent.getBooleanExtra("builtinAudio", true));
 			client.setBuiltinVideo(intent.getBooleanExtra("builtinVideo", true));
-			client.startRTSPClient();
+			//
 			if(dropLateVideoFrame > 0) {
 				client.setDropLateVideoFrame(dropLateVideoFrame);
 			} else {
 				client.setDropLateVideoFrame(-1);
 			}
+			//
+			client.startRTSPClient();
 			if(watchdogTimeout > 0) {
 				client.watchdogSetTimeout(watchdogTimeout);
 				client.startWatchdog();

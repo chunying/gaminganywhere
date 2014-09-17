@@ -6,7 +6,7 @@ LDFLAGS	= $(EXTRALDFLAGS) -L../core -lga $(AVCLD) $(SDLLD) $(L5LD) -Wl,-rpath,\$
 
 ifeq ($(OS), Linux)
 CFLAGS	+= $(X11CF)
-LDFLAGS	+= $(X11LD)
+LDFLAGS	+= $(X11LD) -lrt
 endif
 
 ifeq ($(OS), Darwin)

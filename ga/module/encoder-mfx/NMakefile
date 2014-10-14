@@ -1,0 +1,17 @@
+
+!include <..\NMakefile.common>
+
+MEDIASDK_BASE	= C:\Program Files\Intel\Media SDK 2014 R2 for Clients
+MEDIASDK_INC	= "/I$(MEDIASDK_BASE)\include"
+MEDIASDK_LIB	= libmfx.lib advapi32.lib
+MEDIASDK_LIBPATH= "/LIBPATH:$(MEDIASDK_BASE)\lib\win32"
+
+CXX_FLAGS	= $(CXX_FLAGS) $(MEDIASDK_INC)
+LIBS		= $(LIBS) $(MEDIASDK_LIB)
+LIB_PATH	= /NODEFAULTLIB:LIBCMT $(LIB_PATH) $(MEDIASDK_LIBPATH)
+
+OBJS	= encoder-mfx.obj allocator.obj mfx-common.obj
+TARGET	= encoder-mfx.$(EXT)
+
+!include <..\NMakefile.build>
+

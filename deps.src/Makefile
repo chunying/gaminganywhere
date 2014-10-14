@@ -149,6 +149,7 @@ live555:
 	mv -f $(LIVE555DIR)/config.macosx $(LIVE555DIR)/config.macosx.old
 	cat $(LIVE555DIR)/config.linux.old | sed -e 's,^COMPILE_OPTS.*$$,& -fPIC,' > $(LIVE555DIR)/config.linux
 	cat $(LIVE555DIR)/config.macosx.old | sed -e 's,^COMPILE_OPTS.*$$,& -fPIC,' > $(LIVE555DIR)/config.macosx
+	# need to apply the 4MB buffer patch?
 	cd $(LIVE555DIR); cat ../patches/live555-* | patch -p1 
 	#
 	cd $(LIVE555DIR); ./genMakefiles $(shell uname -s | tr A-Z a-z | sed -e 's,darwin,macosx,' -e 's,cygwin.*,cygwin,')

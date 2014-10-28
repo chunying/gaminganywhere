@@ -22,7 +22,7 @@ void *
 liveserver_main(void *arg) {
 	int cid;
 	ga_module_t *m;
-	//RTSPConf *rtspconf = rtspconf_global();
+	struct RTSPConf *rtspconf = rtspconf_global();
 	TaskScheduler* scheduler = BasicTaskScheduler::createNew();
 	UserAuthenticationDatabase* authDB = NULL;
 	env = BasicUsageEnvironment::createNew(*scheduler);
@@ -33,7 +33,7 @@ liveserver_main(void *arg) {
 	// Repeat the above with each <username>, <password> that you wish to allow
 	// access to the server.
 #endif
-	RTSPServer* rtspServer = RTSPServer::createNew(*env, 8554, authDB);
+	RTSPServer* rtspServer = RTSPServer::createNew(*env, rtspconf->serverport > 0 ? rtspconf->serverport : 8554, authDB);
 	//
 	if (rtspServer == NULL) {
 		//*env << "Failed to create RTSP server: " << env->getResultMsg() << "\n";

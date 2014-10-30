@@ -31,6 +31,10 @@ extern "C" {
 }
 #endif
 
+#ifndef SWR_CH_MAX
+#define	SWR_CH_MAX	32
+#endif
+
 #include <map>
 #include <string>
 #include <vector>

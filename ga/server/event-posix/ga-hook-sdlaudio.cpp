@@ -176,7 +176,7 @@ hook_SDL_OpenAudio(SDL12_AudioSpec *desired, SDL12_AudioSpec *obtained) {
 	//
 	ret = old_SDL_OpenAudio(desired, obtained);
 	//
-	if(ret != -1) {
+	if(ret >= 0) {
 		struct RTSPConf *rtspconf = rtspconf_global();
 		int bufreq = 0;
 		//
@@ -236,8 +236,14 @@ hook_SDL_OpenAudio(SDL12_AudioSpec *desired, SDL12_AudioSpec *obtained) {
 			ga_error("SDL_OpenAudio: audio source setup failed.\n");
 			exit(-1);
 		}
+		ga_error("SDL_OpenAudio: audio source configured: %d, %d, %d, %d.\n",
+			bufreq, rtspconf->audio_samplerate,
+			obtained->format == SDL12_AUDIO_S16 ? 16 : 8,
+			rtspconf->audio_channels);
 		//
 		bcopy(obtained, &audio_spec, sizeof(audio_spec));
+	} else {
+		ga_error("SDL_OpenAudio: returned %d\n", ret);
 	}
 	return ret;
 }

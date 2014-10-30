@@ -243,6 +243,7 @@ aencoder_threadproc(void *arg) {
 	//
 	frameunit = audio_source_channels() * audio_source_bitspersample() / 8;
 	//
+	bzero(snd_in, sizeof(*snd_in));
 	av_frame_unref(snd_in);
 	// start encoding
 	ga_error("audio encoding started: tid=%ld channels=%d, frames=%d (%d/%d bytes), chunk_size=%ld (%d bytes), delay=%d\n",

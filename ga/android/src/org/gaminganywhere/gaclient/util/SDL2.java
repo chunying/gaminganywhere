@@ -18,6 +18,8 @@
 
 package org.gaminganywhere.gaclient.util;
 
+import android.view.KeyEvent;
+
 public class SDL2 {
 
 	class Button {
@@ -682,5 +684,319 @@ public class SDL2 {
 		public static final int SHIFT = LSHIFT | RSHIFT;
 		public static final int ALT = LALT | RALT;
 	}
+	class  SDLKey {
+		private int scanCode;
+		private int keyCode;
+		public void setSecanCode(int scanCode) {
+			this.scanCode = scanCode;
+		}
+		public void setKeyCode(int keyCode) {
+			this.keyCode = keyCode;
+		}
+		public int getSecanCode() {														
+			return this.scanCode;
+		}
+		public int getKeyCode() {
+			return this.keyCode;
+		}
+	}
+	
+	public static SDLKey AndroidKeyCodeToSDLKey(int keyCode) {
+		SDLKey sdlkey = new SDL2(). new  SDLKey();
+		
+		switch(keyCode) {
+			case KeyEvent.KEYCODE_DPAD_UP: {
+				sdlkey.setSecanCode(SDL2.Scancode.UP);
+				sdlkey.setKeyCode(SDL2.Keycode.UP);
+				break;
+			}
+			case KeyEvent.KEYCODE_DPAD_LEFT: {
+				sdlkey.setSecanCode(SDL2.Scancode.LEFT);
+				sdlkey.setKeyCode(SDL2.Keycode.LEFT);
+				break;
+			}
+			case KeyEvent.KEYCODE_DPAD_RIGHT: {
+				sdlkey.setSecanCode(SDL2.Scancode.RIGHT);
+				sdlkey.setKeyCode(SDL2.Keycode.RIGHT);
+				break;
+			}
+			case KeyEvent.KEYCODE_DPAD_DOWN: {
+				sdlkey.setSecanCode(SDL2.Scancode.DOWN);
+				sdlkey.setKeyCode(SDL2.Keycode.DOWN);
+				break;
+			}
+			case KeyEvent.KEYCODE_1: {
+				sdlkey.setSecanCode(SDL2.Scancode._1);
+				sdlkey.setKeyCode(SDL2.Keycode._1);
+				break;
+			}
+			case KeyEvent.KEYCODE_2: {
+				sdlkey.setSecanCode(SDL2.Scancode._2);
+				sdlkey.setKeyCode(SDL2.Keycode._2);
+				break;
+			}
+			case KeyEvent.KEYCODE_3: {
+				sdlkey.setSecanCode(SDL2.Scancode._3);
+				sdlkey.setKeyCode(SDL2.Keycode._3);
+				break;
+			}
+			case KeyEvent.KEYCODE_4: {
+				sdlkey.setSecanCode(SDL2.Scancode._4);
+				sdlkey.setKeyCode(SDL2.Keycode._4);
+				break;
+			}
+			case KeyEvent.KEYCODE_5: {
+				sdlkey.setSecanCode(SDL2.Scancode._5);
+				sdlkey.setKeyCode(SDL2.Keycode._5);
+				break;
+			}
+			case KeyEvent.KEYCODE_6: {
+				sdlkey.setSecanCode(SDL2.Scancode._6);
+				sdlkey.setKeyCode(SDL2.Keycode._6);
+				break;
+			}
+			case KeyEvent.KEYCODE_7: {
+				sdlkey.setSecanCode(SDL2.Scancode._7);
+				sdlkey.setKeyCode(SDL2.Keycode._7);
+				break;
+			}
+			case KeyEvent.KEYCODE_8: {
+				sdlkey.setSecanCode(SDL2.Scancode._8);
+				sdlkey.setKeyCode(SDL2.Keycode._8);
+				break;
+			}
+			case KeyEvent.KEYCODE_9: {
+				sdlkey.setSecanCode(SDL2.Scancode._9);
+				sdlkey.setKeyCode(SDL2.Keycode._9);
+				break;
+			}
+			case KeyEvent.KEYCODE_0: {
+				sdlkey.setSecanCode(SDL2.Scancode._0);
+				sdlkey.setKeyCode(SDL2.Keycode._0);
+				break;
+			}
+			case KeyEvent.KEYCODE_A: {
+				sdlkey.setSecanCode(SDL2.Scancode.A);
+				sdlkey.setKeyCode(SDL2.Keycode.a);
+				break;
+			}
+			case KeyEvent.KEYCODE_B: {
+				sdlkey.setSecanCode(SDL2.Scancode.B);
+				sdlkey.setKeyCode(SDL2.Keycode.b);
+				break;
+			}
+			case KeyEvent.KEYCODE_C: {
+				sdlkey.setSecanCode(SDL2.Scancode.C);
+				sdlkey.setKeyCode(SDL2.Keycode.c);
+				break;				
+			}
+			case KeyEvent.KEYCODE_D: {
+				sdlkey.setSecanCode(SDL2.Scancode.D);
+				sdlkey.setKeyCode(SDL2.Keycode.d);
+				break;
+			}
+			case KeyEvent.KEYCODE_E: {
+				sdlkey.setSecanCode(SDL2.Scancode.E);
+				sdlkey.setKeyCode(SDL2.Keycode.e);
+				break;
+			}
+			case KeyEvent.KEYCODE_F: {
+				sdlkey.setSecanCode(SDL2.Scancode.F);
+				sdlkey.setKeyCode(SDL2.Keycode.f);
+				break;
+			}
+			case KeyEvent.KEYCODE_G: {
+				sdlkey.setSecanCode(SDL2.Scancode.G);
+				sdlkey.setKeyCode(SDL2.Keycode.g);
+				break;
+			}
+			case KeyEvent.KEYCODE_H: {
+				sdlkey.setSecanCode(SDL2.Scancode.H);
+				sdlkey.setKeyCode(SDL2.Keycode.h);
+				break;
+			}
+			case KeyEvent.KEYCODE_I: {
+				sdlkey.setSecanCode(SDL2.Scancode.I);
+				sdlkey.setKeyCode(SDL2.Keycode.i);
+				break;
+			}
+			case KeyEvent.KEYCODE_J: {
+				sdlkey.setSecanCode(SDL2.Scancode.J);
+				sdlkey.setKeyCode(SDL2.Keycode.j);
+				break;
+			}
+			case KeyEvent.KEYCODE_K: {
+				sdlkey.setSecanCode(SDL2.Scancode.K);
+				sdlkey.setKeyCode(SDL2.Keycode.k);
+				break;
+			}
+			case KeyEvent.KEYCODE_L: {
+				sdlkey.setSecanCode(SDL2.Scancode.L);
+				sdlkey.setKeyCode(SDL2.Keycode.l);
+				break;
+			}
+			case KeyEvent.KEYCODE_M: {
+				sdlkey.setSecanCode(SDL2.Scancode.M);
+				sdlkey.setKeyCode(SDL2.Keycode.m);
+				break;
+			}
+			case KeyEvent.KEYCODE_N: {
+				sdlkey.setSecanCode(SDL2.Scancode.N);
+				sdlkey.setKeyCode(SDL2.Keycode.n);
+				break;
+			}
+			case KeyEvent.KEYCODE_O: {
+				sdlkey.setSecanCode(SDL2.Scancode.O);
+				sdlkey.setKeyCode(SDL2.Keycode.o);
+				break;
+			}
+			case KeyEvent.KEYCODE_P: {
+				sdlkey.setSecanCode(SDL2.Scancode.P);
+				sdlkey.setKeyCode(SDL2.Keycode.p);
+				break;					
+			}
+			case KeyEvent.KEYCODE_Q: {
+				sdlkey.setSecanCode(SDL2.Scancode.Q);
+				sdlkey.setKeyCode(SDL2.Keycode.q);
+				break;
+			}
+			case KeyEvent.KEYCODE_R: {
+				sdlkey.setSecanCode(SDL2.Scancode.R);
+				sdlkey.setKeyCode(SDL2.Keycode.r);
+				break;
+			}
+			case KeyEvent.KEYCODE_S: {
+				sdlkey.setSecanCode(SDL2.Scancode.S);
+				sdlkey.setKeyCode(SDL2.Keycode.s);
+				break;
+			}
+			case KeyEvent.KEYCODE_T: {
+				sdlkey.setSecanCode(SDL2.Scancode.T);
+				sdlkey.setKeyCode(SDL2.Keycode.t);
+				break;
+			}
+			case KeyEvent.KEYCODE_U: {
+				sdlkey.setSecanCode(SDL2.Scancode.U);
+				sdlkey.setKeyCode(SDL2.Keycode.u);
+				break;
+			}
+			case KeyEvent.KEYCODE_V: {
+				sdlkey.setSecanCode(SDL2.Scancode.V);
+				sdlkey.setKeyCode(SDL2.Keycode.v);
+				break;
+			}
+			case KeyEvent.KEYCODE_W: {
+				sdlkey.setSecanCode(SDL2.Scancode.W);
+				sdlkey.setKeyCode(SDL2.Keycode.w);
+				break;
+			}
+			case KeyEvent.KEYCODE_X: {
+				sdlkey.setSecanCode(SDL2.Scancode.X);
+				sdlkey.setKeyCode(SDL2.Keycode.x);
+				break;
+			}
+			case KeyEvent.KEYCODE_Y: {
+				sdlkey.setSecanCode(SDL2.Scancode.Y);
+				sdlkey.setKeyCode(SDL2.Keycode.y);
+				break;
+			}
+			case KeyEvent.KEYCODE_Z: {
+				sdlkey.setSecanCode(SDL2.Scancode.Z);
+				sdlkey.setKeyCode(SDL2.Keycode.z);
+				break;
+			}
+			case KeyEvent.KEYCODE_DEL: {
+				sdlkey.setSecanCode(SDL2.Scancode.BACKSPACE);
+				sdlkey.setKeyCode(SDL2.Keycode.BACKSPACE);
+				break;
+			}
+			case KeyEvent.KEYCODE_SPACE: {
+				sdlkey.setSecanCode(SDL2.Scancode.SPACE);
+				sdlkey.setKeyCode(SDL2.Keycode.SPACE);
+				break;
+			}
+			case KeyEvent.KEYCODE_ENTER: {
+				sdlkey.setSecanCode(SDL2.Scancode.KP_ENTER);
+				sdlkey.setKeyCode(SDL2.Keycode.KP_ENTER);
+				break;
+			}
+			case KeyEvent.KEYCODE_ESCAPE: {
+				sdlkey.setSecanCode(SDL2.Scancode.ESCAPE);
+				sdlkey.setKeyCode(SDL2.Keycode.ESCAPE);
+				break;
+			}
+			case KeyEvent.KEYCODE_SHIFT_LEFT: {
+				sdlkey.setSecanCode(SDL2.Scancode.LSHIFT);
+				sdlkey.setKeyCode(SDL2.Keycode.LSHIFT);
+				break;
+			}
+			case KeyEvent.KEYCODE_SHIFT_RIGHT: {
+				sdlkey.setSecanCode(SDL2.Scancode.RSHIFT);
+				sdlkey.setKeyCode(SDL2.Keycode.RSHIFT);
+				break;
+			}
+			case KeyEvent.KEYCODE_ALT_RIGHT: {
+				sdlkey.setSecanCode(SDL2.Scancode.RALT);
+				sdlkey.setKeyCode(SDL2.Keycode.RALT);
+				break;
+			}
+			case KeyEvent.KEYCODE_ALT_LEFT: {
+				sdlkey.setSecanCode(SDL2.Scancode.LALT);
+				sdlkey.setKeyCode(SDL2.Keycode.LALT);
+				break;
+			}
+			case KeyEvent.KEYCODE_CTRL_LEFT: {
+				sdlkey.setSecanCode(SDL2.Scancode.LCTRL);
+				sdlkey.setKeyCode(SDL2.Keycode.LCTRL);
+				break;
+			}
+			case KeyEvent.KEYCODE_CTRL_RIGHT: {
+				sdlkey.setSecanCode(SDL2.Scancode.RCTRL);
+				sdlkey.setKeyCode(SDL2.Keycode.RCTRL);
+				break;
+			}
+			case KeyEvent.KEYCODE_CAPS_LOCK: {
+				sdlkey.setSecanCode(SDL2.Scancode.CAPSLOCK);
+				sdlkey.setKeyCode(SDL2.Keycode.CAPSLOCK);
+				break;
+			}
+			case KeyEvent.KEYCODE_TAB: {
+				sdlkey.setSecanCode(SDL2.Scancode.TAB);
+				sdlkey.setKeyCode(SDL2.Keycode.TAB);
+				break;
+			}
+			case KeyEvent.KEYCODE_SEMICOLON: {
+				sdlkey.setSecanCode(SDL2.Scancode.SEMICOLON);
+				sdlkey.setKeyCode(SDL2.Keycode.SEMICOLON);
+				break;
+			}
+			case KeyEvent.KEYCODE_COMMA: {
+				sdlkey.setSecanCode(SDL2.Scancode.COMMA);
+				sdlkey.setKeyCode(SDL2.Keycode.COMMA);
+				break;
+			}
+			case KeyEvent.KEYCODE_SLASH: {
+				sdlkey.setSecanCode(SDL2.Scancode.SLASH);
+				sdlkey.setKeyCode(SDL2.Keycode.SLASH);
+				break;
+			}
+			case KeyEvent.KEYCODE_PERIOD: {
+				sdlkey.setSecanCode(SDL2.Scancode.PERIOD);
+				sdlkey.setKeyCode(SDL2.Keycode.PERIOD);
+				break;
+			}
+			case KeyEvent.KEYCODE_EQUALS: {
+				sdlkey.setSecanCode(SDL2.Scancode.EQUALS);
+				sdlkey.setKeyCode(SDL2.Keycode.EQUALS);
+				break;
+			}
+			case KeyEvent.KEYCODE_MINUS: {
+				sdlkey.setSecanCode(SDL2.Scancode.MINUS);
+				sdlkey.setKeyCode(SDL2.Keycode.MINUS);
+				break;
+			}
+		}
+		return sdlkey;
+	};
 	
 }

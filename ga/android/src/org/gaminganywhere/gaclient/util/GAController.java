@@ -18,6 +18,8 @@
 
 package org.gaminganywhere.gaclient.util;
 
+import java.lang.reflect.Array;
+
 import org.gaminganywhere.gaclient.GAClient;
 import org.gaminganywhere.gaclient.R;
 import android.app.Activity;
@@ -25,15 +27,22 @@ import android.content.Context;
 import android.graphics.drawable.ShapeDrawable;
 import android.graphics.drawable.shapes.OvalShape;
 import android.util.Log;
+import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.View.OnGenericMotionListener;
 import android.view.View.OnTouchListener;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.RelativeLayout;
+import android.view.View.OnKeyListener;
+import android.view.GestureDetector.OnGestureListener;
+import android.view.GestureDetector;
 
-public class GAController implements OnTouchListener {
+
+public class GAController implements OnTouchListener, OnGenericMotionListener {
 
 	private Context context = null;
 	private GAClient client = null;
@@ -59,11 +68,11 @@ public class GAController implements OnTouchListener {
 		this.context = context;
 		relativeLayout = new RelativeLayout(getContext());
 	}
-
+	
 	public static String getName() {
 		return null;
 	}
-	
+
 	public static String getDescription() {
 		return null;
 	}
@@ -99,8 +108,12 @@ public class GAController implements OnTouchListener {
 		// panel - the lowest UI, note the Z-order
 		panel = null;
 		panel = new ImageView(getContext());
+			     
+		
 		panel.setAlpha((float) 0);	// fully transparent
 		panel.setOnTouchListener(this);
+		panel.setOnGenericMotionListener(this);
+		
 		placeView(panel, 0, 0, width, height);
 		// cursor
 		cursor = null;
@@ -281,9 +294,13 @@ public class GAController implements OnTouchListener {
 	private float lastY = (float) -1.0;
 	private float initX = (float) -1.0;
 	private float initY = (float) -1.0;
+	private float lastXX = 0;
+	private float lastYY = 0;
 	private long lastTouchTime = -1;
+	private int[] buttons = {0,0,0};
+	
 	@Override
-	public boolean onTouch(View v, MotionEvent evt) {
+	public boolean onTouch(View v, MotionEvent evt) { 
 		int count = evt.getPointerCount();
 		int action = evt.getActionMasked();
 		float x = evt.getX();
@@ -295,41 +312,131 @@ public class GAController implements OnTouchListener {
 			switch(action) {
 			case MotionEvent.ACTION_DOWN:
 			//case MotionEvent.ACTION_POINTER_DOWN:
-				if(count == 1) {
-					initX = lastX = x;
-					initY = lastY = y;
-					lastTouchTime = System.currentTimeMillis();
+				if(evt.getButtonState() == MotionEvent.BUTTON_PRIMARY) { 
+					sendMouseKey(true, SDL2.Button.LEFT, getMouseX(), getMouseY());
+					if(buttons[1] == 0)
+						buttons[1] = 1;
+					else {
+						buttons[2] = 1;
+					}
+				} else if(evt.getButtonState() == MotionEvent.BUTTON_SECONDARY){
+					sendMouseKey(true, SDL2.Button.RIGHT, getMouseX(), getMouseY());
+					if(buttons[1] == 0)
+						buttons[1] = 2;
+					else {
+						buttons[2] = 2;
+					}
+				} else {
+					if(count == 1) {
+						initX = lastX = x;
+						initY = lastY = y;
+						lastTouchTime = System.currentTimeMillis();
+					}
+					buttons[1] =0;
+					buttons[2] = 0; 
 				}
 				break;
 			case MotionEvent.ACTION_UP:
 			//case MotionEvent.ACTION_POINTER_UP:
-				if(count == 1) {
-					long timeOffset = System.currentTimeMillis() - lastTouchTime; 
-					float distOffset = (x-initX)*(x-initX)+(y-initY)*(y-initY);
-					if(enableTouchClick
-					&& timeOffset < clickDetectionTime
-					&& distOffset < clickDetectionDist) {
-						sendMouseKey(true, SDL2.Button.LEFT, getMouseX(), getMouseY());
-						sendMouseKey(false, SDL2.Button.LEFT, getMouseX(), getMouseY());
+				if(buttons[2] == 1) { 
+					sendMouseKey(false, SDL2.Button.LEFT, getMouseX(), getMouseY());
+					buttons[2] = 0;
+				} else if(buttons[2] == 2) {
+					sendMouseKey(false, SDL2.Button.RIGHT, getMouseX(), getMouseY());
+					buttons[2] = 0;
+				} if(buttons[1] == 1) { 
+					sendMouseKey(false, SDL2.Button.LEFT, getMouseX(), getMouseY());
+					buttons[1] = 0;
+				} else if(buttons[1] == 2) {
+					sendMouseKey(false, SDL2.Button.RIGHT, getMouseX(), getMouseY());
+					buttons[1] = 0;
+				} 	else {
+					if(count == 1) {
+						long timeOffset = System.currentTimeMillis() - lastTouchTime; 
+						float distOffset = (x-initX)*(x-initX)+(y-initY)*(y-initY);
+						if(enableTouchClick
+						&& timeOffset < clickDetectionTime
+						&& distOffset < clickDetectionDist) {
+							sendMouseKey(true, SDL2.Button.LEFT, getMouseX(), getMouseY());
+							sendMouseKey(false, SDL2.Button.LEFT, getMouseX(), getMouseY());
+						}
+						lastX = -1;
+						lastY = -1;
 					}
-					lastX = -1;
-					lastY = -1;
 				}
 				break;
 			case MotionEvent.ACTION_MOVE:
-				if(count == 1) {
-					float dx = x-lastX;
-					float dy = y-lastY;
+				if(buttons[1] == 0 && buttons[2] == 0) {	
+					if(count == 1) {
+						float dx = x-lastX;
+						float dy = y-lastY;
+						moveMouse(dx, dy);
+						sendMouseMotion(mouseX, mouseY, dx, dy, 0, /*relative=*/false);
+						drawCursor((int) mouseX, (int) mouseY);
+						lastX = x;
+						lastY = y;
+					} else if (count ==  2) {
+						if(y > lastY + 5)
+						{
+							sendMouseKey(true, SDL2.Button.X1, 0, 0);
+							sendMouseKey(false, SDL2.Button.X1, 0, 0);
+						} else if(y < lastY - 5) {
+							sendMouseKey(true, SDL2.Button.X2, 0, 0);
+							sendMouseKey(false, SDL2.Button.X2, 0, 0);
+						}
+						lastY = y;
+						
+					}
+				} else { //TODO put that into a function is the same code as below
+					float dx = x-lastXX;
+					float dy = y-lastYY;
 					moveMouse(dx, dy);
-					sendMouseMotion(mouseX, mouseY, dx, dy, 0, /*relative=*/false);
-					drawCursor((int) mouseX, (int) mouseY);
-					lastX = x;
-					lastY = y;
+					drawCursor(-1,-1);
+					sendMouseMotion(lastXX, lastYY, dx, dy, 0, /*relative=*/false);
+					lastXX = x;
+					lastYY = y;
+					break;
+					
 				}
 				break;
 			}
+			
+			
 			return true;
 		}
+		
 		return false;
+	}
+
+	//evt.getButtonState() == MotionEvent.BUTTON_PRIMARY 
+
+	public boolean  onGenericMotion(View v, MotionEvent evt) {
+		int action = evt.getActionMasked();
+		float x = evt.getX();
+		float y = evt.getY();
+		switch(action) {
+			case MotionEvent.ACTION_HOVER_MOVE:
+				float dx = x-lastXX;
+				float dy = y-lastYY;
+				moveMouse(dx, dy);
+				drawCursor(-1,-1);
+				sendMouseMotion(lastXX, lastYY, dx, dy, 0, /*relative=*/false);
+				lastXX = x;
+				lastYY = y;
+				break;
+			case MotionEvent.ACTION_SCROLL:
+		        if (evt.getAxisValue(MotionEvent.AXIS_VSCROLL) < 0.0f) {
+		        	sendMouseKey(true, SDL2.Button.X2, 0, 0);
+					sendMouseKey(false, SDL2.Button.X2, 0, 0);
+		        }
+		        else {
+		        	sendMouseKey(true, SDL2.Button.X1, 0, 0);
+					sendMouseKey(false, SDL2.Button.X1, 0, 0);
+		        }
+		        break;
+		}
+
+		return false;
+		
 	}
 }

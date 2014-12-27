@@ -19,16 +19,30 @@
 package org.gaminganywhere.gaclient.util;
 
 import org.gaminganywhere.gaclient.util.Pad.PartitionEventListener;
+import org.gaminganywhere.gaclient.util.SDL2.SDLKey;
+
 import android.content.Context;
+import android.location.Location;
+import android.text.Editable;
+import android.text.TextWatcher;
+import android.util.Log;
+import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.View.OnClickListener;
+import android.view.View.OnFocusChangeListener;
+import android.view.View.OnKeyListener;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
+import android.widget.EditText;
 
 public class GAControllerBasic extends GAController implements
 	OnClickListener, PartitionEventListener
 {
+	boolean kbdActive = true;
 	private Button buttonEsc = null;
+	private Button buttonKbd = null;
+	private EditText edittext = null;
 	private Pad padLeft = null;
 	
 	public GAControllerBasic(Context context) {
@@ -42,7 +56,6 @@ public class GAControllerBasic extends GAController implements
 	public static String getDescription() {
 		return "Mouse buttons";
 	}
-
 	@Override
 	public void onDimensionChange(int width, int height) {
 		int keyBtnWidth = width/13;
@@ -56,7 +69,60 @@ public class GAControllerBasic extends GAController implements
 		buttonEsc.setTextSize(10);
 		buttonEsc.setText("ESC");
 		buttonEsc.setOnClickListener(this);
+		buttonEsc.setFocusable(false);
+		
+		buttonKbd = new Button(getContext());
+		buttonKbd.setTextSize(10);
+		buttonKbd.setText("KBD");
+		buttonKbd.setOnClickListener(this);
+		buttonKbd.setFocusable(false);
+		/** @author alberto pajuelo 
+		 * Implementation of sending physical keys to the server.
+		 * We create a text field to grab keys input.
+		 * **/
+		edittext = new EditText(getContext());
+		
+		
 		placeView(buttonEsc, width-keyBtnWidth/5-keyBtnWidth, keyBtnHeight/3, keyBtnWidth, keyBtnHeight);
+		placeView(buttonKbd, 0, 0, 100, 100);
+		/** @author alberto pajuelo 
+		 * Implementation of sending physical keys to the server.
+		 * Set a key listener for listening physical keys input
+		 * **/
+		edittext.setOnKeyListener(new OnKeyListener() {
+			//FIXME: there is some kind of bug on Android that prevents letters from soft keyboard to trigger onKey event, only DEL, ENTER, and numbers work for now...
+			@Override
+			public boolean onKey(View v, int keyCode, KeyEvent event) {
+				//translation form android keycodes to sdl keys
+				SDLKey sdlkey =  SDL2.AndroidKeyCodeToSDLKey(keyCode);
+				boolean down = false;		
+				if (event.getAction()!=KeyEvent.ACTION_DOWN) {					
+					down = false;
+				} else {
+					down = true;																																																																																																																																																																																																																																																																																																																						
+				}
+				sendKeyEvent(down,sdlkey.getSecanCode(),sdlkey.getKeyCode() , 0, 0);
+				return false;
+			}																																																																																																																																																																																																																																																																																																																																													
+		});
+		
+//		TextWatcher textWatcher = new TextWatcher() {
+//			@Override
+//		    public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+//			
+//		    }
+//		    @Override
+//		    public void onTextChanged(CharSequence s, int start, int before,int count) {        
+//		    	Log.v("tecla",s.toString().substring(count-1));
+//		    }
+//			@Override
+//			public void afterTextChanged(Editable arg0) {
+//				// TODO Auto-generated method stub
+//				
+//			}       
+//		};
+//		edittext.addTextChangedListener(textWatcher);
+		placeView(edittext, 10, 10, 1, 1);																																																																																																																																																																																						
 		//
 		padLeft = null;
 		padLeft = new Pad(getContext());
@@ -109,9 +175,23 @@ public class GAControllerBasic extends GAController implements
 
 	@Override
 	public void onClick(View v) {
+		InputMethodManager imm = (InputMethodManager) getContext().getSystemService(Context.INPUT_METHOD_SERVICE);
+
 		if(v == buttonEsc) {
 			sendKeyEvent(true, SDL2.Scancode.ESCAPE, 0x1b, 0, 0);
 			sendKeyEvent(false, SDL2.Scancode.ESCAPE, 0x1b, 0, 0);
+		} 
+		if(v == buttonKbd) {
+			if(kbdActive) {
+				edittext.setEnabled(false);
+				kbdActive=false;
+			} else {
+				edittext.setEnabled(true);
+				edittext.requestFocus();
+				imm.showSoftInput(edittext, InputMethodManager.SHOW_IMPLICIT);
+				kbdActive=true;
+			}
 		}
 	}
+
 }

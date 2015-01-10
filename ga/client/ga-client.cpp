@@ -144,9 +144,10 @@ create_overlay(struct RTSPThreadParam *rtspParam, int ch) {
 	SDL_Texture *overlay = NULL;
 #endif
 	struct SwsContext *swsctx = NULL;
-	pipeline *pipe = NULL;
-	pooldata_t *data = NULL;
+	dpipe_t *pipe = NULL;
+	dpipe_buffer_t *data = NULL;
 	char windowTitle[64];
+	char pipename[64];
 	//
 	pthread_mutex_lock(&rtspParam->surfaceMutex[ch]);
 	if(rtspParam->surface[ch] != NULL) {
@@ -165,17 +166,14 @@ create_overlay(struct RTSPThreadParam *rtspParam, int ch) {
 		exit(-1);
 	}
 	// pipeline
-	if((pipe = new pipeline()) == NULL) {
+	snprintf(pipename, sizeof(pipename), "channel-%d", ch);
+	if((pipe = dpipe_create(ch, pipename, POOLSIZE, sizeof(AVPicture))) == NULL) {
 		rtsperror("ga-client: cannot create pipeline.\n");
 		exit(-1);
 	}
-	if((data = pipe->datapool_init(POOLSIZE, sizeof(AVPicture))) == NULL) {
-		rtsperror("ga-client: cannot allocate data pool.\n");
-		exit(-1);
-	}
-	for(; data != NULL; data = data->next) {
-		bzero(data->ptr, sizeof(AVPicture));
-		if(avpicture_alloc((AVPicture*) data->ptr, PIX_FMT_YUV420P, w, h) != 0) {
+	for(data = pipe->in; data != NULL; data = data->next) {
+		bzero(data->pointer, sizeof(AVPicture));
+		if(avpicture_alloc((AVPicture*) data->pointer, PIX_FMT_YUV420P, w, h) != 0) {
 			rtsperror("ga-client: per frame initialization failed.\n");
 			exit(-1);
 		}
@@ -370,7 +368,7 @@ render_text(SDL_Renderer *renderer, SDL_Window *window, int x, int y, int line, 
 #if 1
 static void
 render_image(struct RTSPThreadParam *rtspParam, int ch) {
-	pooldata_t *data;
+	dpipe_buffer_t *data;
 	AVPicture *vframe;
 	SDL_Rect rect;
 #if 1	// only support SDL2
@@ -378,10 +376,10 @@ render_image(struct RTSPThreadParam *rtspParam, int ch) {
 	int pitch;
 #endif
 	//
-	if((data = rtspParam->pipe[ch]->load_data()) == NULL) {
+	if((data = dpipe_load_nowait(rtspParam->pipe[ch])) == NULL) {
 		return;
 	}
-	vframe = (AVPicture*) data->ptr;
+	vframe = (AVPicture*) data->pointer;
 	//
 #if 1	// only support SDL2
 	if(SDL_LockTexture(rtspParam->overlay[ch], NULL, (void**) &pixels, &pitch) == 0) {
@@ -393,7 +391,7 @@ render_image(struct RTSPThreadParam *rtspParam, int ch) {
 		rtsperror("ga-client: lock textture failed - %s\n", SDL_GetError());
 	}
 #endif
-	rtspParam->pipe[ch]->release_data(data);
+	dpipe_put(rtspParam->pipe[ch], data);
 	rect.x = 0;
 	rect.y = 0;
 	rect.w = rtspParam->width[ch];

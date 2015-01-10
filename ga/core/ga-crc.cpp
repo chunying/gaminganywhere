@@ -1,13 +1,16 @@
+/**
+ * @file
+ * CRC function implementations
+ */
+
 #include "ga-crc.h"
 
-//// CRC-5 USB
-// pycrc.py --width 5 --poly 0x5 --reflect-in True --xor-in 0x1f --reflect-out True --xor-out 0x1f --algorithm table-driven --generate h -o crc.h 
-// pycrc.py --width 5 --poly 0x5 --reflect-in True --xor-in 0x1f --reflect-out True --xor-out 0x1f --algorithm table-driven --generate c -o crc.h 
-
-/// CRC-5 CCITT
-// pycrc.py --width 5 --poly 0xB --reflect-in True --xor-in 0x1f --reflect-out True --xor-out 0x1f --algorithm table-driven --generate h -o crc.h 
-// pycrc.py --width 5 --poly 0xB --reflect-in True --xor-in 0x1f --reflect-out True --xor-out 0x1f --algorithm table-driven --generate c -o crc.h 
-
+/**
+ * CRC5-CCITT table
+ * Generate with the commands:
+ * - pycrc.py --width 5 --poly 0xB --reflect-in True --xor-in 0x1f --reflect-out True --xor-out 0x1f --algorithm table-driven --generate h -o crc.h 
+ * - pycrc.py --width 5 --poly 0xB --reflect-in True --xor-in 0x1f --reflect-out True --xor-out 0x1f --algorithm table-driven --generate c -o crc.c
+ */
 static const crc5_t crc5_table_ccitt[256] = {
     0x00, 0x58, 0xb0, 0xe8, 0xc8, 0x90, 0x78, 0x20, 0x38, 0x60, 0x88, 0xd0, 0xf0, 0xa8, 0x40, 0x18,
     0x70, 0x28, 0xc0, 0x98, 0xb8, 0xe0, 0x08, 0x50, 0x48, 0x10, 0xf8, 0xa0, 0x80, 0xd8, 0x30, 0x68,
@@ -27,6 +30,12 @@ static const crc5_t crc5_table_ccitt[256] = {
     0x28, 0x70, 0x98, 0xc0, 0xe0, 0xb8, 0x50, 0x08, 0x10, 0x48, 0xa0, 0xf8, 0xd8, 0x80, 0x68, 0x30
 };
 
+/**
+ * CRC5-USB table
+ * Generate with the commands:
+ * - pycrc.py --width 5 --poly 0x5 --reflect-in True --xor-in 0x1f --reflect-out True --xor-out 0x1f --algorithm table-driven --generate h -o crc.h 
+ * - pycrc.py --width 5 --poly 0x5 --reflect-in True --xor-in 0x1f --reflect-out True --xor-out 0x1f --algorithm table-driven --generate c -o crc.c 
+ */
 static const crc5_t crc5_table_usb[256] = {
     0x00, 0x70, 0xe0, 0x90, 0x88, 0xf8, 0x68, 0x18, 0x58, 0x28, 0xb8, 0xc8, 0xd0, 0xa0, 0x30, 0x40,
     0xb0, 0xc0, 0x50, 0x20, 0x38, 0x48, 0xd8, 0xa8, 0xe8, 0x98, 0x08, 0x78, 0x60, 0x10, 0x80, 0xf0,
@@ -58,6 +67,15 @@ crc5_reflect(crc5_t data, int data_len) {
 	return ret;
 }
 
+/**
+ * Common CRC5 update function
+ *
+ * @param crc [in] Current CRC value.
+ * @param data [in] Data to be checksumed.
+ * @param data_len [in] Length of the data.
+ * @param table [in] The CRC5 table
+ * @return Updated CRC value.
+ */
 crc5_t
 crc5_update(crc5_t crc, const unsigned char *data, int data_len, const crc5_t *table) {
 	unsigned int tbl_idx;
@@ -69,11 +87,27 @@ crc5_update(crc5_t crc, const unsigned char *data, int data_len, const crc5_t *t
 	return crc & (0x1f << 3);
 }
 
+/**
+ * CRC5-USB update function
+ *
+ * @param crc [in] Current CRC value.
+ * @param data [in] Data to be checksumed.
+ * @param data_len [in] Length of the data.
+ * @return Updated CRC value.
+ */
 crc5_t
 crc5_update_usb(crc5_t crc, const unsigned char *data, int data_len) {
 	return crc5_update(crc, data, data_len, crc5_table_usb);
 }
 
+/**
+ * CRC5-CCITT update function
+ *
+ * @param crc [in] Current CRC value.
+ * @param data [in] Data to be checksumed.
+ * @param data_len [in] Length of the data.
+ * @return Updated CRC value.
+ */
 crc5_t
 crc5_update_ccitt(crc5_t crc, const unsigned char *data, int data_len) {
 	return crc5_update(crc, data, data_len, crc5_table_ccitt);

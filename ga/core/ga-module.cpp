@@ -16,6 +16,11 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+/**
+ * @file
+ * Common functions and definitions for implementing a GamingAnywhere module.
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -31,8 +36,25 @@
 
 using namespace std;
 
+/**
+ * Map to keep loaded modules.
+ */
 static map<ga_module_t *, HMODULE> mlist;
 
+/**
+ * Load a module.
+ *
+ * @param modname [in] module (file) name without its extension.
+ * @param prefix [in] unused now.
+ * @return The loaded module in \em ga_module_t structure.
+ *
+ * Note that the module name should not contain its filename extension.
+ * Filename extension is automatically specified based on its platform.
+ *
+ * A GamingAnywhere module must implement the \em module_load() function.
+ * This function has to return an instance of the \em ga_module_t,
+ * which is then returned to the caller of this function.
+ */
 ga_module_t *
 ga_load_module(const char *modname, const char *prefix) {
 	char fn[1024];
@@ -63,6 +85,11 @@ ga_load_module(const char *modname, const char *prefix) {
 	return m;
 }
 
+/**
+ * Unload a module.
+ *
+ * @param m [in] Pointer to a loaded module.
+ */
 void
 ga_unload_module(ga_module_t *m) {
 	map<ga_module_t *, HMODULE>::iterator mi;
@@ -75,6 +102,15 @@ ga_unload_module(ga_module_t *m) {
 	return;
 }
 
+/**
+ * Initialize a module by calling module->init function
+ *
+ * @param name [in] Name of this module - just for logging purpose.
+ * @param m [in] The module instance.
+ * @param arg [in] The argument pass to the init function.
+ *	Note that the argument could be different for different types of module.
+ * @return 0 on success, or -1 on error.
+ */
 int
 ga_init_single_module(const char *name, ga_module_t *m, void *arg) {
 	if(m->init == NULL)
@@ -86,6 +122,17 @@ ga_init_single_module(const char *name, ga_module_t *m, void *arg) {
 	return 0;
 }
 
+/**
+ * Initialize a module, or quit if the initialization is failed.
+ *
+ * @param name [in] Name of this module - just for logging purpose.
+ * @param m [in] The module instance.
+ * @param arg [in] The argument pass to the init function.
+ *	Note that the argument could be different for different types of module.
+ *
+ * This function calls \em ga_init_single_module, and quit the program
+ * if an error is returned from that function.
+ */
 void
 ga_init_single_module_or_quit(const char *name, ga_module_t *m, void *arg) {
 	if(ga_init_single_module(name, m, arg) < 0)
@@ -93,6 +140,17 @@ ga_init_single_module_or_quit(const char *name, ga_module_t *m, void *arg) {
 	return;
 }
 
+/**
+ * Run a module's thread procedure. XXX: Could be removed in the future.
+ *
+ * @param name [in] Name of this module - just for logging purpose.
+ * @param threadproc [in] The thread procedure.
+ * @param arg [in] The argument pass to the thread procedure.
+ * @return 0 on success, or -1 on error.
+ *
+ * It is not recommended to use this function.
+ * Use module->start() instead on modern module implementations.
+ */
 int
 ga_run_single_module(const char *name, void * (*threadproc)(void*), void *arg) {
 	pthread_t t;
@@ -106,6 +164,15 @@ ga_run_single_module(const char *name, void * (*threadproc)(void*), void *arg) {
 	return 0;
 }
 
+/**
+ * Run a module's thread procedure, or quit if launch failed.
+ * XXX: Could be removed in the future.
+ *
+ * @param name [in] Name of this module - just for logging purpose.
+ * @param threadproc [in] The thread procedure.
+ * @param arg [in] The argument pass to the thread procedure.
+ * @return 0 on success, or -1 on error.
+ */
 void
 ga_run_single_module_or_quit(const char *name, void * (*threadproc)(void*), void *arg) {
 	if(ga_run_single_module(name, threadproc, arg) < 0)
@@ -113,6 +180,18 @@ ga_run_single_module_or_quit(const char *name, void * (*threadproc)(void*), void
 	return;
 }
 
+/**
+ * Wrapper for module's ioctl() interface.
+ *
+ * @param m [in] Pointer to a module instance.
+ * @param command [in] The ioctl() command.
+ * @param argsize [in] The size of the argument.
+ * @param arg [in] Pointer to the argument.
+ *
+ * We recommend to use this function instead of calling \em m->ioctl() directly.
+ * This function ensures that a module has defined the \em ioctl interface
+ * before sending ioctl commands.
+ */
 int
 ga_module_ioctl(ga_module_t *m, int command, int argsize, void *arg) {
 	if(m == NULL)

@@ -78,7 +78,7 @@
     <ClCompile Include="..\..\core\ga-module.cpp" />
     <ClCompile Include="..\..\core\ga-win32.cpp" />
     <ClCompile Include="..\..\core\libga.cpp" />
-    <ClCompile Include="..\..\core\pipeline.cpp" />
+    <ClCompile Include="..\..\core\dpipe.cpp" />
     <ClCompile Include="..\..\core\rtspconf.cpp" />
     <ClCompile Include="..\..\core\rtspserver.cpp" />
     <ClCompile Include="..\..\core\server.cpp" />
@@ -95,7 +95,7 @@
     <ClInclude Include="..\..\core\ga-confvar.h" />
     <ClInclude Include="..\..\core\ga-module.h" />
     <ClInclude Include="..\..\core\ga-win32.h" />
-    <ClInclude Include="..\..\core\pipeline.h" />
+    <ClInclude Include="..\..\core\dpipe.h" />
     <ClInclude Include="..\..\core\rtspconf.h" />
     <ClInclude Include="..\..\core\rtspserver.h" />
     <ClInclude Include="..\..\core\server.h" />

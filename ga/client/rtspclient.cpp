@@ -600,7 +600,7 @@ play_video_priv(int ch/*channel*/, unsigned char *buffer, int bufsize, struct ti
 #ifndef ANDROID
 	union SDL_Event evt;
 #endif
-	pooldata_t *data = NULL;
+	dpipe_buffer_t *data = NULL;
 	AVPicture *dstframe = NULL;
 	struct timeval ftv;
 	static unsigned fcount = 0;
@@ -686,8 +686,8 @@ play_video_priv(int ch/*channel*/, unsigned char *buffer, int bufsize, struct ti
 			}
 			pthread_mutex_unlock(&rtspParam->surfaceMutex[ch]);
 			// copy into pool
-			data = rtspParam->pipe[ch]->allocate_data();
-			dstframe = (AVPicture*) data->ptr;
+			data = dpipe_get(rtspParam->pipe[ch]);
+			dstframe = (AVPicture*) data->pointer;
 			sws_scale(rtspParam->swsctx[ch],
 				// source: decoded frame
 				vframe[ch]->data, vframe[ch]->linesize,
@@ -701,7 +701,7 @@ play_video_priv(int ch/*channel*/, unsigned char *buffer, int bufsize, struct ti
 					ga_save_printf(savefp_yuvts, "Frame #%08d: %u.%06u\n", fcount++, ftv.tv_sec, ftv.tv_usec);
 				}
 			}
-			rtspParam->pipe[ch]->store_data(data);
+			dpipe_store(rtspParam->pipe[ch], data);
 			// request to render it
 #ifdef PRINT_LATENCY
 			gettimeofday(&ptv1, NULL);

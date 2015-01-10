@@ -53,7 +53,7 @@ int server_num_token_to_fill = 1;
 int server_max_tokens = 2;
 int video_fps = 24;
 
-pipeline *g_pipe[SOURCES];
+dpipe_t *g_pipe[SOURCES];
 
 static char *ga_root = NULL;
 
@@ -111,7 +111,7 @@ vsource_init(int width, int height) {
 	for(i = 0; i < SOURCES; i++) {
 		char pipename[64];
 		snprintf(pipename, sizeof(pipename), imagepipefmt, i);
-		if ((g_pipe[i] = pipeline::lookup(pipename)) == NULL) {
+		if ((g_pipe[i] = dpipe_lookup(pipename)) == NULL) {
 			ga_error("image source hook: cannot find pipeline '%s'\n", pipename);
 			return -1;
 		}
@@ -151,15 +151,14 @@ void
 ga_hook_capture_dupframe(vsource_frame_t *frame) {
 	int i;
 	for(i = 1; i < SOURCES; i++) {
-		pooldata_t *dupdata;
+		dpipe_buffer_t *dupdata;
 		vsource_frame_t *dupframe;
-		dupdata = g_pipe[i]->allocate_data();
-		dupframe = (vsource_frame_t*) dupdata->ptr;
+		dupdata = dpipe_get(g_pipe[i]);
+		dupframe = (vsource_frame_t*) dupdata->pointer;
 		//
 		vsource_dup_frame(frame, dupframe);
 		//
-		g_pipe[i]->store_data(dupdata);
-		g_pipe[i]->notify_all();
+		dpipe_store(g_pipe[i], dupdata);
 	}
 	return;
 }

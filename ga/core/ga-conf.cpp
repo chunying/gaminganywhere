@@ -16,6 +16,11 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+/**
+ * @file
+ * GamingAnywhere configuration file loader: implementations
+ */
+
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -35,11 +40,25 @@
 
 using namespace std;
 
-//
-
+/** Global variables used to store loaded configurations */
 static map<string,gaConfVar> ga_vars;
 static map<string,gaConfVar>::iterator ga_vmi = ga_vars.begin();
 
+/**
+ * Trim a configuration string. This is an internal function.
+ *
+ * @param buf [in] Pointer to a loaded string from the configuration file.
+ * @return Pointer to the trimmed string.
+ *
+ * Note that this function does not preserve the content of the input string.
+ * This function pre-process a loaded string based on the following logics:
+ * - Remove heading space characters
+ * - Remove section header '[':
+ *	Section headers is only for improving configuration file's readability.
+ * - Remove comment char from head: '#', ';', and '//'
+ * - Remove comment char from tail: '#'
+ * - Remove space characters  and the end
+ */
 static char *
 ga_conf_trim(char *buf) {
 	char *ptr;
@@ -81,6 +100,14 @@ ga_conf_trim(char *buf) {
 	return buf;
 }
 
+/**
+ * Parse a single configuration string. This is an internal function.
+ *
+ * @param filename [in] The current configuration file name.
+ * @param lineno [in] The current line number of the string.
+ * @param buf [in] The content of the current configuration string.
+ * @return 0 on success, or -1 on error.
+ */
 static int
 ga_conf_parse(const char *filename, int lineno, char *buf) {
 	char *option, *token; //, *saveptr;
@@ -171,8 +198,16 @@ ga_conf_parse(const char *filename, int lineno, char *buf) {
 	return 0;
 }
 
-//
-
+/**
+ * Load a configuration file.
+ *
+ * @param filename [in] The configuration pathname
+ * @return 0 on success, or -1 on error.
+ *
+ * The given configuration file is parsed and loaded into the system.
+ * Other system components can then read the loaded parameters using
+ * functions exported from this file.
+ */
 int
 ga_conf_load(const char *filename) {
 	FILE *fp;
@@ -195,6 +230,18 @@ ga_conf_load(const char *filename) {
 	return lineno;
 }
 
+/**
+ * Parse a GamingAnywere server URL.
+ *
+ * @param url [in] Pointer to the URL string.
+ * @return 0 on success, or -1 on error.
+ *
+ * The server URL is in the form of rtsp://server-address:port/path.
+ * The parsed URL is stored in the configuration parameter:
+ * - \em server-url: Contains the full URL;
+ * - \em server-name: Contains only the server-address part;
+ * - \em server-port: Contains only the port number (if given)
+ */
 int
 ga_url_parse(const char *url) {
 	char *ptr, servername[1024], serverport[64];
@@ -228,6 +275,9 @@ ga_url_parse(const char *url) {
 	return 0;
 }
 
+/**
+ * Clear all loaded configuration.
+ */
 void
 ga_conf_clear() {
 	ga_vars.clear();
@@ -235,6 +285,18 @@ ga_conf_clear() {
 	return;
 }
 
+/**
+ * Load the value of a parameter in string format.
+ *
+ * @param key [in] The parameter to be loaded.
+ * @param store [in,out] Buffer to store the loaded value.
+ * @param slen[in] Length of buffers pointed by \a store.
+ * @return A pointer to the loaded value on success, or NULL on error.
+ *
+ * Note that if \a store is NULL, this function automatically allocates
+ * spaces to store the result. You may need to release the memory by
+ * calling \em free().
+ */
 char *
 ga_conf_readv(const char *key, char *store, int slen) {
 	map<string,gaConfVar>::iterator mi;
@@ -248,6 +310,15 @@ ga_conf_readv(const char *key, char *store, int slen) {
 	return store;
 }
 
+/**
+ * Load the value of a parameter as an integer.
+ *
+ * @param key [in] The parameter to be loaded.
+ * @return The integer value of the parameter.
+ *
+ * Note that when the given parameter is not defined,
+ * this function returns zero.
+ */
 int
 ga_conf_readint(const char *key) {
 	char buf[64];
@@ -257,6 +328,15 @@ ga_conf_readint(const char *key) {
 	return strtol(ptr, NULL, 0);
 }
 
+/**
+ * Load the value of a parameter as an double float number.
+ *
+ * @param key [in] The parameter to be loaded.
+ * @return The double float value of the parameter.
+ *
+ * Note that when the given parameter is not defined,
+ * this function returns 0.0.
+ */
 double
 ga_conf_readdouble(const char *key) {
 	char buf[64];
@@ -266,6 +346,21 @@ ga_conf_readdouble(const char *key) {
 	return strtod(ptr, NULL);
 }
 
+/**
+ * Load multiple integer values specified in a parameter.
+ * This is an internal function.
+ *
+ * @param key [in] The parameter to be loaded.
+ * @param val [out] An integer array used to store loaded integers.
+ * @param n [in] The expected number of integers to be loaded.
+ * @return The exact number of integers loaded into \a val.
+ *	This number can be less than or equal to \a n.
+ *
+ * This function attempts to loads \a n numbers from the parameter and
+ * store the loaded number in \a val in the order.
+ * 
+ * A sample configuration line is: param = 1 2 3.
+ */
 static int
 ga_conf_multiple_int(char *buf, int *val, int n) {
 	int reads = 0;
@@ -280,6 +375,20 @@ ga_conf_multiple_int(char *buf, int *val, int n) {
 	return reads;
 }
 
+/**
+ * Load multiple integer values specified in a parameter.
+ *
+ * @param key [in] The parameter to be loaded.
+ * @param val [out] An integer array used to store loaded integers.
+ * @param n [in] The expected number of integers to be loaded.
+ * @return The exact number of integers loaded into \a val.
+ *	This number can be less than or equal to \a n.
+ *
+ * This function attempts to loads \a n numbers from the parameter and
+ * store the loaded number in \a val in the order.
+ * 
+ * A sample configuration line is: param = 1 2 3.
+ */
 int
 ga_conf_readints(const char *key, int *val, int n) {
 	char buf[1024];
@@ -289,6 +398,16 @@ ga_conf_readints(const char *key, int *val, int n) {
 	return ga_conf_multiple_int(buf, val, n);
 }
 
+/**
+ * Determine whether a string represents TRUE or FALSE.
+ *
+ * @param ptr [in] The string to be determined.
+ * @param defval [in] The default value if the string cannot be determined. 
+ * @return 0 for FALSE, or 1 for TRUE.
+ *
+ * - The following string values are treated as TRUE: true, 1, y, yes, enabled, enable.
+ * - The following string values are treated as FALSE: false, 0, n, no, disabled, disable. 
+ */
 int
 ga_conf_boolval(const char *ptr, int defval) {
 	if(strcasecmp(ptr, "true") == 0
@@ -308,6 +427,18 @@ ga_conf_boolval(const char *ptr, int defval) {
 	return defval;
 }
 
+/**
+ * Load the value of a parameter as boolean.
+ *
+ * @param ptr [in] The parameter to be loaded.
+ * @param defval [in] The returned value if the parameter
+ *	is not defined in the configuration file.
+ * @return 0 for FALSE, or 1 for TRUE.
+ *
+ * See the definitions defined in \em ga_conf_boolval function:
+ * - The following string values are treated as TRUE: true, 1, y, yes, enabled, enable.
+ * - The following string values are treated as FALSE: false, 0, n, no, disabled, disable. 
+ */
 int
 ga_conf_readbool(const char *key, int defval) {
 	char buf[64];
@@ -317,23 +448,56 @@ ga_conf_readbool(const char *key, int defval) {
 	return ga_conf_boolval(ptr, defval);
 }
 
+/**
+ * Add a parameter value into system runtime configuration.
+ *
+ * @param key [in] The parameter name.
+ * @param value [in] The parameter value.
+ *
+ * Note again, this function DOES NOT MODIFY the configuration file.
+ * It only adds/changes the parameters in the runtime configuration.
+ */
 int
 ga_conf_writev(const char *key, const char *value) {
 	ga_vars[key] = value;
 	return 0;
 }
 
+/**
+ * Delete a parameter value from system runtime configuration.
+ *
+ * @param key [in] The parameter to be deleted.
+ *
+ * Note again, this function DOES NOT MODIFY the configuration file.
+ * It only deletes the parameters in the runtime configuration.
+ */
 void
 ga_conf_erase(const char *key) {
 	ga_vars.erase(key);
 	return;
 }
 
+/**
+ * Test if a given parameter is defined as a 'parameter map'.
+ *
+ * @param key [in] The parameter to be tested.
+ * @return 1 if the parameter is defined as a map, or 0 if not.
+ *
+ * A 'parameter map' is defined like: param[key] = value.\n
+ * in the configuration file.
+ */
 int
 ga_conf_ismap(const char *key) {
 	return ga_conf_mapsize(key) > 0 ? 1 : 0;
 }
 
+/**
+ * Determine if a 'parameter map' contains a given \a key.
+ *
+ * @param mapname [in] The name of the parameter map.
+ * @param key [in] The key to be tested.
+ * @return 0 if the key is not found, or non-zero if found.
+ */
 int
 ga_conf_haskey(const char *mapname, const char *key) {
 	map<string,gaConfVar>::iterator mi;
@@ -342,6 +506,12 @@ ga_conf_haskey(const char *mapname, const char *key) {
 	return mi->second.haskey(key);
 }
 
+/**
+ * Get the number of keys defined in a parameter map
+ *
+ * @param mapname [in] The name of the parameter map.
+ * @return The number of keys defined in the parameter map.
+ */
 int
 ga_conf_mapsize(const char *mapname) {
 	map<string,gaConfVar>::iterator mi;
@@ -350,6 +520,19 @@ ga_conf_mapsize(const char *mapname) {
 	return mi->second.msize();
 }
 
+/**
+ * Read a string value from a key of a parameter map.
+ *
+ * @param mapname [in] The name of the parameter map.
+ * @param key [in] The key to be retrieved.
+ * @param store [out] Buffer to store the loaded value.
+ * @param slen [in] Length of buffers pointed by \a store.
+ * @return Pointer to the loaded value on success, or NULL on error.
+ *
+ * Note that if \a store is NULL, this function automatically allocates
+ * spaces to store the result. You may need to release the memory by
+ * calling \em free().
+ */
 char *
 ga_conf_mapreadv(const char *mapname, const char *key, char *store, int slen) {
 	map<string,gaConfVar>::iterator mi;
@@ -363,6 +546,16 @@ ga_conf_mapreadv(const char *mapname, const char *key, char *store, int slen) {
 	return store;
 }
 
+/**
+ * Read an integer value from a key of a parameter map.
+ *
+ * @param mapname [in] The name of the parameter map.
+ * @param key [in] The key to be retrieved.
+ * @return The loaded integer value.
+ *
+ * Note that when the given key is not defined,
+ * this function returns zero.
+ */
 int
 ga_conf_mapreadint(const char *mapname, const char *key) {
 	char buf[64];
@@ -372,6 +565,22 @@ ga_conf_mapreadint(const char *mapname, const char *key) {
 	return strtol(ptr, NULL, 0);
 }
 
+/**
+ * Read multiple integer values from a key of a parameter map.
+ *
+ * @param mapname [in] The name of the parameter map.
+ * @param key [in] The key to be retrieved.
+ * @param val [out] The array used to store loaded integers.
+ * @param n [in] The expected number of integers to be loaded.
+ * @return The exact number of integers loaded into \a val.
+ *	This number can be less than or equal to \a n.
+ *
+ * This function attempts to loads \a n numbers from
+ * the key of the parameter map and store the loaded number in
+ * \a val in the order.
+ * 
+ * A sample configuration line is: param[key] = 1 2 3.
+ */
 int
 ga_conf_mapreadints(const char *mapname, const char *key, int *val, int n) {
 	char buf[1024];
@@ -381,6 +590,16 @@ ga_conf_mapreadints(const char *mapname, const char *key, int *val, int n) {
 	return ga_conf_multiple_int(buf, val, n);
 }
 
+/**
+ * Read a double float value from a key of a parameter map.
+ *
+ * @param mapname [in] The name of the parameter map.
+ * @param key [in] The key to be retrieved.
+ * @return The loaded double float value.
+ *
+ * Note that when the given key is not defined,
+ * this function returns 0.0.
+ */
 double
 ga_conf_mapreaddouble(const char *mapname, const char *key) {
 	char buf[64];
@@ -390,6 +609,18 @@ ga_conf_mapreaddouble(const char *mapname, const char *key) {
 	return strtod(ptr, NULL);
 }
 
+/**
+ * Read a boolean value from a key of a parameter map.
+ *
+ * @param mapname [in] The name of the parameter map.
+ * @param key [in] The key to be retrieved.
+ * @param defval [in] The returned default value if \a key is not defined.
+ * @return 0 for FALSE, or 1 for TRUE.
+ *
+ * See the definitions defined in \em ga_conf_boolval function:
+ * - The following string values are treated as TRUE: true, 1, y, yes, enabled, enable.
+ * - The following string values are treated as FALSE: false, 0, n, no, disabled, disable. 
+ */
 int
 ga_conf_mapreadbool(const char *mapname, const char *key, int defval) {
 	char buf[64];
@@ -399,12 +630,32 @@ ga_conf_mapreadbool(const char *mapname, const char *key, int defval) {
 	return ga_conf_boolval(ptr, defval);
 }
 
+/**
+ * Add a parameter map key's value into system runtime configuration.
+ *
+ * @param mapname [in] The parameter map name.
+ * @param key [in] The key name.
+ * @param value [in] The parameter value.
+ * @return This function always returns zero.
+ *
+ * Note again, this function DOES NOT MODIFY the configuration file.
+ * It only adds/changes the parameters in the runtime configuration.
+ */
 int
 ga_conf_mapwritev(const char *mapname, const char *key, const char *value) {
 	ga_vars[mapname][key] = value;
 	return 0;
 }
 
+/**
+ * Delete a parameter map key's value into system runtime configuration.
+ *
+ * @param mapname [in] The parameter map name.
+ * @param key [in] The key name.
+ *
+ * Note again, this function DOES NOT MODIFY the configuration file.
+ * It only deletes the parameters in the runtime configuration.
+ */
 void
 ga_conf_maperase(const char *mapname, const char *key) {
 	map<string,gaConfVar>::iterator mi;
@@ -414,6 +665,14 @@ ga_conf_maperase(const char *mapname, const char *key) {
 	return;
 }
 
+/**
+ * Reset the iteration pointer of a parameter map.
+ *
+ * @param mapname [in] The name of the parameter map.
+ *
+ * This function is usually called before you attempt to enumerate
+ * key/values in a parameter map.
+ */
 void
 ga_conf_mapreset(const char *mapname) {
 	map<string,gaConfVar>::iterator mi;
@@ -423,6 +682,18 @@ ga_conf_mapreset(const char *mapname) {
 	return;
 }
 
+/**
+ * Get the current key from a parameter map.
+ *
+ * @param mapname [in] The name of the parameter map.
+ * @param keystore [out] The buffer used to stora the current key.
+ * @param klen [in] The buffer lenfgth of \a keystore.
+ * @return Pointer to the key string, or NULL on error.
+ *
+ * Note that if \a keystore is NULL, this function automatically allocates
+ * spaces to store the key. You may need to release the memory by
+ * calling \em free().
+ */
 char *
 ga_conf_mapkey(const char *mapname, char *keystore, int klen) {
 	map<string,gaConfVar>::iterator mi;
@@ -436,6 +707,18 @@ ga_conf_mapkey(const char *mapname, char *keystore, int klen) {
 	return keystore;
 }
 
+/**
+ * Get the current value from a parameter map.
+ *
+ * @param mapname [in] The name of the parameter map.
+ * @param valstore [out] The buffer used to stora the current key.
+ * @param vlen [in] The buffer lenfgth of \a valstore.
+ * @return Pointer to the value string, or NULL on error.
+ *
+ * Note that if \a valstore is NULL, this function automatically allocates
+ * spaces to store the key. You may need to release the memory by
+ * calling \em free().
+ */
 char *
 ga_conf_mapvalue(const char *mapname, char *valstore, int vlen) {
 	map<string,gaConfVar>::iterator mi;
@@ -449,6 +732,18 @@ ga_conf_mapvalue(const char *mapname, char *valstore, int vlen) {
 	return valstore;
 }
 
+/**
+ * Advance the iteration pointer of a parameter map and get its key value.
+ *
+ * @param mapname [in] The name of the parameter map.
+ * @param keystore [out] The buffer used to stora the next key.
+ * @param klen [in] The buffer lenfgth of \a keystore.
+ *
+ * This function is uaually called during an enumeration process.
+ * Note that if \a keystore is NULL, this function automatically allocates
+ * spaces to store the key. You may need to release the memory by
+ * calling \em free().
+ */
 char *
 ga_conf_mapnextkey(const char *mapname, char *keystore, int klen) {
 	map<string,gaConfVar>::iterator mi;
@@ -465,16 +760,35 @@ ga_conf_mapnextkey(const char *mapname, char *keystore, int klen) {
 	return keystore;
 }
 
+/**
+ * Reset the global runtime configuration iteration pointer.
+ *
+ * This function is used to enumerate all runtime configurations.
+ */
 void ga_conf_reset() {
 	ga_vmi = ga_vars.begin();
 }
 
+/**
+ * Get the current key of the gloabl runtime configuration.
+ *
+ * @return The current key value.
+ *
+ * This function is used to enumerate all runtime configurations.
+ */
 const char *ga_conf_key() {
 	if(ga_vmi == ga_vars.end())
 		return NULL;
 	return ga_vmi->first.c_str();
 }
 
+/**
+ * Advance and get the key of the global runtime configuratin.
+ *
+ * @return The next key value, or NULL if it reaches the end.
+ *
+ * This function is used to enumerate all runtime configurations.
+ */
 const char *ga_conf_nextkey() {
 	if(ga_vmi == ga_vars.end())
 		return NULL;

@@ -21,7 +21,7 @@
 
 #include "ga-common.h"
 #include "vsource.h"
-#include "pipeline.h"
+#include "dpipe.h"
 #include "rtspconf.h"
 
 #include "ga-hook-common.h"
@@ -67,7 +67,7 @@ D3D9_screen_capture(IDirect3DDevice9 * pDevice) {
 	IDirect3DSurface9 *renderSurface, *oldRenderSurface;
 	D3DLOCKED_RECT lockedRect;
 	int i;
-	pooldata_t *data;
+	dpipe_buffer_t *data;
 	vsource_frame_t *frame;
 	//
 	if(vsource_initialized == 0)
@@ -174,8 +174,8 @@ D3D9_screen_capture(IDirect3DDevice9 * pDevice) {
 	// copy image 
 	do {
 		unsigned char *src, *dst;
-		data = g_pipe[0]->allocate_data();
-		frame = (vsource_frame_t*) data->ptr;
+		data = dpipe_get(g_pipe[0]);
+		frame = (vsource_frame_t*) data->pointer;
 		frame->pixelformat = PIX_FMT_BGRA;
 		frame->realwidth = desc.Width;
 		frame->realheight = desc.Height;
@@ -199,18 +199,16 @@ D3D9_screen_capture(IDirect3DDevice9 * pDevice) {
 	// duplicate from channel 0 to other channels
 	for(i = 1; i < SOURCES; i++) {
 		int j;
-		pooldata_t *dupdata;
+		dpipe_buffer_t *dupdata;
 		vsource_frame_t *dupframe;
-		dupdata = g_pipe[i]->allocate_data();
-		dupframe = (vsource_frame_t*) dupdata->ptr;
+		dupdata = dpipe_get(g_pipe[i]);
+		dupframe = (vsource_frame_t*) dupdata->pointer;
 		//
 		vsource_dup_frame(frame, dupframe);
 		//
-		g_pipe[i]->store_data(dupdata);
-		g_pipe[i]->notify_all();
+		dpipe_store(g_pipe[i], dupdata);
 	}
-	g_pipe[0]->store_data(data);
-	g_pipe[0]->notify_all();
+	dpipe_store(g_pipe[0], data);
 	
 	offscreenSurface->UnlockRect();
 #if 1	// XXX: disable until we have found a good place to safely Release()
@@ -632,7 +630,7 @@ hook_DXGISwapChainPresent(
 	static int capture_initialized = 0;
 	//
 	int i;
-	pooldata_t *data;
+	dpipe_buffer_t *data;
 	vsource_frame_t *frame;
 	//
 	DXGI_SWAP_CHAIN_DESC pDESC;
@@ -741,8 +739,8 @@ hook_DXGISwapChainPresent(
 		// copy image 
 		do {
 			unsigned char *src, *dst;
-			data = g_pipe[0]->allocate_data();
-			frame = (vsource_frame_t*) data->ptr;
+			data = dpipe_get(g_pipe[0]);
+			frame = (vsource_frame_t*) data->pointer;
 			frame->pixelformat = PIX_FMT_BGRA;
 			frame->realwidth = desc.Width;
 			frame->realheight = desc.Height;
@@ -764,18 +762,16 @@ hook_DXGISwapChainPresent(
 		// duplicate from channel 0 to other channels
 		for(i = 1; i < SOURCES; i++) {
 			int j;
-			pooldata_t *dupdata;
+			dpipe_buffer_t *dupdata;
 			vsource_frame_t *dupframe;
-			dupdata = g_pipe[i]->allocate_data();
-			dupframe = (vsource_frame_t*) dupdata->ptr;
+			dupdata = dpipe_get(g_pipe[i]);
+			dupframe = (vsource_frame_t*) dupdata->pointer;
 			//
 			vsource_dup_frame(frame, dupframe);
 			//
-			g_pipe[i]->store_data(dupdata);
-			g_pipe[i]->notify_all();
+			dpipe_store(g_pipe[i], dupdata);
 		}
-		g_pipe[0]->store_data(data);
-		g_pipe[0]->notify_all();
+		dpipe_store(g_pipe[0], data);
 		
 		pDstBuffer->Unmap(0);
 
@@ -825,8 +821,8 @@ hook_DXGISwapChainPresent(
 		// copy image 
 		do {
 			unsigned char *src, *dst;
-			data = g_pipe[0]->allocate_data();
-			frame = (vsource_frame_t*) data->ptr;
+			data = dpipe_get(g_pipe[0]);
+			frame = (vsource_frame_t*) data->pointer;
 			frame->pixelformat = PIX_FMT_BGRA;
 			frame->realwidth = desc.Width;
 			frame->realheight = desc.Height;
@@ -848,18 +844,16 @@ hook_DXGISwapChainPresent(
 		// duplicate from channel 0 to other channels
 		for(i = 1; i < SOURCES; i++) {
 			int j;
-			pooldata_t *dupdata;
+			dpipe_buffer_t *dupdata;
 			vsource_frame_t *dupframe;
-			dupdata = g_pipe[i]->allocate_data();
-			dupframe = (vsource_frame_t*) dupdata->ptr;
+			dupdata = dpipe_get(g_pipe[i]);
+			dupframe = (vsource_frame_t*) dupdata->pointer;
 			//
 			vsource_dup_frame(frame, dupframe);
 			//
-			g_pipe[i]->store_data(dupdata);
-			g_pipe[i]->notify_all();
+			dpipe_store(g_pipe[i], dupdata);
 		}
-		g_pipe[0]->store_data(data);
-		g_pipe[0]->notify_all();
+		dpipe_store(g_pipe[0], data);
 
 		pDeviceContext->Unmap(pDstBuffer, 0);
 

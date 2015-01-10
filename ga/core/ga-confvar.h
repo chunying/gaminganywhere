@@ -16,17 +16,25 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+/**
+ * @file
+ * Class used to store a single GamingAnywhere parameter: header files
+ */
+
 #ifndef __GA_CONFVAR_H__
 #define	__GA_CONFVAR_H__
 
 #include <map>
 #include <string>
 
+/**
+ * Class used to store a single GamingAnywhere parameter.
+ */
 class gaConfVar {
 private:
-	std::string data;
-	std::map<std::string,std::string> mapdata;
-	std::map<std::string,std::string>::iterator mi;
+	std::string data;	/**< Store the plain-text value */
+	std::map<std::string,std::string> mapdata;	/**< Used to store the parameter map's key and value */
+	std::map<std::string,std::string>::iterator mi;	/**< Used for iterate throughout the parameter map */
 	void clear();
 public:
 	gaConfVar();

@@ -14,7 +14,7 @@ LOCAL_CFLAGS := -Wno-psabi -DANDROID -D__STDC_CONSTANT_MACROS -DGL_GLEXT_PROTOTY
 #-D__STDINT_LIMITS
 LOCAL_C_INCLUDES := $(LOCAL_PATH)/include $(LOCAL_PATH)/include/live555
 LOCAL_SRC_FILES := src/ga-common.cpp src/ga-conf.cpp src/ga-confvar.cpp \
-		   src/ga-avcodec.cpp src/pipeline.cpp \
+		   src/ga-avcodec.cpp src/dpipe.cpp \
 		   src/rtspconf.cpp src/controller.cpp src/ctrl-sdl.cpp \
 		   src/libgaclient.cpp src/rtspclient.cpp \
 		   src/qosreport.cpp \

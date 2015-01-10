@@ -30,7 +30,7 @@
 #ifndef ANDROID
 #include "vsource.h"
 #endif
-#include "pipeline.h"
+#include "dpipe.h"
 
 #define	SDL_USEREVENT_CREATE_OVERLAY	0x0001
 #define	SDL_USEREVENT_OPEN_AUDIO	0x0002
@@ -62,7 +62,7 @@ struct RTSPThreadParam {
 	JNIEnv *jnienv;
 	pthread_mutex_t surfaceMutex[VIDEO_SOURCE_CHANNEL_MAX];
 	struct SwsContext *swsctx[VIDEO_SOURCE_CHANNEL_MAX];
-	pipeline *pipe[VIDEO_SOURCE_CHANNEL_MAX];
+	dpipe_t *pipe[VIDEO_SOURCE_CHANNEL_MAX];
 #else
 	pthread_mutex_t surfaceMutex[VIDEO_SOURCE_CHANNEL_MAX];
 #if 1	// only support SDL2
@@ -72,7 +72,7 @@ struct RTSPThreadParam {
 	SDL_Texture *overlay[VIDEO_SOURCE_CHANNEL_MAX];
 #endif
 	struct SwsContext *swsctx[VIDEO_SOURCE_CHANNEL_MAX];
-	pipeline *pipe[VIDEO_SOURCE_CHANNEL_MAX];
+	dpipe_t *pipe[VIDEO_SOURCE_CHANNEL_MAX];
 	// audio
 	pthread_mutex_t audioMutex;
 	bool audioOpened;

@@ -28,7 +28,7 @@
 #include "ga-conf.h"
 #include "ga-module.h"
 
-#include "pipeline.h"
+#include "dpipe.h"
 
 //// Prevent use of GLOBAL_HEADER to pass parameters, disabled by default
 //#define STANDALONE_SDP	1
@@ -100,19 +100,19 @@ vencoder_init(void *arg) {
 	for(iid = 0; iid < video_source_channels(); iid++) {
 		char pipename[64];
 		int outputW, outputH;
-		pipeline *pipe;
+		dpipe_t *pipe;
 		//
 		_sps[iid] = _pps[iid] = NULL;
 		_spslen[iid] = _ppslen[iid] = 0;
 		snprintf(pipename, sizeof(pipename), pipefmt, iid);
 		outputW = video_source_out_width(iid);
 		outputH = video_source_out_height(iid);
-		if((pipe = pipeline::lookup(pipename)) == NULL) {
+		if((pipe = dpipe_lookup(pipename)) == NULL) {
 			ga_error("video encoder: pipe %s is not found\n", pipename);
 			goto init_failed;
 		}
 		ga_error("video encoder: video source #%d from '%s' (%dx%d).\n",
-			iid, pipe->name(), outputW, outputH, iid);
+			iid, pipe->name, outputW, outputH, iid);
 		vencoder[iid] = ga_avcodec_vencoder_init(NULL,
 				rtspconf->video_encoder_codec,
 				outputW, outputH,
@@ -158,10 +158,10 @@ static void *
 vencoder_threadproc(void *arg) {
 	// arg is pointer to source pipename
 	int iid, outputW, outputH;
-	pooldata_t *data = NULL;
 	vsource_frame_t *frame = NULL;
 	char *pipename = (char*) arg;
-	pipeline *pipe = pipeline::lookup(pipename);
+	dpipe_t *pipe = dpipe_lookup(pipename);
+	dpipe_buffer_t *data = NULL;
 	AVCodecContext *encoder = NULL;
 	//
 	AVFrame *pic_in = NULL;
@@ -182,7 +182,7 @@ vencoder_threadproc(void *arg) {
 	//
 	rtspconf = rtspconf_global();
 	// init variables
-	iid = ((vsource_t*) pipe->get_privdata())->channel;
+	iid = pipe->channel_id;
 	encoder = vencoder[iid];
 	//
 	outputW = video_source_out_width(iid);
@@ -213,33 +213,21 @@ vencoder_threadproc(void *arg) {
 		outputW, outputH, rtspconf->video_fps,
 		nalbuf_size, pic_in_size);
 	//
-	pipe->client_register(ga_gettid(), &cond);
-	//
 	while(vencoder_started != 0 && encoder_running() > 0) {
 		AVPacket pkt;
 		int got_packet = 0;
 		// wait for notification
-		data = pipe->load_data();
+		struct timeval tv;
+		struct timespec to;
+		gettimeofday(&tv, NULL);
+		to.tv_sec = tv.tv_sec+1;
+		to.tv_nsec = tv.tv_usec * 1000;
+		data = dpipe_load(pipe, &to);
 		if(data == NULL) {
-			int err;
-			struct timeval tv;
-			struct timespec to;
-			gettimeofday(&tv, NULL);
-			to.tv_sec = tv.tv_sec+1;
-			to.tv_nsec = tv.tv_usec * 1000;
-			//
-			if((err = pipe->timedwait(&cond, &condMutex, &to)) != 0) {
-				ga_error("viedo encoder: image source timed out.\n");
-				continue;
-			}
-			data = pipe->load_data();
-			if(data == NULL) {
-				ga_error("viedo encoder: unexpected NULL frame received (from '%s', data=%d, buf=%d).\n",
-					pipe->name(), pipe->data_count(), pipe->buf_count());
-				continue;
-			}
+			ga_error("viedo encoder: image source timed out.\n");
+			continue;
 		}
-		frame = (vsource_frame_t*) data->ptr;
+		frame = (vsource_frame_t*) data->pointer;
 		// handle pts
 		if(basePts == -1LL) {
 			basePts = frame->imgpts;
@@ -257,10 +245,10 @@ vencoder_threadproc(void *arg) {
 			ga_error("video encoder: YUV mode failed - mismatched linesize(s) (src:%d,%d,%d; dst:%d,%d,%d)\n",
 				frame->linesize[0], frame->linesize[1], frame->linesize[2],
 				pic_in->linesize[0], pic_in->linesize[1], pic_in->linesize[2]);
-			pipe->release_data(data);
+			dpipe_put(pipe, data);
 			goto video_quit;
 		}
-		pipe->release_data(data);
+		dpipe_put(pipe, data);
 		// pts must be monotonically increasing
 		if(newpts > pts) {
 			pts = newpts;
@@ -305,7 +293,6 @@ vencoder_threadproc(void *arg) {
 	//
 video_quit:
 	if(pipe) {
-		pipe->client_unregister(ga_gettid());
 		pipe = NULL;
 	}
 	//

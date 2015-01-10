@@ -26,7 +26,7 @@
 
 #include "server.h"
 #include "vsource.h"
-#include "pipeline.h"
+#include "dpipe.h"
 #include "encoder-common.h"
 
 #include "ga-common.h"
@@ -171,9 +171,9 @@ vsource_threadproc(void *arg) {
 	int i;
 	int frame_interval;
 	struct timeval tv;
-	pooldata_t *data;
+	dpipe_buffer_t *data;
 	vsource_frame_t *frame;
-	pipeline *pipe[SOURCES];
+	dpipe_t *pipe[SOURCES];
 #ifdef WIN32
 	LARGE_INTEGER initialTv, captureTv, freq;
 #else
@@ -193,7 +193,7 @@ vsource_threadproc(void *arg) {
 	for(i = 0; i < SOURCES; i++) {
 		char pipename[64];
 		snprintf(pipename, sizeof(pipename), VIDEO_SOURCE_PIPEFORMAT, i);
-		if((pipe[i] = pipeline::lookup(pipename)) == NULL) {
+		if((pipe[i] = dpipe_lookup(pipename)) == NULL) {
 			ga_error("video source: cannot find pipeline '%s'\n", pipename);
 			exit(-1);
 		}
@@ -219,8 +219,8 @@ vsource_threadproc(void *arg) {
 			continue;
 		}
 		// copy image 
-		data = pipe[0]->allocate_data();
-		frame = (vsource_frame_t*) data->ptr;
+		data = dpipe_get(pipe[0]);
+		frame = (vsource_frame_t*) data->pointer;
 #ifdef __APPLE__
 		frame->pixelformat = PIX_FMT_RGBA;
 #else
@@ -276,18 +276,16 @@ vsource_threadproc(void *arg) {
 #endif
 		// duplicate from channel 0 to other channels
 		for(i = 1; i < SOURCES; i++) {
-			pooldata_t *dupdata;
+			dpipe_buffer_t *dupdata;
 			vsource_frame_t *dupframe;
-			dupdata = pipe[i]->allocate_data();
-			dupframe = (vsource_frame_t*) dupdata->ptr;
+			dupdata = dpipe_get(pipe[i]);
+			dupframe = (vsource_frame_t*) dupdata->pointer;
 			//
 			vsource_dup_frame(frame, dupframe);
 			//
-			pipe[i]->store_data(dupdata);
-			pipe[i]->notify_all();
+			dpipe_store(pipe[i], dupdata);
 		}
-		pipe[0]->store_data(data);
-		pipe[0]->notify_all();
+		dpipe_store(pipe[0], data);
 		// reconfigured?
 		if(vsource_reconfigured != 0) {
 			frame_interval = (int) (1000000.0 * vsource_framerate_d / vsource_framerate_n);

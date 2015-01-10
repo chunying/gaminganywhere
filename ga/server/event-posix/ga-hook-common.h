@@ -34,7 +34,7 @@ extern int server_num_token_to_fill;
 extern int server_max_tokens;
 extern int video_fps;
 
-extern pipeline *g_pipe[SOURCES];
+extern dpipe_t *g_pipe[SOURCES];
 
 int vsource_init(int width, int height);
 

@@ -364,7 +364,7 @@ gl_resize(int width, int height) {
 int
 gl_render() {
 	extern int image_rendered;
-	pooldata_t *data = NULL;
+	dpipe_buffer_t *data = NULL;
 	AVPicture *vframe = NULL;
 #ifdef PRINT_LATENCY
 	struct timeval ptv1;
@@ -377,9 +377,9 @@ gl_render() {
 	if(rtspThreadParam.pipe[0] == NULL)
 		return -1;
 	//
-	if((data = rtspThreadParam.pipe[0]->load_data()) == NULL)
+	if((data = dpipe_load_nowait(rtspThreadParam.pipe[0])) == NULL)
 		return -1;
-	vframe = (AVPicture*) data->ptr;
+	vframe = (AVPicture*) data->pointer;
 	//
 	//glClear(GL_COLOR_BUFFER_BIT);
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST/*GL_LINEAR*/);
@@ -405,7 +405,7 @@ gl_render() {
 			GL_UNSIGNED_SHORT_5_6_5, /* type */
 			vframe->data[0]);	/* pixels */
 	glDrawTexiOES(0, 0, 0, gl_width, gl_height);
-	rtspThreadParam.pipe[0]->release_data(data);
+	dpipe_put(rtspThreadParam.pipe[0], data);
 	image_rendered = 1;
 #ifdef PRINT_LATENCY
 	if(ptv0locked != 0) {
@@ -420,8 +420,9 @@ gl_render() {
 int
 create_overlay(int ch, int w, int h, PixelFormat format) {
 	struct SwsContext *swsctx = NULL;
-	pipeline *pipe = NULL;
-	pooldata_t *data = NULL;
+	dpipe_t *pipe = NULL;
+	dpipe_buffer_t *data = NULL;
+	char pipename[64];
 #ifdef PRINT_LATENCY
 	ptv0locked = 0;
 #endif
@@ -435,19 +436,16 @@ create_overlay(int ch, int w, int h, PixelFormat format) {
 		return -1;
 	}
 	// pipeline
-	if((pipe = new pipeline()) == NULL) {
+	snprintf(pipename, sizeof(pipename), "channel-%d", ch);
+	pipe = dpipe_create(ch, pipename, POOLSIZE, sizeof(AVPicture));
+	if(pipe == NULL) {
 		rtsperror("ga-client: cannot create pipeline.\n");
 		rtspThreadParam.quitLive555 = 1;
 		return -1;
 	}
-	if((data = pipe->datapool_init(POOLSIZE, sizeof(AVPicture))) == NULL) {
-		rtsperror("ga-client: cannot allocate data pool.\n");
-		rtspThreadParam.quitLive555 = 1;
-		return -1;
-	}
-	for(; data != NULL; data = data->next) {
-		bzero(data->ptr, sizeof(AVPicture));
-		if(avpicture_alloc((AVPicture*) data->ptr, PIX_FMT_RGB565, w, h) != 0) {
+	for(data = pipe->in; data != NULL; data = data->next) {
+		bzero(data->pointer, sizeof(AVPicture));
+		if(avpicture_alloc((AVPicture*) data->pointer, PIX_FMT_RGB565, w, h) != 0) {
 			rtsperror("ga-client: per frame initialization failed.\n");
 			rtspThreadParam.quitLive555 = 1;
 			return -1;

@@ -16,6 +16,11 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+/**
+ * @file
+ * GamingAnywhere configuration file loader: header files
+ */
+
 #ifndef __GA_CONF_H__
 #define __GA_CONF_H__
 

@@ -28,7 +28,7 @@
 #include "ga-conf.h"
 #include "ga-module.h"
 
-#include "pipeline.h"
+#include "dpipe.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -114,7 +114,7 @@ vencoder_init(void *arg) {
 	for(iid = 0; iid < video_source_channels(); iid++) {
 		char pipename[64];
 		int outputW, outputH;
-		pipeline *pipe;
+		dpipe_t *pipe;
 		x264_param_t params;
 		//
 		_sps[iid] = _pps[iid] = NULL;
@@ -129,12 +129,12 @@ vencoder_init(void *arg) {
 			ga_error("video encoder: unsupported resolutin %dx%d\n", outputW, outputH);
 			goto init_failed;
 		}
-		if((pipe = pipeline::lookup(pipename)) == NULL) {
+		if((pipe = dpipe_lookup(pipename)) == NULL) {
 			ga_error("video encoder: pipe %s is not found\n", pipename);
 			goto init_failed;
 		}
 		ga_error("video encoder: video source #%d from '%s' (%dx%d).\n",
-			iid, pipe->name(), outputW, outputH, iid);
+			iid, pipe->name, outputW, outputH, iid);
 		//
 		bzero(&params, sizeof(params));
 		x264_param_default(&params);
@@ -295,10 +295,10 @@ static void *
 vencoder_threadproc(void *arg) {
 	// arg is pointer to source pipename
 	int iid, outputW, outputH;
-	pooldata_t *data = NULL;
 	vsource_frame_t *frame = NULL;
 	char *pipename = (char*) arg;
-	pipeline *pipe = pipeline::lookup(pipename);
+	dpipe_t *pipe = dpipe_lookup(pipename);
+	dpipe_buffer_t *data = NULL;
 	x264_t *encoder = NULL;
 	//
 	long long basePts = -1LL, newpts = 0LL, pts = -1LL, ptsSync = 0LL;
@@ -317,7 +317,7 @@ vencoder_threadproc(void *arg) {
 	//
 	rtspconf = rtspconf_global();
 	// init variables
-	iid = ((vsource_t*) pipe->get_privdata())->channel;
+	iid = pipe->channel_id;
 	encoder = vencoder[iid];
 	//
 	outputW = video_source_out_width(iid);
@@ -332,36 +332,24 @@ vencoder_threadproc(void *arg) {
 		ga_gettid(),
 		outputW, outputH, rtspconf->video_fps);
 	//
-	pipe->client_register(ga_gettid(), &cond);
-	//
 	while(vencoder_started != 0 && encoder_running() > 0) {
 		x264_picture_t pic_in, pic_out = {0};
 		x264_nal_t *nal;
 		int i, size, nnal;
+		struct timeval tv;
+		struct timespec to;
+		gettimeofday(&tv, NULL);
 		// need reconfigure?
 		vencoder_reconfigure(iid);
 		// wait for notification
-		data = pipe->load_data();
+		to.tv_sec = tv.tv_sec+1;
+		to.tv_nsec = tv.tv_usec * 1000;
+		data = dpipe_load(pipe, &to);
 		if(data == NULL) {
-			int err;
-			struct timeval tv;
-			struct timespec to;
-			gettimeofday(&tv, NULL);
-			to.tv_sec = tv.tv_sec+1;
-			to.tv_nsec = tv.tv_usec * 1000;
-			//
-			if((err = pipe->timedwait(&cond, &condMutex, &to)) != 0) {
-				ga_error("viedo encoder: image source timed out.\n");
-				continue;
-			}
-			data = pipe->load_data();
-			if(data == NULL) {
-				ga_error("viedo encoder: unexpected NULL frame received (from '%s', data=%d, buf=%d).\n",
-					pipe->name(), pipe->data_count(), pipe->buf_count());
-				continue;
-			}
+			ga_error("viedo encoder: image source timed out.\n");
+			continue;
 		}
-		frame = (vsource_frame_t*) data->ptr;
+		frame = (vsource_frame_t*) data->pointer;
 		// handle pts
 		if(basePts == -1LL) {
 			basePts = frame->imgpts;
@@ -392,10 +380,10 @@ vencoder_threadproc(void *arg) {
 		// encode
 		if((size = x264_encoder_encode(encoder, &nal, &nnal, &pic_in, &pic_out)) < 0) {
 			ga_error("video encoder: encode failed, err = %d\n", size);
-			pipe->release_data(data);
+			dpipe_put(pipe, data);
 			break;
 		}
-		pipe->release_data(data);
+		dpipe_put(pipe, data);
 		// encode
 		if(size > 0) {
 			AVPacket pkt;
@@ -495,7 +483,6 @@ vencoder_threadproc(void *arg) {
 	//
 video_quit:
 	if(pipe) {
-		pipe->client_unregister(ga_gettid());
 		pipe = NULL;
 	}
 	if(pktbuf != NULL) {

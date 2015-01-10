@@ -28,7 +28,7 @@
 #include "ga-common.h"
 #include "ga-conf.h"
 #include "vsource.h"
-#include "pipeline.h"
+#include "dpipe.h"
 
 #include "ga-hook-common.h"
 #include "ga-hook-gl.h"
@@ -111,7 +111,7 @@ hook_glFlush() {
 	int vp_x, vp_y, vp_width, vp_height;
 	int i;
 	//
-	pooldata_t *data;
+	dpipe_buffer_t *data;
 	vsource_frame_t *frame;
 	//
 	if(global_initialized == 0) {
@@ -157,8 +157,8 @@ hook_glFlush() {
 		//
 		frameLinesize = vp_width<<2;
 		//
-		data = g_pipe[0]->allocate_data();
-		frame = (vsource_frame_t*) data->ptr;
+		data = dpipe_get(g_pipe[0]);
+		frame = (vsource_frame_t*) data->pointer;
 		frame->pixelformat = PIX_FMT_RGBA;
 		frame->realwidth = vp_width;
 		frame->realheight = vp_height;
@@ -181,8 +181,7 @@ hook_glFlush() {
 	} while(0);
 	// duplicate from channel 0 to other channels
 	ga_hook_capture_dupframe(frame);
-	g_pipe[0]->store_data(data);
-	g_pipe[0]->notify_all();		
+	dpipe_store(g_pipe[0], data);
 	//
 	return;
 }

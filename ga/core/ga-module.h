@@ -16,6 +16,11 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+/**
+ * @file
+ * Common functions and definitions for implementing a GamingAnywhere module: headers.
+ */
+
 #ifndef __GA_MODULE__
 #define __GA_MODULE__
 
@@ -25,82 +30,100 @@
 typedef void * HMODULE;
 #endif
 
+/**
+ * Enumeration for types of a module.
+ */
 enum ga_module_types {
-	GA_MODULE_TYPE_NULL = 0,
-	GA_MODULE_TYPE_CONTROL,
-	GA_MODULE_TYPE_ASOURCE,
-	GA_MODULE_TYPE_VSOURCE,
-	GA_MODULE_TYPE_FILTER,
-	GA_MODULE_TYPE_AENCODER,
-	GA_MODULE_TYPE_VENCODER,
-	GA_MODULE_TYPE_ADECODER,
-	GA_MODULE_TYPE_VDECODER
+	GA_MODULE_TYPE_NULL = 0,	/**< Not used */
+	GA_MODULE_TYPE_CONTROL,		/**< Is a controller module */
+	GA_MODULE_TYPE_ASOURCE,		/**< Is an audio source module */
+	GA_MODULE_TYPE_VSOURCE,		/**< Is an video source module */
+	GA_MODULE_TYPE_FILTER,		/**< Is a filter module */
+	GA_MODULE_TYPE_AENCODER,	/**< Is an audio encoder module */
+	GA_MODULE_TYPE_VENCODER,	/**< Is a video encoder module */
+	GA_MODULE_TYPE_ADECODER,	/**< Is an audio decoder module */
+	GA_MODULE_TYPE_VDECODER		/**< Is a video decoder module */
 };
 
+/**
+ * Enumeration for module ioctl() commands.
+ */
 enum ga_ioctl_commands {
-	GA_IOCTL_NULL = 0,
-	GA_IOCTL_RECONFIGURE,
-	GA_IOCTL_GETSPS = 0x100,
-	GA_IOCTL_GETPPS,
-	GA_IOCTL_GETVPS
+	GA_IOCTL_NULL = 0,		/**< Not used */
+	GA_IOCTL_RECONFIGURE,		/**< Reconfiguration */
+	GA_IOCTL_GETSPS = 0x100,	/**< Get SPS: for H.264 and H.265 */
+	GA_IOCTL_GETPPS,		/**< Get PPS: for H.264 and H.265 */
+	GA_IOCTL_GETVPS			/**< Get VPS: for H.265 */
 };
 
-#define	GA_IOCTL_ERR_NONE		0
-#define	GA_IOCTL_ERR_GENERAL		-1
-#define	GA_IOCTL_ERR_NULLMODULE		-2
-#define	GA_IOCTL_ERR_NOIOCTL		-3
-#define	GA_IOCTL_ERR_NOTINITIALIZED	-4
-#define	GA_IOCTL_ERR_NOTSUPPORTED	-5
-#define	GA_IOCTL_ERR_INVALID_ARGUMENT	-6
-#define	GA_IOCTL_ERR_NOTFOUND		-7
-#define	GA_IOCTL_ERR_BUFFERSIZE		-8
-#define	GA_IOCTL_ERR_BADID		-9
-#define	GA_IOCTL_ERR_NOMEM		-10
+/**
+ * GamingAnyhwere ioctl() error codes.
+ */
+#define	GA_IOCTL_ERR_NONE		0	/**< No error */
+#define	GA_IOCTL_ERR_GENERAL		-1	/**< General error */
+#define	GA_IOCTL_ERR_NULLMODULE		-2	/**< Module is NULL */
+#define	GA_IOCTL_ERR_NOIOCTL		-3	/**< ioctl() is not implemented */
+#define	GA_IOCTL_ERR_NOTINITIALIZED	-4	/**< Module has not been initialized */
+#define	GA_IOCTL_ERR_NOTSUPPORTED	-5	/**< Command is not supported */
+#define	GA_IOCTL_ERR_INVALID_ARGUMENT	-6	/**< Invalid argument */
+#define	GA_IOCTL_ERR_NOTFOUND		-7	/**< Not found */
+#define	GA_IOCTL_ERR_BUFFERSIZE		-8	/**< Buffer error */
+#define	GA_IOCTL_ERR_BADID		-9	/**< Invalid Id */
+#define	GA_IOCTL_ERR_NOMEM		-10	/**< No memory */
 
+/**
+ * Parameter for ioctl()'s codec GET SPS/PPS/VPS command.
+ */
 typedef struct ga_ioctl_buffer_s {
 	int id;
-	unsigned char *ptr;
-	int size;
+	unsigned char *ptr;	/**< Pointer to the buffer */
+	int size;		/**< Size of the buffer */
 }	ga_ioctl_buffer_t;
 
+/**
+ * Parameter for ioctl()'s codec reconfiguration command.
+ */
 typedef struct ga_ioctl_reconfigure_s {
 	int id;
-	int crf;
-	int framerate_n;
-	int framerate_d;
-	int bitrateKbps;	/* affects both bitrate and vbv-maxrate */
-	int bufsize;		/* vbv-bufsize */
+	int crf;		/**< Constant rate factor */
+	int framerate_n;	/**< Framerate numerator */
+	int framerate_d;	/**< Framerate denominator */
+	int bitrateKbps;	/**< bitrate in Kbit-per-second. Affects both bitrate and vbv-maxrate */
+	int bufsize;		/**< vbv-bufsize */
 }	ga_ioctl_reconfigure_t;
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 //////////////////////////////////////////////
+/**
+ * Data strucure to represent a module.
+ */
 typedef struct ga_module_s {
-	HMODULE	handle;
-	int type;
-	char *name;
-	char *mimetype;
-	int (*init)(void *arg);
-	int (*start)(void *arg);
+	HMODULE	handle;		/**< Handle to a module */
+	int type;		/**< Type of the module */
+	char *name;		/**< Name of the module */
+	char *mimetype;		/**< MIME-type of the module */
+	int (*init)(void *arg);		/**< Pointer to the init function */
+	int (*start)(void *arg);	/**< Pointer to the start function */
 	//void * (*threadproc)(void *arg);
-	int (*stop)(void *arg);
-	int (*deinit)(void *arg);
-	int (*ioctl)(int command, int argsize, void *arg);
-	int (*notify)(void *arg);
-	void * (*raw)(void *arg, int *size);
-	void * privdata;
+	int (*stop)(void *arg);		/**< Pointer to the stop function */
+	int (*deinit)(void *arg);	/**< Pointer to the deinit function */
+	int (*ioctl)(int command, int argsize, void *arg);	/**< Pointer to ioctl function */
+	int (*notify)(void *arg);	/**< Pointer to the notify function */
+	void * (*raw)(void *arg, int *size);	/**< Pointer to the raw function */
+	void * privdata;		/**< Private data of this module */
 }	ga_module_t;
 //////////////////////////////////////////////
 #ifdef __cplusplus
 }
 #endif
 
-#define	MODULE	extern "C"
+#define	MODULE	extern "C"	/**< Module interface is pure-C implementation: Export C symbols */
 #if defined WIN32 && defined GA_MODULE
 #define	MODULE_EXPORT	__declspec(dllexport)
 #else
-#define	MODULE_EXPORT
+#define	MODULE_EXPORT	/**< MODULE_EXPORT is not unsed in UNIX-like environment */
 #endif
 
 EXPORT ga_module_t * ga_load_module(const char *modname, const char *prefix);

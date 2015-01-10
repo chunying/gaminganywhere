@@ -12,7 +12,7 @@ OBJS	= libga.obj \
 	  ga-common.obj ga-conf.obj ga-confvar.obj ga-module.obj ga-avcodec.obj ga-win32.obj rtspconf.obj \
 	  ga-videolivesource.obj ga-audiolivesource.obj ga-mediasubsession.obj ga-qossink.obj ga-liveserver.obj \
 	  ga-crc.obj \
-	  pipeline.obj vconverter.obj vsource.obj asource.obj encoder-common.obj \
+	  dpipe.obj vconverter.obj vsource.obj asource.obj encoder-common.obj \
 	  controller.obj server.obj rtspserver.obj
 
 all: $(TARGET)

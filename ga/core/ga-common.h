@@ -53,6 +53,9 @@ extern "C" {
 
 #include "ga-win32.h"
 
+/** Enable audio subsystem? */
+#define	ENABLE_AUDIO
+
 /** Unit size size for RGBA pixels, in bytes */
 #define	RGBA_SIZE	4
 

@@ -20,7 +20,6 @@
 #include <map>
 #include <list>
 
-#include "server.h"
 #include "vsource.h"
 #include "encoder-common.h"
 
@@ -37,7 +36,6 @@ static pthread_rwlock_t encoder_lock;
 #else
 static pthread_rwlock_t encoder_lock = PTHREAD_RWLOCK_INITIALIZER;
 #endif
-//static map<RTSPContext*,RTSPContext*> encoder_clients;
 static map<void*, void*> encoder_clients;
 
 static bool threadLaunched = false;
@@ -50,41 +48,9 @@ static struct timeval synctv;
 // list of encoders
 static ga_module_t *vencoder = NULL;
 static ga_module_t *aencoder = NULL;
+static ga_module_t *sinkserver = NULL;
 static void *vencoder_param = NULL;
 static void *aencoder_param = NULL;
-
-static int encoder_send_packet_all_default(const char *, int, AVPacket *, int64_t, struct timeval *);
-// for ffmpeg-based rtsp server
-static int encoder_send_packet_all_ffmpeg(const char *, int, AVPacket *, int64_t, struct timeval *);
-static int encoder_send_packet_ffmpeg(const char *, void *ctx, int, AVPacket*, int64_t, struct timeval *);
-// for live-555 based rtsp server
-static int encoder_send_packet_live(const char *, void *ctx, int, AVPacket*, int64_t, struct timeval *);
-
-static int (*encoder_send_packet_all_internal)(const char *, int, AVPacket *, int64_t, struct timeval *)
-			= encoder_send_packet_all_ffmpeg;
-static int (*encoder_send_packet_internal)(const char *, void *, int, AVPacket *, int64_t, struct timeval *)
-			= encoder_send_packet_ffmpeg;
-
-int
-encoder_config_rtspserver(int type) {
-	switch(type) {
-	case RTSPSERVER_TYPE_FFMPEG:
-		encoder_send_packet_all_internal = encoder_send_packet_all_ffmpeg;
-		encoder_send_packet_internal = encoder_send_packet_ffmpeg;
-		ga_error("encoder: working with ffmpeg-based RTSP server.\n");
-		break;
-	case RTSPSERVER_TYPE_LIVE:
-		encoder_send_packet_all_internal = encoder_send_packet_all_default;
-		encoder_send_packet_internal = encoder_send_packet_live;
-		ga_error("encoder: working with live555-based RTSP server.\n");
-		break;
-	case RTSPSERVER_TYPE_NULL:
-	default:
-		ga_error("unknown rtspserver (%d)\n", type);
-		exit(-1);
-	}
-	return 0;
-}
 
 int
 encoder_pts_sync(int samplerate) {
@@ -135,6 +101,21 @@ encoder_register_aencoder(ga_module_t *m, void *param) {
 	return 0;
 }
 
+int
+encoder_register_sinkserver(ga_module_t *m) {
+	if(m->send_packet == NULL) {
+		ga_error("encoder error: sink server %s does not define send_packet interface\n", m->name);
+		return -1;
+	}
+	if(sinkserver != NULL) {
+		ga_error("encoder warning: replace sink server %s with %s\n",
+			sinkserver->name, m->name);
+	}
+	sinkserver = m;
+	ga_error("sink server: %s registered\n", m->name);
+	return 0;
+}
+
 ga_module_t *
 encoder_get_vencoder() {
 	return vencoder;
@@ -143,6 +124,11 @@ encoder_get_vencoder() {
 ga_module_t *
 encoder_get_aencoder() {
 	return aencoder;
+}
+
+ga_module_t *
+encoder_get_sinkserver() {
+	return sinkserver;
 }
 
 int
@@ -220,121 +206,12 @@ encoder_unregister_client(void /*RTSPContext*/ *rtsp) {
 }
 
 int
-encoder_send_packet(const char *prefix, void *ctx, int channelId, AVPacket *pkt, int64_t encoderPts, struct timeval *ptv) {
-	return encoder_send_packet_internal(prefix, ctx, channelId, pkt, encoderPts, ptv);
-}
-
-static int
-encoder_send_packet_ffmpeg(const char *prefix, void *ctx, int channelId, AVPacket *pkt, int64_t encoderPts, struct timeval *ptv) {
-	int iolen;
-	uint8_t *iobuf;
-	RTSPContext *rtsp = (RTSPContext*) ctx;
-	//
-	if(rtsp->fmtctx[channelId] == NULL) {
-		// not initialized - disabled?
-		return 0;
+encoder_send_packet(const char *prefix, int channelId, AVPacket *pkt, int64_t encoderPts, struct timeval *ptv) {
+	if(sinkserver) {
+		return sinkserver->send_packet(prefix, channelId, pkt, encoderPts, ptv);
 	}
-	if(encoderPts != (int64_t) AV_NOPTS_VALUE) {
-		pkt->pts = av_rescale_q(encoderPts,
-				rtsp->encoder[channelId]->time_base,
-				rtsp->stream[channelId]->time_base);
-	}
-#ifdef HOLE_PUNCHING
-	if(ffio_open_dyn_packet_buf(&rtsp->fmtctx[channelId]->pb, rtsp->mtu) < 0) {
-		ga_error("%s: buffer allocation failed.\n", prefix);
-		return -1;
-	}
-	if(av_write_frame(rtsp->fmtctx[channelId], pkt) != 0) {
-		ga_error("%s: write failed.\n", prefix);
-		return -1;
-	}
-	iolen = avio_close_dyn_buf(rtsp->fmtctx[channelId]->pb, &iobuf);
-	if(rtsp->lower_transport[channelId] == RTSP_LOWER_TRANSPORT_TCP) {
-		if(rtsp_write_bindata(rtsp, channelId, iobuf, iolen) < 0) {
-			av_free(iobuf);
-			ga_error("%s: RTSP write failed.\n", prefix);
-			return -1;
-		}
-	} else {
-		if(rtp_write_bindata(rtsp, channelId, iobuf, iolen) < 0) {
-			av_free(iobuf);
-			ga_error("%s: RTP write failed.\n", prefix);
-			return -1;
-		}
-	}
-	av_free(iobuf);
-#else
-	if(rtsp->lower_transport[channelId] == RTSP_LOWER_TRANSPORT_TCP) {
-		//if(avio_open_dyn_buf(&rtsp->fmtctx[channelId]->pb) < 0)
-		if(ffio_open_dyn_packet_buf(&rtsp->fmtctx[channelId]->pb, rtsp->mtu) < 0) {
-			ga_error("%s: buffer allocation failed.\n", prefix);
-			return -1;
-		}
-	}
-	if(av_write_frame(rtsp->fmtctx[channelId], pkt) != 0) {
-		ga_error("%s: write failed.\n", prefix);
-		return -1;
-	}
-	if(rtsp->lower_transport[channelId] == RTSP_LOWER_TRANSPORT_TCP) {
-		int iolen;
-		uint8_t *iobuf;
-		iolen = avio_close_dyn_buf(rtsp->fmtctx[channelId]->pb, &iobuf);
-		if(rtsp_write_bindata(rtsp, channelId, iobuf, iolen) < 0) {
-			av_free(iobuf);
-			ga_error("%s: write failed.\n", prefix);
-			return -1;
-		}
-		av_free(iobuf);
-	}
-#endif
-	return 0;
-}
-
-static int
-encoder_send_packet_live(const char *prefix, void *ctx, int channelId, AVPacket *pkt, int64_t encoderPts, struct timeval *ptv) {
-	encoder_pktqueue_append(channelId, pkt, encoderPts, ptv);
+	ga_error("encoder: no sink server registered.\n");
 	return -1;
-}
-
-int
-encoder_send_packet_all(const char *prefix, int channelId, AVPacket *pkt, int64_t encoderPts, struct timeval *ptv) {
-	return encoder_send_packet_all_internal(prefix, channelId, pkt, encoderPts, ptv);
-}
-
-static int
-encoder_send_packet_all_ffmpeg(const char *prefix, int channelId, AVPacket *pkt, int64_t encoderPts, struct timeval *ptv) {
-	map<void*,void*>::iterator mi;
-again:
-	if(pthread_rwlock_tryrdlock(&encoder_lock) != 0) {
-		if(threadLaunched == false)
-			return -1;
-		goto again;
-	}
-	for(mi = encoder_clients.begin(); mi != encoder_clients.end(); mi++) {
-		if(((RTSPContext*) mi->second)->state != SERVER_STATE_PLAYING)
-			continue;
-		if(encoder_send_packet(prefix, mi->second, channelId, pkt, encoderPts, ptv) < 0) {
-			//rtsp_cleanup(mi->second, -1);
-		}
-	}
-	pthread_rwlock_unlock(&encoder_lock);
-	return 0;
-}
-
-static int
-encoder_send_packet_all_default(const char *prefix, int channelId, AVPacket *pkt, int64_t encoderPts, struct timeval *ptv) {
-	map<void*,void*>::iterator mi;
-again:
-	if(pthread_rwlock_tryrdlock(&encoder_lock) != 0) {
-		if(threadLaunched == false)
-			return -1;
-		goto again;
-	}
-	for(mi = encoder_clients.begin(); mi != encoder_clients.end(); mi++) {
-		encoder_send_packet(prefix, mi->second, channelId, pkt, encoderPts, ptv);
-	}
-	pthread_rwlock_unlock(&encoder_lock);
-	return 0;
 }
 
 // encoder packet queue functions - for async packet delivery

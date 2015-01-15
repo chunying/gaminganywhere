@@ -19,8 +19,7 @@
 #include <stdio.h>
 
 #include "vsource.h"
-#include "server.h"
-#include "rtspserver.h"
+#include "rtspconf.h"
 #include "encoder-common.h"
 
 #include "ga-common.h"
@@ -270,7 +269,7 @@ vencoder_threadproc(void *arg) {
 			}
 			pkt.stream_index = 0;
 			// send the packet
-			if(encoder_send_packet_all("video-encoder",
+			if(encoder_send_packet("video-encoder",
 				iid/*rtspconf->video_id*/, &pkt,
 				pkt.pts, NULL) < 0) {
 				goto video_quit;

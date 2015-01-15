@@ -22,8 +22,7 @@
 
 #include "vsource.h"
 #include "vconverter.h"
-#include "server.h"
-#include "rtspserver.h"
+#include "rtspconf.h"
 #include "encoder-common.h"
 
 #include "ga-common.h"

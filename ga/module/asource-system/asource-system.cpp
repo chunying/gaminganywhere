@@ -20,7 +20,7 @@
 
 #include "ga-common.h"
 #include "ga-conf.h"
-#include "server.h"
+#include "rtspconf.h"
 #include "asource.h"
 #include "asource-system.h"
 

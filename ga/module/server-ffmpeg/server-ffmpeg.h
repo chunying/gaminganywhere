@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 Chun-Ying Huang
+ * Copyright (c) 2013-2015 Chun-Ying Huang
  *
  * This file is part of GamingAnywhere (GA).
  *
@@ -16,13 +16,11 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#ifndef __SERVER_H__
-#define __SERVER_H__
+#ifndef __SERVER_FFMPEG_H__
+#define	__SERVER_FFMPEG_H__
 
-#include "rtspconf.h"
+int ff_server_register_client(void *ccontext);
+int ff_server_unregister_client(void *ccontext);
 
-#define ENABLE_AUDIO
+#endif	/* __SERVER_FFMPEG_H__ */
 
-EXPORT void *rtspserver_main(void *arg);
-
-#endif

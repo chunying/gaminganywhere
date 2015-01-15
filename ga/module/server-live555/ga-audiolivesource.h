@@ -38,6 +38,6 @@ private:
 	void deliverFrame();
 };
 
-EXPORT void signalNewAudioFrameData();
+void signalNewAudioFrameData();
 
 #endif /* __GA_AUDIOLIVESOURCE_H__ */

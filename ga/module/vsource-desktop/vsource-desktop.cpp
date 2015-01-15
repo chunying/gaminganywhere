@@ -19,15 +19,16 @@
 #include <stdio.h>
 #include <pthread.h>
 #ifndef WIN32
+#include <unistd.h>
 #include <sys/time.h>
 #endif
 
 #include <map>
 
-#include "server.h"
 #include "vsource.h"
 #include "dpipe.h"
 #include "encoder-common.h"
+#include "rtspconf.h"
 
 #include "ga-common.h"
 

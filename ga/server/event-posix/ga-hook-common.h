@@ -19,6 +19,9 @@
 #ifndef __GA_HOOK_COMMON_H__
 #define __GA_HOOK_COMMON_H__
 
+#include "dpipe.h"
+#include "vsource.h"
+
 #define	SOURCES			1
 
 extern int vsource_initialized;

@@ -1,7 +1,7 @@
 
 include ../Makefile.def
 
-CFLAGS	+= $(AVCCF) $(L5CF) $(SDLCF)
+CFLAGS	+= $(AVCCF) $(SDLCF)
 SO_EXT	= .so
 
 ifeq ($(HAVE_X11), 1)
@@ -10,7 +10,7 @@ endif
 
 ifeq ($(OS), Linux)
 CFLAGS	+= $(ASNDCF) $(X11CF)
-LDFLAGS	= $(EXTRALDFLAGS) $(AVCLD) $(L5LD)
+LDFLAGS	= $(EXTRALDFLAGS) $(AVCLD)
 endif
 
 ifeq ($(OS), Darwin)
@@ -26,10 +26,9 @@ all: $(TARGET)
 	$(CXX) -c -g $(CFLAGS) $<
 
 OBJS =	ga-common.o ga-conf.o ga-confvar.o ga-module.o ga-avcodec.o \
-	ga-videolivesource.o ga-audiolivesource.o ga-mediasubsession.o \
-	ga-qossink.o ga-liveserver.o ga-crc.o \
+	ga-crc.o \
 	rtspconf.o dpipe.o vconverter.o \
-	vsource.o asource.o encoder-common.o controller.o server.o rtspserver.o
+	vsource.o asource.o encoder-common.o controller.o
 
 libga.a: $(OBJS)
 	$(AR) rc $@ $^

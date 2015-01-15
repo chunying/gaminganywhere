@@ -21,8 +21,9 @@
 
 #include "ga-common.h"
 #include "rtspconf.h"
-#include "server.h"
 #include "liveMedia.hh"
+
+#define DISCRETE_FRAMER		/* use discrete framer */
 
 #define	QOS_SERVER_CHECK_INTERVAL_MS	(1 * 1000)	/* check every N seconds */
 #define	QOS_SERVER_REPORT_INTERVAL_MS	(30 * 1000)	/* report every N seconds */
@@ -35,14 +36,14 @@ typedef struct qos_server_record_s {
 	struct timeval timestamp;
 }	qos_server_record_t;
 
-EXPORT void * liveserver_taskscheduler();
-EXPORT void * liveserver_main(void *arg);
+void * liveserver_taskscheduler();
+void * liveserver_main(void *arg);
 
-EXPORT int qos_server_start();
-EXPORT int qos_server_stop();
-EXPORT int qos_server_add_sink(const char *prefix, RTPSink *rtpsink);
-EXPORT int qos_server_remove_sink(RTPSink *rtpsink);
-EXPORT int qos_server_deinit();
-EXPORT int qos_server_init();
+int qos_server_start();
+int qos_server_stop();
+int qos_server_add_sink(const char *prefix, RTPSink *rtpsink);
+int qos_server_remove_sink(RTPSink *rtpsink);
+int qos_server_deinit();
+int qos_server_init();
 
 #endif /* __GA_LIVERSERVER_H__ */

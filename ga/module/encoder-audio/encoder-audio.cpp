@@ -17,12 +17,13 @@
  */
 
 #include <stdio.h>
+#ifndef WIN32
+#include <unistd.h>
+#endif
 
 #include "vsource.h"	// for getting the current audio-id
 #include "asource.h"
-#include "server.h"
 #include "rtspconf.h"
-#include "rtspserver.h"
 #include "encoder-common.h"
 
 #include "ga-common.h"
@@ -336,7 +337,7 @@ aencoder_threadproc(void *arg) {
 			}
 			if(got_packet == 0/* || encoder->coded_frame == NULL*/)
 				goto drop_audio_frame;
-			// pts rescale is done in encoder_send_packet_all
+			// pts rescale is done in encoder_send_packet
 			// XXX: some encoder does not produce pts ...
 			if(pkt->pts == (int64_t) AV_NOPTS_VALUE) {
 				pkt->pts = pts;
@@ -350,7 +351,7 @@ aencoder_threadproc(void *arg) {
 				av_freep(snd_in->extended_data);
 			pkt->stream_index = 0;
 			// send the packet
-			if(encoder_send_packet_all("audio-encoder",
+			if(encoder_send_packet("audio-encoder",
 				rtp_id/*rtspconf->audio_id*/, pkt,
 				/*encoder->coded_frame->*/pkt->pts == AV_NOPTS_VALUE ? pts : /*encoder->coded_frame->*/pkt->pts,
 				NULL) < 0) {

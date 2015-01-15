@@ -20,8 +20,7 @@
 #include <mfxvideo.h>
 
 #include "vsource.h"
-#include "server.h"
-#include "rtspserver.h"
+#include "rtspconf.h"
 #include "encoder-common.h"
 
 #include "ga-common.h"
@@ -357,7 +356,7 @@ mfx_threadproc(void *arg) {
 				pkt.size = nextptr != NULL ?
 						(nextptr - ptr) :
 						(_mfxbs[cid].Data+_mfxbs[cid].DataOffset+_mfxbs[cid].DataLength-ptr);
-				if(encoder_send_packet_all("video-encoder", cid, &pkt, pkt.pts, &pkttv) < 0) {
+				if(encoder_send_packet("video-encoder", cid, &pkt, pkt.pts, &pkttv) < 0) {
 					goto video_quit;
 				}
 				ptr = nextptr;
@@ -368,7 +367,7 @@ mfx_threadproc(void *arg) {
 			av_init_packet(&pkt);
 			pkt.data = ptr;
 			pkt.size = _mfxbs[cid].Data+_mfxbs[cid].DataOffset+_mfxbs[cid].DataLength-ptr;
-			if(encoder_send_packet_all("video-encoder", cid, &pkt, pkt.pts, &pkttv) < 0) {
+			if(encoder_send_packet("video-encoder", cid, &pkt, pkt.pts, &pkttv) < 0) {
 				goto video_quit;
 			}
 			video_written = 1;
@@ -378,7 +377,7 @@ mfx_threadproc(void *arg) {
 		if(_mfxbs[cid].Data) {
 			pkt.data = _mfxbs[cid].Data + _mfxbs[cid].DataOffset;
 			pkt.size = _mfxbs[cid].DataLength;
-			if(encoder_send_packet_all("video-encoder", cid, &pkt, pkt.pts, &pkttv) < 0) {
+			if(encoder_send_packet("video-encoder", cid, &pkt, pkt.pts, &pkttv) < 0) {
 				goto video_quit;
 			}
 		}

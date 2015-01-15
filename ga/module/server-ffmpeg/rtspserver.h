@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 Chun-Ying Huang
+ * Copyright (c) 2013-2015 Chun-Ying Huang
  *
  * This file is part of GamingAnywhere (GA).
  *
@@ -24,6 +24,7 @@
 #include "vsource.h"
 #include "ga-common.h"
 #include "ga-avcodec.h"
+#include "server-ffmpeg.h"
 
 // acquired from ffmpeg source code
 #ifdef __cplusplus
@@ -102,12 +103,12 @@ struct RTSPContext {
 #endif
 };
 
-EXPORT void rtsp_cleanup(RTSPContext *rtsp, int retcode);
-EXPORT int rtsp_write_bindata(RTSPContext *ctx, int streamid, uint8_t *buf, int buflen);
-EXPORT void* rtspserver(void *arg);
+void rtsp_cleanup(RTSPContext *rtsp, int retcode);
+int rtsp_write_bindata(RTSPContext *ctx, int streamid, uint8_t *buf, int buflen);
+void* rtspserver(void *arg);
 #ifdef HOLE_PUNCHING
-EXPORT int rtp_open_ports(RTSPContext *ctx, int streamid);
-EXPORT int rtp_write_bindata(RTSPContext *ctx, int streamid, uint8_t *buf, int buflen);
+int rtp_open_ports(RTSPContext *ctx, int streamid);
+int rtp_write_bindata(RTSPContext *ctx, int streamid, uint8_t *buf, int buflen);
 #endif
 
 #endif

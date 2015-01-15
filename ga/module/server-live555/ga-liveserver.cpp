@@ -42,7 +42,6 @@ liveserver_main(void *arg) {
 	}
 	//
 	encoder_pktqueue_init(VIDEO_SOURCE_CHANNEL_MAX+1, 3 * 1024* 1024/*3MB*/);
-	encoder_config_rtspserver(RTSPSERVER_TYPE_LIVE);
 	//
 	ServerMediaSession * sms
 		= ServerMediaSession::createNew(*env, "desktop", "desktop", 

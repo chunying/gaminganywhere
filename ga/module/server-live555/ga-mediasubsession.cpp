@@ -25,11 +25,11 @@
 #include "ga-conf.h"
 #include "rtspconf.h"
 #include "encoder-common.h"
+
 #include "ga-liveserver.h"
 #include "ga-mediasubsession.h"
 #include "ga-audiolivesource.h"
 #include "ga-videolivesource.h"
-// This file contains supported live555's RTP sinks */
 #include "ga-qossink.h"
 
 GAMediaSubsession

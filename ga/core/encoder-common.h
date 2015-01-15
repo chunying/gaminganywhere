@@ -19,18 +19,19 @@
 #ifndef __ENCODER_COMMON_H__
 #define __ENCODER_COMMON_H__
 
-#include "rtspserver.h"
+#include <pthread.h>
+
 #include "ga-common.h"
 #include "ga-avcodec.h"
 #include "ga-module.h"
 
-#define DISCRETE_FRAMER		/* use discrete framer */
-
+#if 0
 enum GARTSPServerType {
 	RTSPSERVER_TYPE_NULL = 0,
 	RTSPSERVER_TYPE_FFMPEG,
 	RTSPSERVER_TYPE_LIVE
 };
+#endif
 
 // this data structure should be read-only outside this file
 typedef struct encoder_packet_s {
@@ -52,18 +53,18 @@ typedef struct encoder_packet_queue_s {
 
 typedef void (*qcallback_t)(int);
 
-EXPORT int encoder_config_rtspserver(int type);
 EXPORT int encoder_pts_sync(int samplerate);
 EXPORT int encoder_running();
 EXPORT int encoder_register_vencoder(ga_module_t *m, void *param);
 EXPORT int encoder_register_aencoder(ga_module_t *m, void *param);
+EXPORT int encoder_register_sinkserver(ga_module_t *m);
 EXPORT ga_module_t *encoder_get_vencoder();
 EXPORT ga_module_t *encoder_get_aencoder();
+EXPORT ga_module_t *encoder_get_sinkserver();
 EXPORT int encoder_register_client(void *ctx);
 EXPORT int encoder_unregister_client(void *ctx);
 
-EXPORT int encoder_send_packet(const char *prefix, void *ctx, int channelId, AVPacket *pkt, int64_t encoderPts, struct timeval *ptv);
-EXPORT int encoder_send_packet_all(const char *prefix, int channelId, AVPacket *pkt, int64_t encoderPts, struct timeval *ptv);
+EXPORT int encoder_send_packet(const char *prefix, int channelId, AVPacket *pkt, int64_t encoderPts, struct timeval *ptv);
 
 // encoder packet queue - for async packet delivery
 EXPORT int encoder_pktqueue_init(int channels, int qsize);

@@ -19,9 +19,8 @@
 #include <stdio.h>
 
 #include "vsource.h"
-#include "server.h"
-#include "rtspserver.h"
 #include "encoder-common.h"
+#include "rtspconf.h"
 
 #include "ga-common.h"
 #include "ga-avcodec.h"
@@ -197,7 +196,7 @@ vencoder_threadproc(void *arg) {
 #endif
 		pkt.data = enc;
 		pkt.size = encsize;
-		if(encoder_send_packet_all("video-encoder", cid, &pkt, pkt.pts, &pkttv) < 0) {
+		if(encoder_send_packet("video-encoder", cid, &pkt, pkt.pts, &pkttv) < 0) {
 			goto video_quit;
 		}
 		if(video_written == 0) {

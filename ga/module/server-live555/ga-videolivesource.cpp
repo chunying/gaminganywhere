@@ -17,10 +17,12 @@
  */
 
 #include "ga-common.h"
-#include "ga-videolivesource.h"
-#include "ga-liveserver.h"
 #include "vsource.h"
 #include "encoder-common.h"
+
+#include "server-live555.h"
+#include "ga-videolivesource.h"
+#include "ga-liveserver.h"
 
 static GAVideoLiveSource *vLiveSource[VIDEO_SOURCE_CHANNEL_MAX];
 static EventTriggerId eventTriggerId[VIDEO_SOURCE_CHANNEL_MAX];
@@ -46,7 +48,7 @@ GAVideoLiveSource
 		if(strcmp(m->mimetype, "video/H264") == 0
 		|| strcmp(m->mimetype, "video/H265") == 0)
 			remove_startcode = 1;
-		encoder_register_client(this);
+		live_server_register_client(this);
 	}
 	++referenceCount;
 	// Any instance-specific initialization of the device would be done here:
@@ -65,7 +67,7 @@ GAVideoLiveSource
 	--referenceCount;
 	if (referenceCount == 0) {
 		// Any global 'destruction' (i.e., resetting) of the device would be done here:
-		encoder_unregister_client(this);
+		live_server_unregister_client(this);
 		remove_startcode = 0;
 		m = NULL;
 		encoder_pktqueue_unregister_callback(this->channelId, signalNewVideoFrameData);

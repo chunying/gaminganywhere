@@ -21,14 +21,13 @@
 #include <pthread.h>
 #ifndef WIN32
 #include <dlfcn.h>
+#include <unistd.h>
 #endif
 
 #include "ga-common.h"
 #include "ga-conf.h"
 #include "ga-module.h"
 #include "rtspconf.h"
-#include "server.h"
-#include "ga-liveserver.h"
 #include "controller.h"
 #include "encoder-common.h"
 
@@ -69,7 +68,7 @@ static struct gaImage realimage, *image = &realimage;
 static struct gaRect *prect = NULL;
 static struct gaRect rect;
 
-static ga_module_t *m_filter, *m_vencoder, *m_asource, *m_aencoder, *m_ctrl;
+static ga_module_t *m_filter, *m_vencoder, *m_asource, *m_aencoder, *m_ctrl, *m_server;
 
 int	// should be called only once
 vsource_init(int width, int height) {
@@ -212,6 +211,13 @@ load_modules() {
 	if((m_ctrl = ga_load_module(module_path, "sdlmsg_replay_")) == NULL)
 		return -1;
 	}
+	//////////////////////////
+	snprintf(module_path, sizeof(module_path),
+		BACKSLASHDIR("%s/mod/server-live555", "%smod\\server-live555"),
+		ga_root);
+	if((m_server = ga_load_module(module_path, "live555_")) == NULL)
+		return -1;
+	//////////////////////////
 	return 0;
 }
 
@@ -243,6 +249,7 @@ init_modules() {
 	ga_init_single_module_or_quit("audio-encoder", m_aencoder, NULL);
 	//////////////////////////
 	}
+	ga_init_single_module_or_quit("rtsp-server", m_server, NULL);
 	return 0;
 }
 
@@ -276,6 +283,9 @@ run_modules() {
 	encoder_register_aencoder(m_aencoder, audio_encoder_param);
 	//////////////////////////
 	}
+	// server
+	if(m_server->start(NULL) < 0)	exit(-1);
+	//
 	return 0;
 }
 
@@ -310,7 +320,10 @@ ga_server(void *arg) {
 	if(run_modules() < 0)	 { return NULL; }
 	//
 	//rtspserver_main(NULL);
-	liveserver_main(NULL);
+	//liveserver_main(NULL);
+	while(1) {
+		usleep(5000000);
+	}
 	//
 	ga_deinit();
 	//

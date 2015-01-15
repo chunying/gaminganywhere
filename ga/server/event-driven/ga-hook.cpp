@@ -25,7 +25,6 @@
 #include "ga-conf.h"
 #include "ga-module.h"
 #include "rtspconf.h"
-#include "server.h"
 #include "controller.h"
 #include "encoder-common.h"
 #include "ctrl-sdl.h"
@@ -52,7 +51,7 @@ static int hookid = 0;
 
 //static struct gaRect rect;
 
-static ga_module_t *m_filter, *m_vencoder, *m_asource, *m_aencoder, *m_ctrl;
+static ga_module_t *m_filter, *m_vencoder, *m_asource, *m_aencoder, *m_ctrl, *m_server;
 
 static int module_checked = 0;
 

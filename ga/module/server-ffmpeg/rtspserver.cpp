@@ -34,17 +34,16 @@
 #include <arpa/inet.h>
 #endif	/* ifndef WIN32 */
 
-#include "vsource.h"
-#include "asource.h"
-#include "encoder-common.h"
-//#include "encoder-video.h"
-//#include "encoder-audio.h"
-#include "server.h"
-#include "rtspserver.h"
-
 #include "ga-common.h"
 #include "ga-avcodec.h"
 #include "ga-conf.h"
+
+#include "vsource.h"
+#include "asource.h"
+#include "encoder-common.h"
+#include "rtspconf.h"
+
+#include "rtspserver.h"
 
 #define	RTSP_STREAM_FORMAT	"streamid=%d"
 #define	RTSP_STREAM_FORMAT_MAXLEN	64
@@ -904,7 +903,7 @@ rtsp_cmd_play(RTSPContext *ctx, const char *url, RTSPMessageHeader *h) {
 		return;
 	}
 	// 2014-05-20: support only shared-encoder model
-	if(encoder_register_client(ctx) < 0) {
+	if(ff_server_register_client(ctx) < 0) {
 		ga_error("cannot register encoder client.\n");
 		rtsp_reply_error(ctx, RTSP_STATUS_INTERNAL);
 		return;
@@ -1054,7 +1053,6 @@ rtspserver(void *arg) {
 	//int iwidth = video_source_maxwidth(0);
 	//int iheight = video_source_maxheight(0);
 	//
-	encoder_config_rtspserver(RTSPSERVER_TYPE_FFMPEG);
 	rtspconf = rtspconf_global();
 	sinlen = sizeof(sin);
 	getpeername(s, (struct sockaddr*) &sin, &sinlen);
@@ -1238,7 +1236,7 @@ quit:
 	//
 	close(ctx.fd);
 	// 2014-05-20: support only share-encoder model
-	encoder_unregister_client(&ctx);
+	ff_server_unregister_client(&ctx);
 	//
 	per_client_deinit(&ctx);
 	//ga_error("RTSP client thread terminated (%d/%d clients left).\n",

@@ -1,0 +1,10 @@
+
+!include <..\NMakefile.common>
+
+LIBS	= $(LIBS)
+
+OBJS	= server-ffmpeg.obj rtspserver.obj
+TARGET	= server-ffmpeg.$(EXT)
+
+!include <..\NMakefile.build>
+

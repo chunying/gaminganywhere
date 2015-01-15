@@ -181,6 +181,82 @@ ga_run_single_module_or_quit(const char *name, void * (*threadproc)(void*), void
 }
 
 /**
+ * Wrapper for module's init() interface.
+ *
+ * @param m [in] Pointer to a module instance.
+ * @param arg [in] Pointer to the argument.
+ *
+ * We recommend to use this function instead of calling \em m->init() directly.
+ * This function ensures that a module has defined the \em init interface
+ * before calling the interface.
+ */
+int
+ga_module_init(ga_module_t *m, void *arg) {
+	if(m == NULL)
+		return GA_IOCTL_ERR_NULLMODULE;
+	if(m->init == NULL)
+		return GA_IOCTL_ERR_NOINTERFACE;
+	return m->init(arg);
+}
+
+/**
+ * Wrapper for module's start() interface.
+ *
+ * @param m [in] Pointer to a module instance.
+ * @param arg [in] Pointer to the argument.
+ *
+ * We recommend to use this function instead of calling \em m->start() directly.
+ * This function ensures that a module has defined the \em start interface
+ * before calling the interface.
+ */
+int
+ga_module_start(ga_module_t *m, void *arg) {
+	if(m == NULL)
+		return GA_IOCTL_ERR_NULLMODULE;
+	if(m->start == NULL)
+		return GA_IOCTL_ERR_NOINTERFACE;
+	return m->start(arg);
+}
+
+/**
+ * Wrapper for module's stop() interface.
+ *
+ * @param m [in] Pointer to a module instance.
+ * @param arg [in] Pointer to the argument.
+ *
+ * We recommend to use this function instead of calling \em m->stop() directly.
+ * This function ensures that a module has defined the \em stop interface
+ * before calling the interface.
+ */
+int
+ga_module_stop(ga_module_t *m, void *arg) {
+	if(m == NULL)
+		return GA_IOCTL_ERR_NULLMODULE;
+	if(m->stop == NULL)
+		return GA_IOCTL_ERR_NOINTERFACE;
+	return m->stop(arg);
+}
+
+/**
+ * Wrapper for module's deinit() interface.
+ *
+ * @param m [in] Pointer to a module instance.
+ * @param arg [in] Pointer to the argument.
+ *
+ * We recommend to use this function instead of calling \em m->deinit() directly.
+ * This function ensures that a module has defined the \em deinit interface
+ * before calling the interface.
+ */
+int
+ga_module_deinit(ga_module_t *m, void *arg) {
+	if(m == NULL)
+		return GA_IOCTL_ERR_NULLMODULE;
+	if(m->deinit == NULL)
+		return GA_IOCTL_ERR_NOINTERFACE;
+	return m->deinit(arg);
+}
+
+/**
  * Wrapper for module's ioctl() interface.
  *
  * @param m [in] Pointer to a module instance.
@@ -199,5 +275,73 @@ ga_module_ioctl(ga_module_t *m, int command, int argsize, void *arg) {
 	if(m->ioctl == NULL)
 		return GA_IOCTL_ERR_NOIOCTL;
 	return m->ioctl(command, argsize, arg);
+}
+
+/**
+ * Wrapper for module's notify() interface.
+ *
+ * @param m [in] Pointer to a module instance.
+ * @param arg [in] Pointer to the argument.
+ *
+ * We recommend to use this function instead of calling \em m->notify() directly.
+ * This function ensures that a module has defined the \em notify interface
+ * before calling the interface.
+ *
+ * This function returns 0 (no error) if the interface is not defined.
+ */
+int
+ga_module_notify(ga_module_t *m, void *arg) {
+	if(m == NULL)
+		return GA_IOCTL_ERR_NULLMODULE;
+	if(m->notify == NULL)
+		return GA_IOCTL_ERR_NOINTERFACE;
+	return m->notify(arg);
+}
+
+/**
+ * Wrapper for module's raw() interface.
+ *
+ * @param m [in] Pointer to a module instance.
+ * @param arg [out] Pointer to the store the raw instance.
+ * @param size [out] Pointer to the store the size of the raw instance.
+ *
+ * We recommend to use this function instead of calling \em m->raw() directly.
+ * This function ensures that a module has defined the \em raw interface
+ * before calling the interface.
+ */
+void *
+ga_module_raw(ga_module_t *m, void *arg, int *size) {
+	if(m == NULL)
+		return NULL;
+	if(m->raw == NULL)
+		return NULL;
+	return m->raw(arg, size);
+}
+
+/**
+ * Wrapper for module's send_packet() interface.
+ *
+ * @param m [in] Pointer to a module instance.
+ * @param prefix [in] A name used to identify the sender.
+ * @param channelId [in] Channel ID, used to determine audio or video data.
+ * @param pkt [in] The packet data to be sent.
+ * @param encoderPts [out] Presentation time stamp, store as a 64-bit sequence number.
+ * @param ptv [out] Presentation time stamp, stored as a \a timeval structure.
+ *
+ * This function is only used by a server module.
+ *
+ * We recommend to use this function instead of calling \em m->send_packet() directly.
+ * This function ensures that a module has defined the \em send_packet interface
+ * before calling the interface.
+ */
+int
+ga_module_send_packet(ga_module_t *m, const char *prefix, int channelId, AVPacket *pkt, int64_t encoderPts, struct timeval *ptv) {
+#if 0	/* not checked: for performance considersation */
+	if(m == NULL)
+		return GA_IOCTL_ERR_NULLMODULE;
+	if(m->send_packet == NULL)
+		return GA_IOCTL_ERR_NOINTERFACE;
+#endif
+	return m->send_packet(prefix, channelId, pkt, encoderPts, ptv);
 }
 

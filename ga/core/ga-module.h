@@ -42,7 +42,8 @@ enum ga_module_types {
 	GA_MODULE_TYPE_AENCODER,	/**< Is an audio encoder module */
 	GA_MODULE_TYPE_VENCODER,	/**< Is a video encoder module */
 	GA_MODULE_TYPE_ADECODER,	/**< Is an audio decoder module */
-	GA_MODULE_TYPE_VDECODER		/**< Is a video decoder module */
+	GA_MODULE_TYPE_VDECODER,	/**< Is a video decoder module */
+	GA_MODULE_TYPE_SERVER		/**< Is a server module */
 };
 
 /**
@@ -63,6 +64,7 @@ enum ga_ioctl_commands {
 #define	GA_IOCTL_ERR_GENERAL		-1	/**< General error */
 #define	GA_IOCTL_ERR_NULLMODULE		-2	/**< Module is NULL */
 #define	GA_IOCTL_ERR_NOIOCTL		-3	/**< ioctl() is not implemented */
+#define	GA_IOCTL_ERR_NOINTERFACE	-3	/**< ioctl() or interface is not implemented */
 #define	GA_IOCTL_ERR_NOTINITIALIZED	-4	/**< Module has not been initialized */
 #define	GA_IOCTL_ERR_NOTSUPPORTED	-5	/**< Command is not supported */
 #define	GA_IOCTL_ERR_INVALID_ARGUMENT	-6	/**< Invalid argument */
@@ -112,6 +114,7 @@ typedef struct ga_module_s {
 	int (*ioctl)(int command, int argsize, void *arg);	/**< Pointer to ioctl function */
 	int (*notify)(void *arg);	/**< Pointer to the notify function */
 	void * (*raw)(void *arg, int *size);	/**< Pointer to the raw function */
+	int (*send_packet)(const char *prefix, int channelId, AVPacket *pkt, int64_t encoderPts, struct timeval *ptv);	/**< Pointer to the send packet function: sink only */
 	void * privdata;		/**< Private data of this module */
 }	ga_module_t;
 //////////////////////////////////////////////
@@ -132,7 +135,15 @@ EXPORT int ga_init_single_module(const char *name, ga_module_t *m, void *arg);
 EXPORT void ga_init_single_module_or_quit(const char *name, ga_module_t *m, void *arg);
 EXPORT int ga_run_single_module(const char *name, void * (*threadproc)(void*), void *arg);
 EXPORT void ga_run_single_module_or_quit(const char *name, void * (*threadproc)(void*), void *arg);
+// module function wrappers
+EXPORT int ga_module_init(ga_module_t *m, void *arg);
+EXPORT int ga_module_start(ga_module_t *m, void *arg);
+EXPORT int ga_module_stop(ga_module_t *m, void *arg);
+EXPORT int ga_module_deinit(ga_module_t *m, void *arg);
 EXPORT int ga_module_ioctl(ga_module_t *m, int command, int argsize, void *arg);
+EXPORT int ga_module_notify(ga_module_t *m, void *arg);
+EXPORT void * ga_module_raw(ga_module_t *m, void *arg, int *size);
+EXPORT int ga_module_send_packet(ga_module_t *m, const char *prefix, int channelId, AVPacket *pkt, int64_t encoderPts, struct timeval *ptv);
 
 #ifdef GA_MODULE
 // a module must have exported the module_load function

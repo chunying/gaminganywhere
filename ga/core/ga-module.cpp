@@ -189,13 +189,15 @@ ga_run_single_module_or_quit(const char *name, void * (*threadproc)(void*), void
  * We recommend to use this function instead of calling \em m->init() directly.
  * This function ensures that a module has defined the \em init interface
  * before calling the interface.
+ *
+ * This function returns 0 (no error) if the interface is not defined.
  */
 int
 ga_module_init(ga_module_t *m, void *arg) {
 	if(m == NULL)
 		return GA_IOCTL_ERR_NULLMODULE;
 	if(m->init == NULL)
-		return GA_IOCTL_ERR_NOINTERFACE;
+		return 0;
 	return m->init(arg);
 }
 
@@ -227,13 +229,15 @@ ga_module_start(ga_module_t *m, void *arg) {
  * We recommend to use this function instead of calling \em m->stop() directly.
  * This function ensures that a module has defined the \em stop interface
  * before calling the interface.
+ *
+ * This function returns 0 (no error) if the interface is not defined.
  */
 int
 ga_module_stop(ga_module_t *m, void *arg) {
 	if(m == NULL)
 		return GA_IOCTL_ERR_NULLMODULE;
 	if(m->stop == NULL)
-		return GA_IOCTL_ERR_NOINTERFACE;
+		return 0;
 	return m->stop(arg);
 }
 
@@ -246,13 +250,15 @@ ga_module_stop(ga_module_t *m, void *arg) {
  * We recommend to use this function instead of calling \em m->deinit() directly.
  * This function ensures that a module has defined the \em deinit interface
  * before calling the interface.
+ *
+ * This function returns 0 (no error) if the interface is not defined.
  */
 int
 ga_module_deinit(ga_module_t *m, void *arg) {
 	if(m == NULL)
 		return GA_IOCTL_ERR_NULLMODULE;
 	if(m->deinit == NULL)
-		return GA_IOCTL_ERR_NOINTERFACE;
+		return 0;
 	return m->deinit(arg);
 }
 
@@ -294,7 +300,7 @@ ga_module_notify(ga_module_t *m, void *arg) {
 	if(m == NULL)
 		return GA_IOCTL_ERR_NULLMODULE;
 	if(m->notify == NULL)
-		return GA_IOCTL_ERR_NOINTERFACE;
+		return 0;
 	return m->notify(arg);
 }
 

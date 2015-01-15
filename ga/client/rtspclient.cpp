@@ -1752,9 +1752,11 @@ DummySink::afterGettingFrame(unsigned frameSize, unsigned numTruncatedBytes,
 		//
 		if(stats != NULL) {
 			lost = pktloss_monitor_get(stats->SSRC(), &count, 1/*reset*/);
+#if 0
 			if(lost > 0) {
 				ga_error("rtspclient: frame corrupted? lost=%d; count=%d (packets)\n", lost, count);
 			}
+#endif
 		}
 		//
 		play_video(channel,

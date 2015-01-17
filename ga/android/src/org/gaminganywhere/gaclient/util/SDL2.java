@@ -998,5 +998,147 @@ public class SDL2 {
 		}
 		return sdlkey;
 	};
+	public static SDLKey CharToSDLKey(int character) {
+		SDLKey sdlkey = new SDL2(). new  SDLKey();
+		
+		switch(character) {
+			case 'a': {
+				sdlkey.setSecanCode(SDL2.Scancode.A);
+				sdlkey.setKeyCode(SDL2.Keycode.a);
+				break;
+			}
+			case 'b': {
+				sdlkey.setSecanCode(SDL2.Scancode.B);
+				sdlkey.setKeyCode(SDL2.Keycode.b);
+				break;
+			}
+			case 'c': {
+				sdlkey.setSecanCode(SDL2.Scancode.C);
+				sdlkey.setKeyCode(SDL2.Keycode.c);
+				break;				
+			}
+			case 'd': {
+				sdlkey.setSecanCode(SDL2.Scancode.D);
+				sdlkey.setKeyCode(SDL2.Keycode.d);
+				break;
+			}
+			case 'e': {
+				sdlkey.setSecanCode(SDL2.Scancode.E);
+				sdlkey.setKeyCode(SDL2.Keycode.e);
+				break;
+			}
+			case 'f': {
+				sdlkey.setSecanCode(SDL2.Scancode.F);
+				sdlkey.setKeyCode(SDL2.Keycode.f);
+				break;
+			}
+			case 'g': {
+				sdlkey.setSecanCode(SDL2.Scancode.G);
+				sdlkey.setKeyCode(SDL2.Keycode.g);
+				break;
+			}
+			case 'h': {
+				sdlkey.setSecanCode(SDL2.Scancode.H);
+				sdlkey.setKeyCode(SDL2.Keycode.h);
+				break;
+			}
+			case 'i': {
+				sdlkey.setSecanCode(SDL2.Scancode.I);
+				sdlkey.setKeyCode(SDL2.Keycode.i);
+				break;
+			}
+			case 'j': {
+				sdlkey.setSecanCode(SDL2.Scancode.J);
+				sdlkey.setKeyCode(SDL2.Keycode.j);
+				break;
+			}
+			case 'k': {
+				sdlkey.setSecanCode(SDL2.Scancode.K);
+				sdlkey.setKeyCode(SDL2.Keycode.k);
+				break;
+			}
+			case 'l': {
+				sdlkey.setSecanCode(SDL2.Scancode.L);
+				sdlkey.setKeyCode(SDL2.Keycode.l);
+				break;
+			}
+			case 'm': {
+				sdlkey.setSecanCode(SDL2.Scancode.M);
+				sdlkey.setKeyCode(SDL2.Keycode.m);
+				break;
+			}
+			case 'n': {
+				sdlkey.setSecanCode(SDL2.Scancode.N);
+				sdlkey.setKeyCode(SDL2.Keycode.n);
+				break;
+			}
+			case 'o': {
+				sdlkey.setSecanCode(SDL2.Scancode.O);
+				sdlkey.setKeyCode(SDL2.Keycode.o);
+				break;
+			}
+			case 'p': {
+				sdlkey.setSecanCode(SDL2.Scancode.P);
+				sdlkey.setKeyCode(SDL2.Keycode.p);
+				break;					
+			}
+			case 'q': {
+				sdlkey.setSecanCode(SDL2.Scancode.Q);
+				sdlkey.setKeyCode(SDL2.Keycode.q);
+				break;
+			}
+			case 'r': {
+				sdlkey.setSecanCode(SDL2.Scancode.R);
+				sdlkey.setKeyCode(SDL2.Keycode.r);
+				break;
+			}
+			case 's': {
+				sdlkey.setSecanCode(SDL2.Scancode.S);
+				sdlkey.setKeyCode(SDL2.Keycode.s);
+				break;
+			}
+			case 't': {
+				sdlkey.setSecanCode(SDL2.Scancode.T);
+				sdlkey.setKeyCode(SDL2.Keycode.t);
+				break;
+			}
+			case 'u': {
+				sdlkey.setSecanCode(SDL2.Scancode.U);
+				sdlkey.setKeyCode(SDL2.Keycode.u);
+				break;
+			}
+			case 'v': {
+				sdlkey.setSecanCode(SDL2.Scancode.V);
+				sdlkey.setKeyCode(SDL2.Keycode.v);
+				break;
+			}
+			case 'w': {
+				sdlkey.setSecanCode(SDL2.Scancode.W);
+				sdlkey.setKeyCode(SDL2.Keycode.w);
+				break;
+			}
+			case 'x': {
+				sdlkey.setSecanCode(SDL2.Scancode.X);
+				sdlkey.setKeyCode(SDL2.Keycode.x);
+				break;
+			}
+			case 'y': {
+				sdlkey.setSecanCode(SDL2.Scancode.Y);
+				sdlkey.setKeyCode(SDL2.Keycode.y);
+				break;
+			}
+			case 'z': {
+				sdlkey.setSecanCode(SDL2.Scancode.Z);
+				sdlkey.setKeyCode(SDL2.Keycode.z);
+				break;
+			}
+			default: {
+				return null;
+			}
+		
+		}
+		
 	
+		return sdlkey;
+	};
 }

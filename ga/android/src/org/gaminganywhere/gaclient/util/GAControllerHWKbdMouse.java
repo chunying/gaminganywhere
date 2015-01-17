@@ -36,7 +36,7 @@ import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.EditText;
 
-public class GAControllerBasic extends GAController implements
+public class GAControllerHWKbdMouse extends GAController implements
 	OnClickListener, PartitionEventListener
 {
 	boolean kbdActive = true;
@@ -45,16 +45,16 @@ public class GAControllerBasic extends GAController implements
 	private EditText edittext = null;
 	private Pad padLeft = null;
 	
-	public GAControllerBasic(Context context) {
+	public GAControllerHWKbdMouse(Context context) {
 		super(context);
 	}
 	
 	public static String getName() {
-		return "Basic";
+		return "GAControllerHWKbdMouse";
 	}
 	
 	public static String getDescription() {
-		return "Mouse buttons";
+		return "Hardware Keyboard and Mouse";
 	}
 	@Override
 	public void onDimensionChange(int width, int height) {
@@ -137,7 +137,7 @@ public class GAControllerBasic extends GAController implements
 		padLeft.setOnTouchListener(this);
 		padLeft.setPartition(2);
 		padLeft.setPartitionEventListener(this);
-		placeView(padLeft, width/30, height-padSize-height/30, padSize, padSize);
+		//placeView(padLeft, width/30, height-padSize-height/30, padSize, padSize);
 	}
 
 	@Override

@@ -16,6 +16,11 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+/**
+ * @file
+ * Interfaces for bridging encoders and sink servers: the header.
+ */
+
 #ifndef __ENCODER_COMMON_H__
 #define __ENCODER_COMMON_H__
 
@@ -25,30 +30,27 @@
 #include "ga-avcodec.h"
 #include "ga-module.h"
 
-#if 0
-enum GARTSPServerType {
-	RTSPSERVER_TYPE_NULL = 0,
-	RTSPSERVER_TYPE_FFMPEG,
-	RTSPSERVER_TYPE_LIVE
-};
-#endif
-
-// this data structure should be read-only outside this file
+/*
+ * Packet format for encoder packet queue.
+ *
+ * This data structure should be read-only outside encoder-common.cpp
+ */
 typedef struct encoder_packet_s {
-	char *data;
-	unsigned size;
-	int64_t pts_int64;
-	struct timeval pts_tv;
+	char *data;		/**< Pointer to the data buffer */
+	unsigned size;		/**< Size of the buffer */
+	int64_t pts_int64;	/**< Packet timestamp in a 64-bit integer */
+	struct timeval pts_tv;	/**< Packet timestamp in \a timeval structure */
 	// internal data structure - do not touch
-	//int pos;
-	int padding;
+	int padding;		/**< Padding area: internal used */
 }	encoder_packet_t;
 
 typedef struct encoder_packet_queue_s {
-	pthread_mutex_t mutex;
-	char *buf;
-	int bufsize, datasize;
-	int head, tail;
+	pthread_mutex_t mutex;	/**< Per-queue mutex */
+	char *buf;		/**< Pointer to the packet queue buffer */
+	int bufsize;		/**< Size of the queue buffer */
+	int datasize;		/**< Size of occupied data size */
+	int head;		/**< Position of queue head */
+	int tail;		/**< Position of queue tail */
 }	encoder_packet_queue_t;
 
 typedef void (*qcallback_t)(int);

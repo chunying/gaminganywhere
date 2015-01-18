@@ -16,18 +16,17 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+/**
+ * @file
+ * Interfaces for bridging encoders and sink servers: the implementation.
+ */
+
 #include <pthread.h>
 #include <map>
 #include <list>
 
 #include "vsource.h"
 #include "encoder-common.h"
-
-#ifdef PIPELINE_FILTER
-#define	SRCPIPEFORMAT	F_RGB2YUV_PIPEFORMAT
-#else
-#define	SRCPIPEFORMAT	ISOURCE_PIPEFORMAT
-#endif
 
 using namespace std;
 
@@ -36,9 +35,9 @@ static pthread_rwlock_t encoder_lock;
 #else
 static pthread_rwlock_t encoder_lock = PTHREAD_RWLOCK_INITIALIZER;
 #endif
-static map<void*, void*> encoder_clients;
+static map<void*, void*> encoder_clients; /**< Count for encoder clients */
 
-static bool threadLaunched = false;
+static bool threadLaunched = false;	/**< Encoder thread is running? */
 
 // for pts sync between encoders
 static pthread_mutex_t syncmutex = PTHREAD_MUTEX_INITIALIZER;
@@ -46,13 +45,22 @@ static bool sync_reset = true;
 static struct timeval synctv;
 
 // list of encoders
-static ga_module_t *vencoder = NULL;
-static ga_module_t *aencoder = NULL;
-static ga_module_t *sinkserver = NULL;
-static void *vencoder_param = NULL;
-static void *aencoder_param = NULL;
+static ga_module_t *vencoder = NULL;	/**< Video encoder instance */
+static ga_module_t *aencoder = NULL;	/**< Audio encoder instance */
+static ga_module_t *sinkserver = NULL;	/**< Sink server instance */
+static void *vencoder_param = NULL;	/**< Vieo encoder parameter */
+static void *aencoder_param = NULL;	/**< Audio encoder parameter */
 
-int
+/**
+ * Compute the integer presentation timestamp based on elapsed time.
+ *
+ * @param samplerate [in] Sample rate used by the encoder.
+ * @return The integer presentation timestamp.
+ *
+ * For an audio encoder, \a samplerate is the audio sample rate.
+ * For a vieo encoder, \a samplerate is the video frame rate.
+ */
+int	// XXX: need to be int64_t ?
 encoder_pts_sync(int samplerate) {
 	struct timeval tv;
 	long long us;
@@ -72,11 +80,26 @@ encoder_pts_sync(int samplerate) {
 	return ret > 0 ? ret : 0;
 }
 
+/**
+ * Check if the encoder has been launched.
+ *
+ * @return 0 if encoder is not running or 1 if encdoer is running.
+ */
 int
 encoder_running() {
 	return threadLaunched ? 1 : 0;
 }
 
+/**
+ * Register a video encoder module.
+ *
+ * @param m [in] Pointer to the video encoder module.
+ * @param param [in] Pointer to the video encoder parameter.
+ * @return Currently it always returns 0.
+ *
+ * The encoder module is launched when a client is conneted.
+ * The \a param is passed to the encoer module when the module is launched.
+ */
 int
 encoder_register_vencoder(ga_module_t *m, void *param) {
 	if(vencoder != NULL) {
@@ -89,6 +112,16 @@ encoder_register_vencoder(ga_module_t *m, void *param) {
 	return 0;
 }
 
+/**
+ * Register an audio encoder module.
+ *
+ * @param m [in] Pointer to the audio encoder module.
+ * @param param [in] Pointer to the audio encoder parameter.
+ * @return Currently it always returns 0.
+ *
+ * The encoder module is launched when a client is conneted.
+ * The \a param is passed to the encoer module when the module is launched.
+ */
 int
 encoder_register_aencoder(ga_module_t *m, void *param) {
 	if(aencoder != NULL) {
@@ -101,6 +134,17 @@ encoder_register_aencoder(ga_module_t *m, void *param) {
 	return 0;
 }
 
+/**
+ * Register a sink server module.
+ *
+ * @param m [in] Pointer to the sink server module.
+ * @return 0 on success, or -1 on error.
+ *
+ * The sink server is used to receive encoded packets.
+ * It can then deliver the packets to clients or store the pckets.
+ *
+ * A sink server MUST have implemented the \a send_packet interface.
+ */
 int
 encoder_register_sinkserver(ga_module_t *m) {
 	if(m->send_packet == NULL) {
@@ -116,21 +160,56 @@ encoder_register_sinkserver(ga_module_t *m) {
 	return 0;
 }
 
+/**
+ * Get the currently registered video encoder module.
+ *
+ * @return Pointer to the video encoder module, or NULL if not registered.
+ */
 ga_module_t *
 encoder_get_vencoder() {
 	return vencoder;
 }
 
+/**
+ * Get the currently registered audio encoder module.
+ *
+ * @return Pointer to the audio encoder module, or NULL if not registered.
+ */
 ga_module_t *
 encoder_get_aencoder() {
 	return aencoder;
 }
 
+/**
+ * Get the currently registered sink server module.
+ *
+ * @return Pointer to the sink server module, or NULL if not registered.
+ */
 ga_module_t *
 encoder_get_sinkserver() {
 	return sinkserver;
 }
 
+/**
+ * Register an encoder client, and start encoder modules if necessary.
+ *
+ * @param rtsp [in] Pointer to the encoder client context.
+ * @return 0 on success, or quit the program on error.
+ *
+ * The \a rtsp parameter is used to count the number of connected
+ * encoder clients.
+ * When the number of encoder clients changes from zero to a larger number,
+ * all the encoder modules are started. When the number of encoder clients
+ * becomes zero, all the encoder modules are stopped.
+ * GamingAnwywere now supports only share-encoder model, so each encoder
+ * module only has one instance, no matter how many clients are connected.
+ *
+ * Note that the number of encoder clients may be not equal to
+ * the actual number of clients connected to the game server
+ * It depends on how a sink server manages its clients.
+ * For example, the \a server-ffmpeg module registered for each connected
+ * game clients, but the \a server-live module only registered one.
+ */
 int
 encoder_register_client(void /*RTSPContext*/ *rtsp) {
 	pthread_rwlock_wrlock(&encoder_lock);
@@ -176,6 +255,12 @@ encoder_register_client(void /*RTSPContext*/ *rtsp) {
 	return 0;
 }
 
+/**
+ * Unregister an encoder client, and stop encoder modules if necessary.
+ *
+ * @param rtsp [in] Pointer to the encoder client context.
+ * @return Currently it always returns 0.
+ */
 int
 encoder_unregister_client(void /*RTSPContext*/ *rtsp) {
 	pthread_rwlock_wrlock(&encoder_lock);
@@ -205,6 +290,21 @@ encoder_unregister_client(void /*RTSPContext*/ *rtsp) {
 	return 0;
 }
 
+/**
+ * Send a packet to a sink server.
+ *
+ * @param prefix [in] Name to identify the sender. Can be any valid string.
+ * @param channelId [in] Channel id.
+ * @param pkt [in] The packet to be delivery.
+ * @param encoderPts [in] Encoder presentation timestamp in an integer.
+ * @param ptv [in] Encoder presentation timestamp in \a timeval structure.
+ * @return 0 on success, or -1 on error.
+ *
+ * \a channelId is used to identify whether this packet is an audio packet or
+ * a video packet. A video packet usually uses a channel id ranges
+ * from 0 to \a N-1, where \a N is the number of video tracks (usually 1).
+ * A audio packet usually uses a channel id of \a N.
+ */
 int
 encoder_send_packet(const char *prefix, int channelId, AVPacket *pkt, int64_t encoderPts, struct timeval *ptv) {
 	if(sinkserver) {
@@ -221,6 +321,18 @@ static encoder_packet_queue_t pktqueue[VIDEO_SOURCE_CHANNEL_MAX+1];
 static list<encoder_packet_t> pktlist[VIDEO_SOURCE_CHANNEL_MAX+1];
 static map<qcallback_t,qcallback_t>queue_cb[VIDEO_SOURCE_CHANNEL_MAX+1];
 
+/**
+ * Initialize an encoder packet queue.
+ *
+ * @param channels [in] Number of channels.
+ * @param qsize [in] Size of each queue in bytes.
+ * @return 0 on success, or quit the program on error.
+ *
+ * This function creates a packet queue of size \a qsize for each channel.
+ * This functoin should be called only once.
+ * If you have multiple channels, specify the number in the \a channels 
+ * parameter.
+ */
 int
 encoder_pktqueue_init(int channels, int qsize) {
 	int i;
@@ -247,6 +359,9 @@ encoder_pktqueue_init(int channels, int qsize) {
 	return 0;
 }
 
+/**
+ * Empty packets stored in the packet queue.
+ */
 int
 encoder_pktqueue_reset() {
 	int i;
@@ -263,11 +378,29 @@ encoder_pktqueue_reset() {
 	return 0;
 }
 
+/**
+ * Return the occupied size of a packet queue for a given channel.
+ *
+ * @param channelId [in] The channel id to be read.
+ * @return The occupied size in bytes.
+ */
 int
 encoder_pktqueue_size(int channelId) {
 	return pktqueue[channelId].datasize;
 }
 
+/**
+ * Add a packet into a packet queue.
+ *
+ * @param channelId [in] The channel id.
+ * @param pkt [in] The packet to be stored.
+ * @param encoderPts [in] The presentation timestamp in an integer.
+ * @param ptv [in] The presentation timestamp in a \timeval structure.
+ * @return 0 on success, or -1 on error.
+ *
+ * The content of \a pkt is copied into the queue buffer, so it can be released
+ * after returing from the function.
+ */
 int
 encoder_pktqueue_append(int channelId, AVPacket *pkt, int64_t encoderPts, struct timeval *ptv) {
 	encoder_packet_queue_t *q = &pktqueue[channelId];
@@ -324,6 +457,16 @@ size_check:
 	return 0;
 }
 
+/**
+ * Read the first packet from the packet queue.
+ *
+ * @param channelId [in] The channel id.
+ * @param pkt [out] The pointer to stored a retrieved packet.
+ * @return Pointer equal to \a pkt->data, or NULL or error.
+ *
+ * This funcion ONLY reads the first packet.
+ * It DOES NOT remove the packet from the queue.
+ */
 char *
 encoder_pktqueue_front(int channelId, encoder_packet_t *pkt) {
 	encoder_packet_queue_t *q = &pktqueue[channelId];
@@ -337,6 +480,23 @@ encoder_pktqueue_front(int channelId, encoder_packet_t *pkt) {
 	return pkt->data;
 }
 
+/**
+ * Split the first packet in the packet queue into two packets.
+ *
+ * @param channelId [in] The channel id.
+ * @param offset [in] The point to split the packet data.
+ *
+ * This function is used when you do not have sufficient buffer to handle
+ * an entire packet, so you can split the first packet in the queue into
+ * two independent packets.
+ *
+ * Suppose a sink server reads the first packet of size \a M and only
+ * \a N bytes can be * processed, it has to compute \a pkt->data+N and pass
+ * the value as the \a offset parameter to this functoin.
+ * When this function returns, the first packet in the queue would hold
+ * exact \a N bytes and the rest \a (M-N) bytes would be helded
+ * in the second packet.
+ */
 void
 encoder_pktqueue_split_packet(int channelId, char *offset) {
 	encoder_packet_queue_t *q = &pktqueue[channelId];
@@ -366,6 +526,11 @@ quit_split_packet:
 	return;
 }
 
+/**
+ * Remove the first packet from the queue.
+ *
+ * @parm channelId [in] The channel id.
+ */
 void
 encoder_pktqueue_pop_front(int channelId) {
 	encoder_packet_queue_t *q = &pktqueue[channelId];
@@ -393,6 +558,20 @@ encoder_pktqueue_pop_front(int channelId) {
 	return;
 }
 
+/**
+ * Register a callback function for a packet queue.
+ *
+ * @param channelId [in] The channel id.
+ * @param cb [in] Pointer to the callback function.
+ * @return This function alywas return 0.
+ *
+ * The callback function \a cb is called when a packet is appended into the
+ * queue. The callback function must be in the form of:\n
+ * \a void \a callback_function(int \a channelId);
+ *
+ * Note that a packet queue can have multiple callback functions, and
+ * all of them are called on packet appending.
+ */
 int
 encoder_pktqueue_register_callback(int channelId, qcallback_t cb) {
 	queue_cb[channelId][cb] = cb;
@@ -400,6 +579,13 @@ encoder_pktqueue_register_callback(int channelId, qcallback_t cb) {
 	return 0;
 }
 
+/**
+ * Remove a callback function from a packet queue.
+ *
+ * @param channelId [in] The channel id.
+ * @param cb [in] The callback function to be removed.
+ * @return This functon always returns 0.
+ */
 int
 encoder_pktqueue_unregister_callback(int channelId, qcallback_t cb) {
 	queue_cb[channelId].erase(cb);

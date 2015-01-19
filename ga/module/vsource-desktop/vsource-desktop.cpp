@@ -170,16 +170,13 @@ vsource_init(void *arg) {
 static void *
 vsource_threadproc(void *arg) {
 	int i;
+	int token;
 	int frame_interval;
 	struct timeval tv;
 	dpipe_buffer_t *data;
 	vsource_frame_t *frame;
 	dpipe_t *pipe[SOURCES];
-#ifdef WIN32
-	LARGE_INTEGER initialTv, captureTv, freq;
-#else
-	struct timeval initialTv, captureTv;
-#endif
+	struct timeval initialTv, lastTv, captureTv;
 	struct RTSPConf *rtspconf = rtspconf_global();
 	// reset framerate setup
 	vsource_framerate_n = rtspconf->video_fps;
@@ -201,17 +198,30 @@ vsource_threadproc(void *arg) {
 	}
 	//
 	ga_error("video source thread started: tid=%ld\n", ga_gettid());
-#ifdef WIN32
-	QueryPerformanceFrequency(&freq);
-	QueryPerformanceCounter(&initialTv);
-#else
 	gettimeofday(&initialTv, NULL);
-#endif
+	lastTv = initialTv;
+	token = frame_interval;
 	while(vsource_started != 0) {
-		//
-		gettimeofday(&tv, NULL);
-		//if(pipe->client_count() <= 0) {
+		// encoder has not launched?
 		if(encoder_running() == 0) {
+#ifdef WIN32
+			Sleep(1);
+#else
+			usleep(1000);
+#endif
+			gettimeofday(&lastTv, NULL);
+			token = frame_interval;
+			continue;
+		}
+		// token bucket based capturing
+		gettimeofday(&captureTv, NULL);
+		token += tvdiff_us(&captureTv, &lastTv);
+		if(token > (frame_interval<<1)) {
+			token = (frame_interval<<1);
+		}
+		lastTv = captureTv;
+		//
+		if(token < frame_interval) {
 #ifdef WIN32
 			Sleep(1);
 #else
@@ -219,6 +229,7 @@ vsource_threadproc(void *arg) {
 #endif
 			continue;
 		}
+		token -= frame_interval;
 		// copy image 
 		data = dpipe_get(pipe[0]);
 		frame = (vsource_frame_t*) data->pointer;
@@ -244,7 +255,6 @@ vsource_threadproc(void *arg) {
 		}
 		frame->linesize[0] = frame->realstride/*frame->stride*/;
 #ifdef WIN32
-		QueryPerformanceCounter(&captureTv);
 	#ifdef D3D_CAPTURE
 		ga_win32_D3D_capture((char*) frame->imgbuf, frame->imgbufsize, prect);
 	#elif defined DFM_CAPTURE
@@ -253,10 +263,8 @@ vsource_threadproc(void *arg) {
 		ga_win32_GDI_capture((char*) frame->imgbuf, frame->imgbufsize, prect);
 	#endif
 #elif defined __APPLE__
-		gettimeofday(&captureTv, NULL);
 		ga_osx_capture((char*) frame->imgbuf, frame->imgbufsize, prect);
 #else // X11
-		gettimeofday(&captureTv, NULL);
 		ga_xwin_capture((char*) frame->imgbuf, frame->imgbufsize, prect);
 #endif
 		// draw cursor
@@ -264,13 +272,8 @@ vsource_threadproc(void *arg) {
 		ga_win32_draw_system_cursor(frame);
 #endif
 		//gImgPts++;
-#ifdef WIN32
-		frame->imgpts = pcdiff_us(captureTv, initialTv, freq)/frame_interval;
-		gettimeofday(&frame->timestamp, NULL);
-#else
 		frame->imgpts = tvdiff_us(&captureTv, &initialTv)/frame_interval;
 		frame->timestamp = captureTv;
-#endif
 		// embed color code?
 #ifdef ENABLE_EMBED_COLORCODE
 		vsource_embed_colorcode_inc(frame);
@@ -295,8 +298,6 @@ vsource_threadproc(void *arg) {
 			ga_error("video source: reconfigured - framerate=%d/%d (interval=%d)\n",
 				vsource_framerate_n, vsource_framerate_d, frame_interval);
 		}
-		//
-		ga_usleep(frame_interval, &tv);
 	}
 	//
 	ga_error("video source: thread terminated.\n");

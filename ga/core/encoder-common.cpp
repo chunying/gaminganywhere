@@ -30,11 +30,7 @@
 
 using namespace std;
 
-#ifdef GA_EMCC
-static pthread_rwlock_t encoder_lock;
-#else
 static pthread_rwlock_t encoder_lock = PTHREAD_RWLOCK_INITIALIZER;
-#endif
 static map<void*, void*> encoder_clients; /**< Count for encoder clients */
 
 static bool threadLaunched = false;	/**< Encoder thread is running? */

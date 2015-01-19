@@ -49,10 +49,6 @@ static unsigned char *qbuffer = NULL;
 
 static msgfunc replay = NULL;
 
-#if defined(GA_EMCC) && !defined(INADDR_NONE)
-#define INADDR_NONE	((unsigned long int) 0xffffffff)
-#endif
-
 #ifdef WIN32
 static unsigned long
 #else

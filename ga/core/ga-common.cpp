@@ -33,9 +33,7 @@
 #endif /* !ANDROID */
 #include <unistd.h>
 #include <sys/time.h>
-#ifndef GA_EMCC
 #include <sys/syscall.h>
-#endif /* GA_EMCC */
 #endif /* !WIN32 */
 #ifdef ANDROID
 #include <android/log.h>
@@ -258,8 +256,6 @@ ga_gettid() {
 	return pthread_mach_thread_np(pthread_self());
 #elif defined ANDROID
 	return gettid();
-#elif defined GA_EMCC
-	return pthread_self();
 #else
 	return (pid_t) syscall(SYS_gettid);
 #endif

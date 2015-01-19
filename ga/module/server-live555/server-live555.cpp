@@ -21,9 +21,7 @@
 #ifndef WIN32
 #include <unistd.h>
 #include <netinet/in.h>
-#ifndef GA_EMCC
 #include <sys/syscall.h>
-#endif /* ! GA_EMCC */
 #include <sys/select.h>
 #include <sys/socket.h>
 #include <sys/wait.h>

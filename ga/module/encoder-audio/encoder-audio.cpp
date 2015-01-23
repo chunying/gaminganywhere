@@ -216,7 +216,7 @@ aencoder_threadproc(void *arg) {
 #endif
 	long long pts = -1LL, newpts = 0LL, ptsOffset = 0LL, ptsSync = 0LL;
 	//
-	AudioBuffer *ab = NULL;
+	audio_buffer_t *ab = NULL;
 	int audio_written = 0;
 	int buffer_purged = 0;
 	//

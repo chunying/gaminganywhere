@@ -63,6 +63,21 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ga-hook", "ga-hook\ga-hook.
 		{04C6CB4E-10AB-45F3-A6AB-C6EBA3CF4FB3} = {04C6CB4E-10AB-45F3-A6AB-C6EBA3CF4FB3}
 	EndProjectSection
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "server-ffmpeg", "module-server-ffmpeg\server-ffmpeg.vcxproj", "{200F3A9B-20C0-410F-8498-EAFE007A81B7}"
+	ProjectSection(ProjectDependencies) = postProject
+		{04C6CB4E-10AB-45F3-A6AB-C6EBA3CF4FB3} = {04C6CB4E-10AB-45F3-A6AB-C6EBA3CF4FB3}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "server-live555", "module-server-live555\server-live555.vcxproj", "{827389A0-7407-40A6-90E9-843BC327236D}"
+	ProjectSection(ProjectDependencies) = postProject
+		{04C6CB4E-10AB-45F3-A6AB-C6EBA3CF4FB3} = {04C6CB4E-10AB-45F3-A6AB-C6EBA3CF4FB3}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "encoder-x264", "module-encoder-x264\encoder-x264.vcxproj", "{8779D292-6EBE-4F46-80A7-52B093B28ED4}"
+	ProjectSection(ProjectDependencies) = postProject
+		{04C6CB4E-10AB-45F3-A6AB-C6EBA3CF4FB3} = {04C6CB4E-10AB-45F3-A6AB-C6EBA3CF4FB3}
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -121,6 +136,18 @@ Global
 		{EACEE870-A658-4AD9-B91D-87A8677CD692}.Debug|Win32.Build.0 = Debug|Win32
 		{EACEE870-A658-4AD9-B91D-87A8677CD692}.Release|Win32.ActiveCfg = Release|Win32
 		{EACEE870-A658-4AD9-B91D-87A8677CD692}.Release|Win32.Build.0 = Release|Win32
+		{200F3A9B-20C0-410F-8498-EAFE007A81B7}.Debug|Win32.ActiveCfg = Debug|Win32
+		{200F3A9B-20C0-410F-8498-EAFE007A81B7}.Debug|Win32.Build.0 = Debug|Win32
+		{200F3A9B-20C0-410F-8498-EAFE007A81B7}.Release|Win32.ActiveCfg = Release|Win32
+		{200F3A9B-20C0-410F-8498-EAFE007A81B7}.Release|Win32.Build.0 = Release|Win32
+		{827389A0-7407-40A6-90E9-843BC327236D}.Debug|Win32.ActiveCfg = Debug|Win32
+		{827389A0-7407-40A6-90E9-843BC327236D}.Debug|Win32.Build.0 = Debug|Win32
+		{827389A0-7407-40A6-90E9-843BC327236D}.Release|Win32.ActiveCfg = Release|Win32
+		{827389A0-7407-40A6-90E9-843BC327236D}.Release|Win32.Build.0 = Release|Win32
+		{8779D292-6EBE-4F46-80A7-52B093B28ED4}.Debug|Win32.ActiveCfg = Debug|Win32
+		{8779D292-6EBE-4F46-80A7-52B093B28ED4}.Debug|Win32.Build.0 = Debug|Win32
+		{8779D292-6EBE-4F46-80A7-52B093B28ED4}.Release|Win32.ActiveCfg = Release|Win32
+		{8779D292-6EBE-4F46-80A7-52B093B28ED4}.Release|Win32.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -25,7 +25,7 @@
 static snd_output_t *sndlog = NULL;
 
 int
-ga_alsa_set_param(struct Xcap_alsa_param *param) {
+ga_alsa_set_param(struct ga_alsa_param *param) {
 	snd_pcm_hw_params_t *hwparams = NULL;
 	snd_pcm_sw_params_t *swparams = NULL;
 	size_t bits_per_sample;

@@ -37,9 +37,9 @@ static int asource_started = 0;
 static pthread_t asource_tid;
 
 #ifdef WIN32
-static struct Xcap_wasapi_param audioparam;
+static struct ga_wasapi_param audioparam;
 #else
-static struct Xcap_alsa_param audioparam;
+static struct ga_alsa_param audioparam;
 #endif
 
 static int

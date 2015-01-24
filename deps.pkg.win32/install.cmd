@@ -73,6 +73,13 @@ move /y x264bin\bin\*.dll %GADEPS%\bin\
 move /y x264bin\lib\*.lib %GADEPS%\lib\
 rmdir /s /q x264bin
 @REM
+echo Installing easyhook-2.6-stable library ...
+bin\7za x easyhook-2.6s.zip
+move /y easyhook-2.6s\*.h %GADEPS%\include\
+move /y easyhook-2.6s\*.lib %GADEPS%\lib\
+move /y easyhook-2.6s\*.dll %GADEPS%\bin\
+rmdir /s /q easyhook-2.6s
+@REM
 echo Installing detour library ...
 bin\7za x detour.7z
 move /y detour\*.h %GADEPS%\include\

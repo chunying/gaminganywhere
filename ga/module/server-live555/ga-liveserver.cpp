@@ -53,11 +53,19 @@ liveserver_main(void *arg) {
 		ga_error("live-server: FATAL - no video encoder registered.\n");
 		exit(-1);
 	}
+	if(m->mimetype == NULL) {
+		ga_error("live-server: FATAL - video encoder does not configure mimetype.\n");
+		exit(-1);
+	}
 	for(cid = 0; cid < video_source_channels(); cid++) {
 		sms->addSubsession(GAMediaSubsession::createNew(*env, cid, m->mimetype)); 
 	}
 	// add audio session, if necessary
 	if((m = encoder_get_aencoder()) != NULL) {
+		if(m->mimetype == NULL) {
+			ga_error("live-server: FATAL - audio encoder does not configure mimetype.\n");
+			exit(-1);
+		}
 		sms->addSubsession(GAMediaSubsession::createNew(*env, cid, m->mimetype)); 
 	}
 	rtspServer->addServerMediaSession(sms);
@@ -143,12 +151,15 @@ qos_server_report(void *clientData) {
 			if(d_pkt_lost == 0 && d_pkt_sent == 0 && d_byte_sent == 0)
 				continue;
 			// report
-			ga_error("%s-report: %lldKB sent; pkt-loss=%lld/%lld,%.2f%%; bitrate=%.0fKbps; rtt=%u; jitter=%u\n",
+			ga_error("%s-report: %lldKB sent; pkt-loss=%lld/%lld,%.2f%%; bitrate=%.0fKbps; rtt=%u (%.3fms); jitter=%u (freq=%uHz)\n",
 					mi->first->rtpPayloadFormatName(),
 					d_byte_sent / 1024,
 					d_pkt_lost, d_pkt_sent, 100.0*d_pkt_lost/d_pkt_sent,
 					(7812.5/*8000000.0/1024*/)*d_byte_sent/elapsed,
-					stats->roundTripDelay(), stats->jitter());
+					stats->roundTripDelay(),
+					1000.0 * stats->roundTripDelay() / 65536,
+					stats->jitter(),
+					mi->first->rtpTimestampFrequency());
 			//
 			mj->second.pkts_lost = pkts_lost;
 			mj->second.pkts_sent = pkts_sent;

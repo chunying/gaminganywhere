@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 Chun-Ying Huang
+ * Copyright (c) 2012-2015 Chun-Ying Huang
  *
  * This file is part of GamingAnywhere (GA).
  *
@@ -34,32 +34,19 @@
 #include "ga-hook-sdl.h"
 #include "ga-hook-sdlaudio.h"
 #include "ga-hook-coreaudio.h"
-#include "detours.h"
 
-// DLL share segment
-//#pragma data_seg(".shared") 
-static HHOOK gHook = NULL;
-//char g_root[1024] = "";
-//char g_confpath[1024] = "";
-//char g_appexe[1024] = "";
-static int app_hooked = 0;
-//#pragma data_seg()
-//#pragma comment(linker,"/section:.shared,rws")
-//
+#include "easyhook.h"
+
 static HMODULE hInst = NULL;
 static int hookid = 0;
-
-//static struct gaRect rect;
-
-static ga_module_t *m_filter, *m_vencoder, *m_asource, *m_aencoder, *m_ctrl, *m_server;
-
-static int module_checked = 0;
 
 #define	load_hook_function(mod, type, ptr, func)	\
 		if((ptr = (type) GetProcAddress(mod, func)) == NULL) { \
 			ga_error("GetProcAddress(%s) failed.\n", func); \
 			return -1; \
 		}
+
+#define	hook_function()
 
 static int
 hook_input() {
@@ -79,10 +66,10 @@ hook_input() {
 		ga_error("Unable to hook GetRawInputData (NULL returned).\n");
 		return -1;
 	}
-	DetourTransactionBegin();
-	DetourUpdateThread(GetCurrentThread());
-	DetourAttach(&(PVOID&)pGetRawInputData, hook_GetRawInputData);
-	DetourTransactionCommit();
+	//
+	ga_hook_function("GetRawInputData",
+		pGetRawInputData,
+		hook_GetRawInputData);
 	return 0;
 }
 
@@ -147,11 +134,7 @@ hook_sdl12(const char *hook_type, const char *hook_method) {
 	load_hook_function(hMod, t_SDL_FreeSurface, old_SDL_FreeSurface, "SDL_FreeSurface");
 	load_hook_function(hMod, t_SDL_PushEvent, old_SDL_PushEvent, "SDL_PushEvent");
 	//
-#define	SDL_DO_HOOK(name)	\
-		DetourTransactionBegin(); \
-		DetourUpdateThread(GetCurrentThread()); \
-		DetourAttach(&(PVOID&)old_##name, hook_##name); \
-		DetourTransactionCommit();
+#define	SDL_DO_HOOK(name)	ga_hook_function(#name, old_##name, hook_##name)
 	//SDL_DO_HOOK(SDL_Init);
 	SDL_DO_HOOK(SDL_SetVideoMode);
 	SDL_DO_HOOK(SDL_UpperBlit);
@@ -168,20 +151,8 @@ hook_sdl12(const char *hook_type, const char *hook_method) {
 	SDL_DO_HOOK(SDL_CloseAudio);
 	/////////////////////////////////////////
 	}
-#if 1
 	SDL_DO_HOOK(SDL_GL_SwapBuffers);
 	SDL_DO_HOOK(SDL_PollEvent);
-#else
-	DetourTransactionBegin();
-	DetourUpdateThread(GetCurrentThread());
-	DetourAttach(&(PVOID&)old_SDL_GL_SwapBuffers, hook_SDL_GL_SwapBuffers);
-	DetourTransactionCommit();
-	//
-	DetourTransactionBegin();
-	DetourUpdateThread(GetCurrentThread());
-	DetourAttach(&(PVOID&)old_SDL_PollEvent, hook_SDL_PollEvent);
-	DetourTransactionCommit();
-#endif
 #undef	SDL_DO_HOOK
 	ga_error("hook_sdl12: done\n");
 	//
@@ -289,11 +260,8 @@ create_d3d9_object() {
 	pSwapChainPresent = (TSwapChainPresent)pInterfaceVTable2[3];
 	//OutputDebugString("Start to hook IDirect3DSwapChain9::Present");
 
-	DetourTransactionBegin();
-	DetourUpdateThread(GetCurrentThread());
-	DetourAttach(&(PVOID&)pD3D9DevicePresent, hook_D3D9DevicePresent);
-	DetourAttach(&(PVOID&)pSwapChainPresent, hook_D3D9SwapChainPresent);
-	DetourTransactionCommit();
+	ga_hook_function("D3D9DevicePresent", pD3D9DevicePresent, hook_D3D9DevicePresent);
+	ga_hook_function("D3D9SwapChainPresent", pSwapChainPresent, hook_D3D9SwapChainPresent);
 
 	pd3dDevice->Release();
 	pD3D->Release();
@@ -322,10 +290,7 @@ hook_d9(const char *hook_type, const char *hook_method) {
 		return -1;
 	}
 	//
-	DetourTransactionBegin();
-	DetourUpdateThread(GetCurrentThread());
-	DetourAttach(&(PVOID&)pD3d, hook_d3d);
-	DetourTransactionCommit();
+	ga_hook_function("Direct3DCreate9", pD3d, hook_d3d);
 	//
 	return 0;
 }
@@ -345,10 +310,7 @@ hook_dxgi(const char *hook_type, const char *hook_method) {
 		return -1;
 	}
 	//
-	DetourTransactionBegin();
-	DetourUpdateThread(GetCurrentThread());
-	DetourAttach(&(PVOID&)pCreateDXGIFactory, hook_CreateDXGIFactory);
-	DetourTransactionCommit();
+	ga_hook_function("CreateDXGIFactory", pCreateDXGIFactory, hook_CreateDXGIFactory);
 	return 0;
 }
 
@@ -370,10 +332,9 @@ hook_d10_1(const char *hook_type, const char *hook_method) {
 		return -1;
 	}
 	//
-	DetourTransactionBegin();
-	DetourUpdateThread(GetCurrentThread());
-	DetourAttach(&(PVOID&)pD3D10CreateDeviceAndSwapChain1, hook_D3D10CreateDeviceAndSwapChain1);
-	DetourTransactionCommit();
+	ga_hook_function("D3D10CreateDeviceAndSwapChain1",
+		pD3D10CreateDeviceAndSwapChain1,
+		hook_D3D10CreateDeviceAndSwapChain1);
 	return 0;
 }
 
@@ -395,10 +356,9 @@ hook_d10(const char *hook_type, const char *hook_method) {
 		return -1;
 	}
 	//
-	DetourTransactionBegin();
-	DetourUpdateThread(GetCurrentThread());
-	DetourAttach(&(PVOID&)pD3D10CreateDeviceAndSwapChain, hook_D3D10CreateDeviceAndSwapChain);
-	DetourTransactionCommit();
+	ga_hook_function("D3D10CreateDeviceAndSwapChain",
+		pD3D10CreateDeviceAndSwapChain,
+		hook_D3D10CreateDeviceAndSwapChain);
 	return 0;
 }
 
@@ -420,16 +380,16 @@ hook_d11(const char *hook_type, const char *hook_method) {
 		return -1;
 	}
 	//
-	DetourTransactionBegin();
-	DetourUpdateThread(GetCurrentThread());
-	DetourAttach(&(PVOID&)pD3D11CreateDeviceAndSwapChain, hook_D3D11CreateDeviceAndSwapChain);
-	DetourTransactionCommit();
+	ga_hook_function("D3D11CreateDeviceAndSwapChain",
+		pD3D11CreateDeviceAndSwapChain,
+		hook_D3D11CreateDeviceAndSwapChain);
 	return 0;
 }
 
 int
 do_hook(char *hook_type, int hook_type_sz) {
 	char *ptr, app_exe[1024], hook_method[1024];
+	char game_dir[1024];
 	char audio_type[64] = "";
 	int resolution[2];
 	//
@@ -443,6 +403,10 @@ do_hook(char *hook_type, int hook_type_sz) {
 	if((ptr = ga_conf_readv("game-exe", app_exe, sizeof(app_exe))) == NULL) {
 		ga_error("*** no game executable specified.\n");
 		return -1;
+	}
+	if((ptr = ga_conf_readv("game-dir", game_dir, sizeof(game_dir))) != NULL) {
+		SetCurrentDirectory(game_dir);
+		ga_error("gamedir: set to %s\n", game_dir);
 	}
 	if((ptr = ga_conf_readv("hook-type", hook_type, hook_type_sz)) == NULL) {
 		ga_error("*** no hook type specified.\n");
@@ -492,51 +456,14 @@ do_hook(char *hook_type, int hook_type_sz) {
 }
 
 int
-hook_app() {
-	char *appexe;
-	char module_name[1024];
-	int pid = GetCurrentProcessId();
-
-	module_checked = 1;
-
-	if(GetModuleFileName(NULL, module_name, sizeof(module_name)) == 0) {
-		ga_error("GetModuleFileName failed: %s\n", GetLastError());
-		return -1;
-	}
-
-	if((appexe = getenv("GA_APPEXE")) == NULL) {
-		ga_error("[%d] No GA_APPEXE provided.\n", pid);
-		return -1;
-	}
-
-	if(strstr(module_name, appexe) == NULL) {
-		ga_error("will not hook: %s\n", module_name);
-		return -1;
-	}
-
-	app_hooked = 1;
-
-	ga_error("hooked app module: [%d] %s\n", pid, module_name);
-
-	return 0;
-}
-
-LRESULT CALLBACK
-hook_proc(int nCode, WPARAM wParam, LPARAM lParam) {
+hook_proc() {
 	char hook_type[64];
+	char cwd[1024];
 	pthread_t ga_server_thread;
-
-	if(module_checked || app_hooked)
-		return CallNextHookEx(gHook, nCode, wParam, lParam);
-
-	if(hook_app() < 0)
-		return CallNextHookEx(gHook, nCode, wParam, lParam);
-	
-	// identified the executable: initialize once
 
 	if(do_hook(hook_type, sizeof(hook_type)) < 0) {
 		ga_error("hook_proc: hook failed.\n");
-		return CallNextHookEx(gHook, nCode, wParam, lParam);
+		return -1;
 	}
 	
 	// SDL: override controller
@@ -547,67 +474,33 @@ hook_proc(int nCode, WPARAM wParam, LPARAM lParam) {
 		no_default_controller = 1;
 		ga_error("hook_proc: sdl - use native replayer.\n");
 	}
+
 	// start hook server
 	if(pthread_create(&ga_server_thread, NULL, ga_server, NULL) != 0) {
 		ga_error("cannot create GA server thread\n");
-		return CallNextHookEx(gHook, nCode, wParam, lParam);
+		return -1;
 	}
 	pthread_detach(ga_server_thread);
 	
-	return CallNextHookEx(gHook, nCode, wParam, lParam);
-}
-
-MODULE MODULE_EXPORT int
-install_hook(const char *ga_root, const char *config, const char *app_exe)
-{
-	if(ga_root == NULL || config == NULL) {
-		ga_error("[install_hook] no ga-root nor configuration were specified.\n");
-		return -1;
-	}
-	
-	if((gHook = SetWindowsHookEx(WH_CBT, hook_proc, hInst, 0)) == NULL) {
-		ga_error("SetWindowsHookEx filaed (0x%08x)\n", GetLastError());
-		return -1;
+	// show current directory
+	if(GetCurrentDirectory(sizeof(cwd), cwd) > 0) {
+		ga_error("hook_proc: current directory [%s]\n", cwd);
 	}
 
-	ga_error("[install_hook] success.\n");
-	
 	return 0;
 }
 
-MODULE MODULE_EXPORT int
-uninstall_hook() {
-	if(gHook != NULL) {
-		UnhookWindowsHookEx(gHook);
-		gHook = NULL;
-		ga_error("[uninstall_hook] success.\n");
-	}
-	return 0;
+MODULE MODULE_EXPORT void WINAPI
+NativeInjectionEntryPoint(REMOTE_ENTRY_INFO *info) {
+	if(hook_proc() < 0)
+		exit(-1);
+	RhWakeUpProcess();
+	return;
 }
 
 MODULE MODULE_EXPORT BOOL APIENTRY
 DllMain(HINSTANCE hModule, DWORD fdwReason, LPVOID lpReserved) {
-	char module_name[1024];
-	static int initialized = 0;
-
-	if(initialized == 0) {
-		srand(time(NULL));
-		hookid = rand() & 0x0ffff;
-		initialized = 1;
-	}
-
-	if(GetModuleFileName(NULL, module_name, sizeof(module_name)) <= 0)
-		module_name[0] = '\0';
-
-	switch(fdwReason) {
-	case DLL_PROCESS_ATTACH:
-		hInst = hModule;
-		ga_error("[ga-hook-%04x] attached to %s\n", hookid, module_name);
-		break;
-	case DLL_PROCESS_DETACH:
-		ga_error("[ga-hook-%04x] detached from %s\n", hookid, module_name);
-		break;
-	}
-
+	/* always return true */
 	return TRUE;
 }
+

@@ -80,12 +80,12 @@ move /y easyhook-2.6s\*.lib %GADEPS%\lib\
 move /y easyhook-2.6s\*.dll %GADEPS%\bin\
 rmdir /s /q easyhook-2.6s
 @REM
-echo Installing detour library ...
-bin\7za x detour.7z
-move /y detour\*.h %GADEPS%\include\
-move /y detour\*.lib %GADEPS%\lib\
-move /y detour\*.dll %GADEPS%\bin\
-rmdir /s /q detour
+@REM echo Installing detour library ...
+@REM bin\7za x detour.7z
+@REM move /y detour\*.h %GADEPS%\include\
+@REM move /y detour\*.lib %GADEPS%\lib\
+@REM move /y detour\*.dll %GADEPS%\bin\
+@REM rmdir /s /q detour
 @REM
 echo Installation finished
 pause

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 Chun-Ying Huang
+ * Copyright (c) 2012-2015 Chun-Ying Huang
  *
  * This file is part of GamingAnywhere (GA).
  *
@@ -269,7 +269,7 @@ DXGI_get_resolution(IDXGISwapChain *pSwapChain) {
 
 //////// hook functions
 
-// Detour function that replaces the Direct3DCreate9() API
+// Hook function that replaces the Direct3DCreate9() API
 DllExport IDirect3D9* WINAPI
 hook_d3d(UINT SDKVersion)
 {
@@ -286,17 +286,13 @@ hook_d3d(UINT SDKVersion)
 
 		uintptr_t* pInterfaceVTable = (uintptr_t*)*(uintptr_t*)pDirect3D9;
 		pD3D9CreateDevice = (TD3D9CreateDevice) pInterfaceVTable[16];   // IDirect3D9::CreateDevice()
-
-		DetourTransactionBegin();
-		DetourUpdateThread(GetCurrentThread());
-		DetourAttach(&(PVOID&)pD3D9CreateDevice, hook_D3D9CreateDevice);
-		DetourTransactionCommit();
+		ga_hook_function("IDirect3D9::CreateDevice", pD3D9CreateDevice, hook_D3D9CreateDevice);
 	}
 
 	return pDirect3D9;
 }
 
-// Detour function that replaces the IDirect3D9::CreateDevice() API
+// Hook function that replaces the IDirect3D9::CreateDevice() API
 DllExport HRESULT __stdcall
 hook_D3D9CreateDevice(
 		IDirect3DDevice9 * This,
@@ -327,15 +323,9 @@ hook_D3D9CreateDevice(
 		// 41: IDirect3DDevice9::BeginScene,    42: IDirect3DDevice9::EndScene
 		pD3D9GetSwapChain = (TD3D9GetSwapChain)pInterfaceVTable[14];
 		pD3D9DevicePresent = (TD3D9DevicePresent)pInterfaceVTable[17];     
-#if 0
-		pRelease = (TRelease) pInterfaceVTable[2];	// IDirect3DDevice9::Release();
-#endif
 
-		DetourTransactionBegin();
-		DetourUpdateThread(GetCurrentThread());
-		DetourAttach(&(PVOID&)pD3D9GetSwapChain, hook_D3D9GetSwapChain);
-		DetourAttach(&(PVOID&)pD3D9DevicePresent, hook_D3D9DevicePresent);
-		DetourTransactionCommit();
+		ga_hook_function("IDirect3DDevice9::GetSwapChain", pD3D9GetSwapChain, hook_D3D9GetSwapChain);
+		ga_hook_function("IDirect3DDevice9::Present", pD3D9DevicePresent, hook_D3D9DevicePresent);
 	}
 
 	createdevice_hooked = 1;
@@ -343,7 +333,7 @@ hook_D3D9CreateDevice(
 	return hr;
 }
 
-// Detour function that replaces the IDirect3dDevice9::GetSwapChain() API
+// Hook function that replaces the IDirect3dDevice9::GetSwapChain() API
 DllExport HRESULT __stdcall hook_D3D9GetSwapChain(
 		IDirect3DDevice9 *This,
 		UINT iSwapChain,
@@ -366,17 +356,13 @@ DllExport HRESULT __stdcall hook_D3D9GetSwapChain(
 		uintptr_t* pInterfaceVTable = (uintptr_t*)*(uintptr_t*)pIDirect3DSwapChain9;  // IDirect3dSwapChain9
 		uintptr_t* ppSwapChainPresent = (uintptr_t*)pInterfaceVTable[3];   // IDirect3DSwapChain9::Present
 		pSwapChainPresent = (TSwapChainPresent) ppSwapChainPresent;
-
-		DetourTransactionBegin();
-		DetourUpdateThread(GetCurrentThread());
-		DetourAttach(&(PVOID&)pSwapChainPresent, hook_D3D9SwapChainPresent);
-		DetourTransactionCommit();
+		ga_hook_function("IDirect3DSwapChain9::Present", pSwapChainPresent, hook_D3D9SwapChainPresent);
 	}
 
 	return hr;
 }
 
-// Detour function that replaces the IDirect3dSwapChain9::Present() API
+// Hook function that replaces the IDirect3dSwapChain9::Present() API
 DllExport HRESULT __stdcall hook_D3D9SwapChainPresent(
 		IDirect3DSwapChain9 * This,
 		CONST RECT* pSourceRect,
@@ -417,7 +403,7 @@ DllExport HRESULT __stdcall hook_D3D9SwapChainPresent(
 }
 
 
-// Detour function that replaces the IDirect3dDevice9::Present() API
+// Hook function that replaces the IDirect3dDevice9::Present() API
 DllExport HRESULT __stdcall hook_D3D9DevicePresent(
 		IDirect3DDevice9 * This,
 		CONST RECT* pSourceRect,
@@ -470,18 +456,12 @@ proc_hook_IDXGISwapChain_Present(IDXGISwapChain *ppSwapChain)
 	uintptr_t *pInterfaceVTable = (uintptr_t *)*(uintptr_t *)ppSwapChain;   // IDXGISwapChain
 
 	pDXGISwapChainPresent = (TDXGISwapChainPresent)pInterfaceVTable[8];   // IDXGISwapChain::Present()
-#if 0
-	pRelease = (TRelease) pInterfaceVTable[2];	// IDXGISwapChain::Release()
-#endif
 
-	DetourTransactionBegin();
-	DetourUpdateThread(GetCurrentThread());
-	DetourAttach(&(PVOID&)pDXGISwapChainPresent, hook_DXGISwapChainPresent);
-	DetourTransactionCommit();
+	ga_hook_function("IDXGISwapChain::Present", pDXGISwapChainPresent, hook_DXGISwapChainPresent);
 }
 
 
-// Detour function that replaces the CreateDXGIFactory() API
+// Hook function that replaces the CreateDXGIFactory() API
 DllExport HRESULT __stdcall
 hook_CreateDXGIFactory( REFIID riid, void **ppFactory) {
 	//
@@ -491,17 +471,13 @@ hook_CreateDXGIFactory( REFIID riid, void **ppFactory) {
 		uintptr_t* pInterfaceVTable = (uintptr_t*)*(uintptr_t*)*ppFactory;
 		//OutputDebugString("[CreateDXGIFactory]");
 		pDXGICreateSwapChain = (TDXGICreateSwapChain)pInterfaceVTable[10];   // 10: IDXGIFactory::CreateSwapChain  
-
-		DetourTransactionBegin();
-		DetourUpdateThread(GetCurrentThread());
-		DetourAttach(&(PVOID&)pDXGICreateSwapChain, hook_DXGICreateSwapChain);
-		DetourTransactionCommit();
+		ga_hook_function("IDXGIFactory::CreateSwapChain", pDXGICreateSwapChain, hook_DXGICreateSwapChain);
 	}
 
 	return hr;
 }
 
-// Detour function that replaces the IDXGIFactory::CreateSwapChain() API
+// Hook function that replaces the IDXGIFactory::CreateSwapChain() API
 DllExport HRESULT __stdcall
 hook_DXGICreateSwapChain(
 		IDXGIFactory *This,
@@ -520,7 +496,7 @@ hook_DXGICreateSwapChain(
 	return hr;
 }
 
-// Detour function that replaces the D3D10CreateDeviceAndSwapChain() API
+// Hook function that replaces the D3D10CreateDeviceAndSwapChain() API
 DllExport HRESULT __stdcall
 hook_D3D10CreateDeviceAndSwapChain(
 		IDXGIAdapter *pAdapter,
@@ -545,7 +521,7 @@ hook_D3D10CreateDeviceAndSwapChain(
 	return hr;
 }
 
-// Detour function that replaces the D3D10CreateDeviceAndSwapChain1() API
+// Hook function that replaces the D3D10CreateDeviceAndSwapChain1() API
 DllExport HRESULT __stdcall
 hook_D3D10CreateDeviceAndSwapChain1(
 		IDXGIAdapter *pAdapter,
@@ -570,7 +546,7 @@ hook_D3D10CreateDeviceAndSwapChain1(
 	return hr;
 }
 
-// Detour function that replaces the D3D11CreateDeviceAndSwapChain() API
+// Hook function that replaces the D3D11CreateDeviceAndSwapChain() API
 DllExport HRESULT __stdcall
 hook_D3D11CreateDeviceAndSwapChain(
 	IDXGIAdapter *pAdapter,
@@ -617,7 +593,7 @@ check_dx_device_version(IDXGISwapChain * This, const GUID IID_target) {
 	return TRUE;
 }
 
-// Detour function that replaces the IDXGISwapChain::Present() API
+// Hook function that replaces the IDXGISwapChain::Present() API
 DllExport HRESULT __stdcall
 hook_DXGISwapChainPresent(
 		IDXGISwapChain * This,
@@ -978,7 +954,7 @@ void GetRawInputDevice(bool is_mame_game)
 	return;
 }
 
-// Detour function that replaces the GetRawInputData API
+// Hook function that replaces the GetRawInputData API
 DllExport HRESULT __stdcall hook_GetRawInputData(
 		HRAWINPUT hRawInput,
 		UINT uiCommand,

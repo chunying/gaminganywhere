@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 Chun-Ying Huang
+ * Copyright (c) 2012-2015 Chun-Ying Huang
  *
  * This file is part of GamingAnywhere (GA).
  *
@@ -27,40 +27,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-typedef HRESULT (STDMETHODCALLTYPE *t_CoCreateInstance)(
-	REFCLSID clsid,
-	LPUNKNOWN punknown,
-	DWORD dwClsContext,
-	REFIID iid,
-	LPVOID *ppv);
-typedef HRESULT (STDMETHODCALLTYPE *t_EnumAudioEndpoints)( 
-	IMMDeviceEnumerator *thiz,
-	EDataFlow dataFlow,
-	DWORD dwStateMask,
-	IMMDeviceCollection **ppDevices);
-typedef HRESULT (STDMETHODCALLTYPE *t_GetDefaultAudioEndpoint)(
-	IMMDeviceEnumerator *thiz,
-	EDataFlow dataFlow,
-	ERole role,
-	IMMDevice **ppDevice);
-typedef HRESULT (STDMETHODCALLTYPE *t_GetDevice)( 
-	IMMDeviceEnumerator *thiz,
-	LPCWSTR pwstrId,
-	IMMDevice **ppDevice);
-typedef HRESULT (STDMETHODCALLTYPE * t_Activate)(
-	IMMDeviceActivator *thiz,
-	REFIID iid,
-	DWORD dwClsCtx,
-	PROPVARIANT *pActivationParams,
-	void **ppInterface);
-typedef HRESULT (STDMETHODCALLTYPE *t_Item)( 
-	IMMDeviceCollection *thiz,
-	UINT nDevice,
-	IMMDevice **ppDevice);
-typedef HRESULT (STDMETHODCALLTYPE *t_GetService)(
-	IAudioClient *thiz,
-	REFIID riid,
-	void **ppv);
 typedef HRESULT (STDMETHODCALLTYPE *t_GetBuffer)( 
 	IAudioRenderClient *thiz,
 	UINT32 NumFramesRequested,
@@ -77,40 +43,6 @@ typedef HRESULT (STDMETHODCALLTYPE *t_GetMixFormat)(
 #endif
 
 // prototypes
-DllExport HRESULT __stdcall hook_CoCreateInstance(
-		REFCLSID clsid,
-		LPUNKNOWN punknown,
-		DWORD dwClsContext,
-		REFIID iid,
-		LPVOID *ppv); 
-DllExport HRESULT __stdcall hook_GetDevice ( 
-		IMMDeviceEnumerator *thiz,
-		LPCWSTR pwstrId,
-		IMMDevice **ppDevice);
-DllExport HRESULT __stdcall hook_Activate(
-		IMMDeviceActivator *thiz,
-		REFIID iid,
-		DWORD dwClsCtx,
-		PROPVARIANT *pActivationParams,
-		void **ppInterface);
-DllExport HRESULT __stdcall hook_GetDefaultAudioEndpoint(
-		IMMDeviceEnumerator *thiz,
-		EDataFlow dataFlow,
-		ERole role,
-		IMMDevice **ppDevice);
-DllExport HRESULT __stdcall hook_EnumAudioEndpoints( 
-		IMMDeviceEnumerator *thiz,
-		EDataFlow dataFlow,
-		DWORD dwStateMask,
-		IMMDeviceCollection **ppDevices);
-DllExport HRESULT __stdcall hook_Item( 
-		IMMDeviceCollection *thiz,
-		UINT nDevice,
-		IMMDevice **ppDevice);
-DllExport HRESULT __stdcall hook_GetService(
-		IAudioClient *thiz,
-		REFIID iid,
-		void **ppv);
 DllExport HRESULT __stdcall hook_GetBuffer( 
 		IAudioRenderClient *thiz,
 		UINT32 NumFramesRequested,

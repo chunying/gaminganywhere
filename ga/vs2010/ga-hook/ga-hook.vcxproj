@@ -47,7 +47,7 @@
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>..\..\..\deps.win32\lib;C:\Microsoft DirectX SDK\Lib\x86;$(OutDir)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>libga.lib;ws2_32.lib;SDL2.lib;swscale.lib;swresample.lib;postproc.lib;avdevice.lib;avfilter.lib;avformat.lib;avcodec.lib;avutil.lib;pthreadVC2.lib;d3d9.lib;d3dx9.lib;d3d10.lib;d3d10_1.lib;d3d11.lib;DXGI.lib;dxguid.lib;dxerr.lib;detours.lib;detoured.lib;opengl32.lib;glu32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>libga.lib;ws2_32.lib;SDL2.lib;swscale.lib;swresample.lib;postproc.lib;avdevice.lib;avfilter.lib;avformat.lib;avcodec.lib;avutil.lib;pthreadVC2.lib;d3d9.lib;d3dx9.lib;d3d10.lib;d3d10_1.lib;d3d11.lib;DXGI.lib;dxguid.lib;dxerr.lib;EasyHook32.lib;opengl32.lib;glu32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <SubSystem>Console</SubSystem>
     </Link>
   </ItemDefinitionGroup>
@@ -65,7 +65,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>false</OptimizeReferences>
       <SubSystem>Console</SubSystem>
-      <AdditionalDependencies>libga.lib;ws2_32.lib;SDL2.lib;swscale.lib;swresample.lib;postproc.lib;avdevice.lib;avfilter.lib;avformat.lib;avcodec.lib;avutil.lib;pthreadVC2.lib;d3d9.lib;d3dx9.lib;d3d10.lib;d3d10_1.lib;d3d11.lib;DXGI.lib;dxguid.lib;dxerr.lib;detours.lib;detoured.lib;opengl32.lib;glu32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>libga.lib;ws2_32.lib;SDL2.lib;swscale.lib;swresample.lib;postproc.lib;avdevice.lib;avfilter.lib;avformat.lib;avcodec.lib;avutil.lib;pthreadVC2.lib;d3d9.lib;d3dx9.lib;d3d10.lib;d3d10_1.lib;d3d11.lib;DXGI.lib;dxguid.lib;dxerr.lib;EasyHook32.lib;opengl32.lib;glu32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>..\..\..\deps.win32\lib;C:\Microsoft DirectX SDK\Lib\x86;$(OutDir)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>

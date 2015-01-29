@@ -32,7 +32,11 @@
 #include "encoder-common.h"
 
 #include "ga-hook-common.h"
+#ifdef WIN32
+#include "easyhook.h"
+#endif
 
+#include <map>
 #include <string>
 using namespace std;
 
@@ -508,4 +512,39 @@ ga_hook_lookup_or_quit(void *handle, const char *name) {
 	return sym;
 }
 #endif
+
+#ifdef WIN32
+static map<string, TRACED_HOOK_HANDLE> hookdb;
+
+void
+ga_hook_function(const char *id, void *oldfunc, void *newfunc) {
+	unsigned long thread_ids[] = { GA_HOOK_INVALID_THREADID };
+	TRACED_HOOK_HANDLE h = NULL;
+	//
+	if(hookdb.find(id) != hookdb.end()) {
+		ga_error("[ga-hook] %s already hooked? please check.\n", id);
+		return;
+	}
+	//
+	if((h = (TRACED_HOOK_HANDLE) malloc(sizeof(HOOK_TRACE_INFO))) == NULL) {
+		ga_error("[ga-hook] alloc HOOK_TRACE_INFO failed.\n");
+		exit(-1);
+	}
+	memset(h, 0, sizeof(HOOK_TRACE_INFO));
+	//
+	if(LhInstallHook(oldfunc, newfunc, NULL, h) != 0) {
+		ga_error("[ga-hook] hook for function %s failed.\n", id);
+		exit(-1);
+	}
+	//
+	if(LhSetExclusiveACL(thread_ids, 1, h) != 0) {
+		ga_error("[ga-hook] cannot activate hook (%s)\n", id);
+		exit(-1);
+	}
+	//
+	hookdb[id] = h;
+	//
+	return;
+}
+#endif	/* WIN32 */
 

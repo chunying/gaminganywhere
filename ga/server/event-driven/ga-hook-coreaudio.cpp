@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 Chun-Ying Huang
+ * Copyright (c) 2012-2015 Chun-Ying Huang
  *
  * This file is part of GamingAnywhere (GA).
  *
@@ -22,6 +22,7 @@
 #include "ga-avcodec.h"
 #include "rtspconf.h"
 #include "asource.h"
+#include "ga-hook-common.h"
 #include "ga-hook-coreaudio.h"
 
 #define CA_MAX_SAMPLES	32768
@@ -33,140 +34,11 @@ static int ga_channels = 0;
 static struct SwrContext *swrctx = NULL;
 static unsigned char *audio_buf = NULL;
 
-static t_CoCreateInstance	old_CoCreateInstance = NULL;
-static t_EnumAudioEndpoints	old_EnumAudioEndpoints = NULL;
-static t_GetDefaultAudioEndpoint old_GetDefaultAudioEndpoint = NULL; /* member of IMMDevice */
-static t_GetDevice		old_GetDevice = NULL;
-static t_Activate		old_Activate = NULL;	/* member of IMMDevice */
-static t_Item			old_Item = NULL;
-static t_GetService		old_GetService = NULL;
 static t_GetBuffer		old_GetBuffer = NULL;
 static t_ReleaseBuffer		old_ReleaseBuffer = NULL;
 static t_GetMixFormat		old_GetMixFormat = NULL;
 
-#define	CA_DO_HOOK(name)	\
-		DetourTransactionBegin(); \
-		DetourUpdateThread(GetCurrentThread()); \
-		DetourAttach(&(PVOID&)old_##name, hook_##name); \
-		DetourTransactionCommit();
-
-DllExport HRESULT __stdcall
-hook_EnumAudioEndpoints( 
-		IMMDeviceEnumerator *thiz,
-		EDataFlow dataFlow,
-		DWORD dwStateMask,
-		IMMDeviceCollection **ppDevices)
-{
-	HRESULT hr;
-	hr = old_EnumAudioEndpoints(thiz, dataFlow, dwStateMask, ppDevices);
-	if(hr==S_OK && old_Item==NULL) {
-		DWORD* pvtbl = (DWORD*) *(DWORD*) *ppDevices;
-		old_Item = (t_Item) pvtbl[4];
-		CA_DO_HOOK(Item);
-	}
-	return hr;
-}
-
-DllExport HRESULT __stdcall
-hook_GetDefaultAudioEndpoint(
-		IMMDeviceEnumerator *thiz,
-		EDataFlow dataFlow,
-		ERole role,
-		IMMDevice **ppDevice)
-{
-	HRESULT hr;
-	hr = old_GetDefaultAudioEndpoint(thiz, dataFlow, role, ppDevice);
-	if(hr==S_OK && old_Activate==NULL) {
-		DWORD* pvtbl = (DWORD*) *(DWORD*) *ppDevice;
-		old_Activate = (t_Activate) pvtbl[3];
-		CA_DO_HOOK(Activate);
-	}
-	return hr;
-}
-
-DllExport HRESULT __stdcall
-hook_GetDevice(	IMMDeviceEnumerator *thiz,
-		LPCWSTR pwstrId,
-		IMMDevice **ppDevice)
-{
-	HRESULT hr;
-	hr = old_GetDevice(thiz, pwstrId, ppDevice);
-	if(hr==S_OK && old_Activate==NULL) {
-		DWORD* pvtbl = (DWORD*) *(DWORD*) *ppDevice;
-		old_Activate = (t_Activate) pvtbl[3];
-		CA_DO_HOOK(Activate);
-	}
-	return hr;
-}
-
-DllExport HRESULT __stdcall
-hook_Item(	IMMDeviceCollection *thiz,
-		UINT nDevice,
-		IMMDevice **ppDevice)
-{
-	HRESULT hr;
-	hr = old_Item(thiz, nDevice, ppDevice);
-	if(hr==S_OK && old_Activate==NULL) {
-		DWORD* pvtbl = (DWORD*) *(DWORD*) *ppDevice;
-		old_Activate = (t_Activate) pvtbl[3];
-		CA_DO_HOOK(Activate);
-	}
-	return  hr;
-}
-
-DllExport HRESULT __stdcall
-hook_Activate(
-		IMMDeviceActivator *thiz,
-		REFIID iid,
-		DWORD dwClsCtx,
-		PROPVARIANT *pActivationParams,
-		void **ppInterface
-		)
-{ 
-	const IID IID_IAudioClient = __uuidof(IAudioClient);
-	HRESULT hr;
-	//
-	hr = old_Activate(thiz, iid, dwClsCtx, pActivationParams, ppInterface);
-	if(hr==S_OK && iid==IID_IAudioClient) {
-		if(old_GetService==NULL){
-			DWORD* pvtbl = (DWORD*) *(DWORD*) *ppInterface;
-			old_GetService = (t_GetService) pvtbl[14];
-			CA_DO_HOOK(GetService);
-		}
-		if(old_GetMixFormat==NULL){
-			DWORD* pvtbl = (DWORD*) *(DWORD*) *ppInterface;
-			old_GetMixFormat= (t_GetMixFormat) pvtbl[8];
-			CA_DO_HOOK(GetMixFormat);
-		}
-	}
-	return hr;
-}
-
-
-DllExport HRESULT __stdcall
-hook_GetService(
-		IAudioClient *thiz,
-		REFIID iid,
-		void **ppv
-	       )
-{
-	const IID IID_IAudioRenderClient = __uuidof(IAudioRenderClient);
-	HRESULT hr;
-	hr = old_GetService(thiz, iid, ppv);
-	if(hr==S_OK && iid==IID_IAudioRenderClient) {
-		if(old_ReleaseBuffer==NULL){
-			DWORD* pvtbl = (DWORD*) *(DWORD*) *ppv;
-			old_ReleaseBuffer = (t_ReleaseBuffer) pvtbl[4];
-			CA_DO_HOOK(ReleaseBuffer);
-		}
-		if(old_GetBuffer==NULL){
-			DWORD* pvtbl = (DWORD*) *(DWORD*) *ppv;
-			old_GetBuffer = (t_GetBuffer) pvtbl[3];
-			CA_DO_HOOK(GetBuffer);
-		}
-	}
-	return hr;
-}
+#define	CA_DO_HOOK(name)	ga_hook_function(#name, old_##name, hook_##name)
 
 static enum AVSampleFormat
 CA2SWR_format(WAVEFORMATEX *w) {
@@ -359,64 +231,60 @@ hook_GetBuffer(
 	return S_OK;
 }
 
-DllExport HRESULT __stdcall
-hook_CoCreateInstance(
-		REFCLSID clsid,
-		LPUNKNOWN punknown,
-		DWORD dwClsContext,
-		REFIID iid,
-		LPVOID *ppv
-	)
-{	
-	const IID IID_IMMDeviceEnumerator = __uuidof(MMDeviceEnumerator);
-	HRESULT hr;
-
-	hr = old_CoCreateInstance(clsid, punknown, dwClsContext, iid, ppv);
-	
-	if(hr != S_OK)
-		return hr;
-
-	if(clsid != IID_IMMDeviceEnumerator)
-		return hr;
-
-	if(old_EnumAudioEndpoints == NULL) {
-		DWORD* pvtbl = (DWORD*) *(DWORD*) *ppv;
-		old_EnumAudioEndpoints = (t_EnumAudioEndpoints) pvtbl[3];
-		CA_DO_HOOK(EnumAudioEndpoints);
-	}
-
-	if(old_GetDefaultAudioEndpoint == NULL) {
-		DWORD* pvtbl = (DWORD*) *(DWORD*) *ppv;
-		old_GetDefaultAudioEndpoint = (t_GetDefaultAudioEndpoint) pvtbl[4];
-		CA_DO_HOOK(GetDefaultAudioEndpoint);
-	}
-	
-	if(old_GetDevice == NULL) {
-		DWORD* pvtbl = (DWORD*) *(DWORD*) *ppv;
-		old_GetDevice = (t_GetDevice) pvtbl[5];
-		CA_DO_HOOK(GetDevice);
-	}
-
-	return hr;
-}
 
 int
 hook_coreaudio() {
-	HMODULE hMod;
-	if((hMod = LoadLibrary("ole32.dll")) == NULL) {
-		ga_error("Load ole32.dll failed.\n");
-		return -1;
-	}
-	if(old_CoCreateInstance != NULL)
-		return 0;
-	old_CoCreateInstance =
-		(t_CoCreateInstance) GetProcAddress(hMod, "CoCreateInstance");
-	if(old_CoCreateInstance == NULL) {
-		ga_error("GetProcAddress(CoCreateInstance) failed.\n");
-		return -1;
-	}
-	CA_DO_HOOK(CoCreateInstance);
+	int ret = -1;
+
+	HRESULT hr;
+	IMMDeviceEnumerator *deviceEnumerator = NULL;
+	IMMDevice *device = NULL;
+	IAudioClient *audioClient = NULL;
+	IAudioRenderClient *renderClient = NULL;
+	WAVEFORMATEX *pwfx = NULL;
+
+	// obtain core-audio objects and functions
+#define	RET_ON_ERROR(hr, prefix) if(hr!=S_OK) { ga_error("[core-audio] %s failed (%08x).\n", prefix, hr); goto hook_ca_quit; }
+	hr = CoCreateInstance(__uuidof(MMDeviceEnumerator), NULL, CLSCTX_ALL, __uuidof(IMMDeviceEnumerator), (void**) &deviceEnumerator);
+	RET_ON_ERROR(hr, "CoCreateInstance");
+
+	hr = deviceEnumerator->GetDefaultAudioEndpoint(eRender, eConsole, &device);
+	RET_ON_ERROR(hr, "GetDefaultAudioEndpoint");
+
+	hr = device->Activate(__uuidof(IAudioClient), CLSCTX_ALL, NULL, (void**) &audioClient);
+	RET_ON_ERROR(hr, "Activate");
+
+	hr = audioClient->GetMixFormat(&pwfx);
+	RET_ON_ERROR(hr, "GetMixFormat");
+
+	hr = audioClient->Initialize(AUDCLNT_SHAREMODE_SHARED, 0, 10000000/*REFTIME_PER_SEC*/, 0, pwfx, NULL);
+	RET_ON_ERROR(hr, "Initialize");
+
+	hr = audioClient->GetService(__uuidof(IAudioRenderClient), (void**) &renderClient);
+	RET_ON_ERROR(hr, "GetService[IAudioRenderClient]");
+#undef	RET_ON_ERROR
+
+	// do hook stuff
+	old_GetMixFormat = (t_GetMixFormat) ((comobj_t*) audioClient)->vtbl->func[8];
+	CA_DO_HOOK(GetMixFormat);
+
+	old_GetBuffer = (t_GetBuffer) ((comobj_t*) renderClient)->vtbl->func[3];
+	CA_DO_HOOK(GetBuffer);
+
+	old_ReleaseBuffer = (t_ReleaseBuffer) ((comobj_t*) renderClient)->vtbl->func[4];
+	CA_DO_HOOK(ReleaseBuffer);
+
+	ret = 0;
+
 	ga_error("hook_coreaudio: done\n");
-	return 0;
+
+hook_ca_quit:
+	if(renderClient)	{ renderClient->Release();	renderClient = NULL;		}
+	if(pwfx)		{ CoTaskMemFree(pwfx);		pwfx= NULL;			}
+	if(audioClient)		{ audioClient->Release();	audioClient = NULL;		}
+	if(device)		{ device->Release();		device = NULL;			}
+	if(deviceEnumerator)	{ deviceEnumerator->Release();	deviceEnumerator = NULL;	}
+
+	return ret;
 }
 

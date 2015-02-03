@@ -96,6 +96,8 @@ EXPORT int	ga_save_close(FILE *fp);
 // aggregated output feature
 EXPORT void	ga_aggregated_reset();
 EXPORT void	ga_aggregated_print(int key, int limit, int value);
+// encoders or decoders would require this
+EXPORT unsigned char * ga_find_startcode(unsigned char *buf, unsigned char *end, int *startcode_len);
 //
 EXPORT long	ga_atoi(const char *str);
 EXPORT struct gaRect * ga_fillrect(struct gaRect *rect, int left, int top, int right, int bottom);

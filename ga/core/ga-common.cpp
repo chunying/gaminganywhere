@@ -632,6 +632,34 @@ ga_aggregated_print(int key, int limit, int value) {
 }
 
 /**
+ * Find mpeg start code 00 00 01 or 00 00 00 01.
+ *
+ * @param buf [in] The byte buffer to search.
+ * @param end [in] End of the byte buffer.
+ * @param startcode_len [out] Length of start code.
+ * @return pointer to the beginning of the start code, or NULL if not found.
+ *
+ * If a non-NULL pointer is returned, you can read the frame data start from
+ * the returned pointer plus \a startcode_len.
+ */
+unsigned char *
+ga_find_startcode(unsigned char *buf, unsigned char *end, int *startcode_len) {
+	unsigned char *ptr;
+	for(ptr = buf; ptr < end-4; ptr++) {
+		if(*ptr == 0 && *(ptr+1)==0) {
+			if(*(ptr+2) == 1) {
+				*startcode_len = 3;
+				return ptr;
+			} else if(*(ptr+2)==0 && *(ptr+3)==1) {
+				*startcode_len = 4;
+				return ptr;
+			}
+		}
+	}
+	return NULL;
+}
+
+/**
  * Convert a number represented in a string to a long integer.
  *
  * @param str [in] The number string.

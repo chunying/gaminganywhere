@@ -268,6 +268,20 @@ vencoder_threadproc(void *arg) {
 				pkt.pts = pts;
 			}
 			pkt.stream_index = 0;
+#if 0			// XXX: dump naltype
+			do {
+				int codelen;
+				unsigned char *ptr;
+				fprintf(stderr, "[XXX-naldump]");
+				for(	ptr = ga_find_startcode(pkt.data, pkt.data+pkt.size, &codelen);
+					ptr != NULL;
+					ptr = ga_find_startcode(ptr+codelen, pkt.data+pkt.size, &codelen)) {
+					//
+					fprintf(stderr, " (+%d|%d)-%02x", ptr-pkt.data, codelen, ptr[codelen] & 0x1f);
+				}
+				fprintf(stderr, "\n");
+			} while(0);
+#endif
 			// send the packet
 			if(encoder_send_packet("video-encoder",
 				iid/*rtspconf->video_id*/, &pkt,

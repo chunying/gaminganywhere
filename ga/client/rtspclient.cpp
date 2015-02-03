@@ -634,6 +634,21 @@ play_video_priv(int ch/*channel*/, unsigned char *buffer, int bufsize, struct ti
 	av_init_packet(&avpkt);
 	avpkt.size = bufsize;
 	avpkt.data = buffer;
+#if 0	// XXX: dump nal units
+	do {
+		int codelen = 0;
+		unsigned char *ptr = NULL;
+		//
+		fprintf(stderr, "[XXX-nalcode]");
+		for(	ptr = ga_find_startcode(avpkt.data, avpkt.data+avpkt.size, &codelen);
+			ptr != NULL;
+			ptr = ga_find_startcode(ptr+codelen, avpkt.data+avpkt.size, &codelen)) {
+			//
+			fprintf(stderr, " (+%d|%d)-%02x", ptr-avpkt.data, codelen, ptr[codelen] & 0x1f);
+		}
+		fprintf(stderr, "\n");
+	} while(0);
+#endif
 	//
 	while(avpkt.size > 0) {
 		//

@@ -306,6 +306,9 @@ aencoder_threadproc(void *arg) {
 			//
 			av_init_packet(pkt);
 			snd_in->nb_samples = encoder->frame_size;
+			snd_in->format = encoder->sample_fmt;
+			snd_in->channel_layout = encoder->channel_layout;
+			//
 			srcbuf = samples+offset;
 			srcsize = source_size;
 			//
@@ -322,7 +325,7 @@ aencoder_threadproc(void *arg) {
 			//
 			if(avcodec_fill_audio_frame(snd_in, encoder->channels,
 					encoder->sample_fmt, srcbuf/*samples+offset*/,
-					srcsize/*encoder_size*/, 1/*no-alignment*/) != 0) {
+					srcsize/*encoder_size*/, 1/*no-alignment*/) < 0) {
 				// error
 				ga_error("DEBUG: avcodec_fill_audio_frame failed.\n");
 			}

@@ -21,6 +21,9 @@
 	7. Modify live/win32config, comment out NODEBUG=1
 	8. Repeat step 4-5 to generate debug-mode libs
 	9. Copy header files from live to a proper location
+	X. To build 64-bit library, set C_COMPILER = cl and RC32 = rc,
+	   (do not hardcode PATH, the VS script will do that for you)
+	   and then compile in x86_64 visual studio command line
 
 -- Commands for Cygwin or Unix
 # suppose 'live' dir has source codes and 'live555' dir has generated files

@@ -1,6 +1,7 @@
 
-
 # Makefile for Windows
+
+!include <NMakefile.def>
 
 TARGET	= make_core make_module make_server make_client
 MAKEFILE= NMakefile
@@ -20,16 +21,16 @@ make_client: make_core
 	cd client && nmake /f $(MAKEFILE) && cd ..
 
 install:
-	-mkdir ..\bin
+	-mkdir ..\bin.$(GA_WINSYS)
 	cd core && nmake /f $(MAKEFILE) install && cd ..
 	cd module && nmake /f $(MAKEFILE) install && cd ..
 	cd server && nmake /f $(MAKEFILE) install && cd ..
 	cd client && nmake /f $(MAKEFILE) install && cd ..
 	@rem install configuration
-	-mkdir ..\bin\config
-	-mkdir ..\bin\config\common
-	copy /y config\*.conf ..\bin\config
-	copy /y config\common\*.conf ..\bin\config\common
+	-mkdir ..\bin.$(GA_WINSYS)\config
+	-mkdir ..\bin.$(GA_WINSYS)\config\common
+	copy /y config\*.conf ..\bin.$(GA_WINSYS)\config
+	copy /y config\common\*.conf ..\bin.$(GA_WINSYS)\config\common
 
 clean:
 	cd core && nmake /f $(MAKEFILE) clean && cd ..

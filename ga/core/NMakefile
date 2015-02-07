@@ -23,8 +23,8 @@ libga.$(EXT): $(OBJS)
 	$(MAKEMODULE)
 
 install:
-	-mkdir ..\..\bin
-	copy /y $(TARGET) ..\..\bin
+	-mkdir ..\..\bin.$(GA_WINSYS)
+	copy /y $(TARGET) ..\..\bin.$(GA_WINSYS)
 
 clean:
 	-del /f /q $(TARGET) *.obj *.lib *.exp *.dll *~

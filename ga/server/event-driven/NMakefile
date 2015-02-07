@@ -2,9 +2,9 @@
 !include <..\NMakefile.def>
 
 CXX_FLAGS	= $(CXX_FLAGS) -I"C:\Microsoft DirectX SDK\Include"
-LIB_PATH	= $(LIB_PATH) /libpath:..\..\core /libpath:"C:\Microsoft DirectX SDK\Lib\x86"
+LIB_PATH	= $(LIB_PATH) /libpath:..\..\core /libpath:"C:\Microsoft DirectX SDK\Lib\$(GA_PLATFORM)"
 LIBS		= $(LIB_SYSTEM) $(LIB_SDL) $(LIB_FFMPEG) $(LIB_PTHREAD) \
-		  libga.lib $(LIB_D3D) EasyHook32.lib
+		  libga.lib $(LIB_D3D) EasyHook$(GA_CPUBITS).lib
 #LDFLAGS	= -rdynamic -L../../core -Wl,--whole-archive -lga -Wl,--no-whole-archive $(AVCLD) $(SDLLD)
 LDFLAGS		= $(LIB_PATH) /libpath:..\..\core $(LIBS) /opt:noref
 
@@ -26,9 +26,9 @@ ga-server-event-driven.exe: ga-server-event-driven.obj
 #	link /out:$@ $(LDFLAGS) $**
 
 install:
-	-mkdir ..\..\..\bin
-	copy /y *.exe ..\..\..\bin
-	copy /y *.dll ..\..\..\bin
+	-mkdir ..\..\..\bin.$(GA_WINSYS)
+	copy /y *.exe ..\..\..\bin.$(GA_WINSYS)
+	copy /y *.dll ..\..\..\bin.$(GA_WINSYS)
 
 clean:
 	-del /f /q $(TARGET) *.obj *.lib *.exp *~

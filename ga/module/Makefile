@@ -11,8 +11,8 @@ all:
 	for t in $(TARGET); do make -C $$t || exit 1; done
 
 install:
-	-mkdir -p ../../bin/mod
-	find . -name '*.$(EXT)' -exec cp -f {} ../../bin/mod \;
+	-mkdir -p ../../bin.$(GA_WINSYS)/mod
+	find . -name '*.$(EXT)' -exec cp -f {} ../../bin.$(GA_WINSYS)/mod \;
 
 clean:
 	for t in $(TARGET); do make -C $$t clean; done

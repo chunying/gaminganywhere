@@ -17,7 +17,7 @@ all:
 	cd vsource-desktop && nmake /f $(MAKEFILE).dfm && cd ..
 
 install:
-	-mkdir ..\..\bin\mod
+	-mkdir ..\..\bin.$(GA_WINSYS)\mod
 	cd asource-system && nmake /f $(MAKEFILE) install && cd ..
 	cd ctrl-sdl && nmake /f $(MAKEFILE) install && cd ..
 	cd encoder-audio && nmake /f $(MAKEFILE) install && cd ..

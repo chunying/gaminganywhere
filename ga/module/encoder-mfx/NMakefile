@@ -1,11 +1,17 @@
 
 !include <..\NMakefile.common>
 
+INDE_PLATFORM	= win32
+
+!if ("$(PLATFORM)" == "X64")
+INDE_PLATFORM	= x64
+!endif
+
 #MEDIASDK_BASE	= C:\Program Files\Intel\Media SDK 2014 R2 for Clients
 MEDIASDK_BASE	= C:\Intel\INDE\media_sdk
 MEDIASDK_INC	= "/I$(MEDIASDK_BASE)\include"
 MEDIASDK_LIB	= libmfx.lib advapi32.lib
-MEDIASDK_LIBPATH= "/LIBPATH:$(MEDIASDK_BASE)\lib\win32"
+MEDIASDK_LIBPATH= "/LIBPATH:$(MEDIASDK_BASE)\lib\$(INDE_PLATFORM)"
 
 CXX_FLAGS	= $(CXX_FLAGS) $(MEDIASDK_INC)
 LIBS		= $(LIBS) $(MEDIASDK_LIB)

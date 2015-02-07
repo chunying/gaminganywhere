@@ -2,7 +2,7 @@
 !include <..\NMakefile.common>
 
 CXX_FLAGS= $(CXX_FLAGS) -I"C:\Microsoft DirectX SDK\Include" -DD3D_CAPTURE
-LIB_PATH = $(LIB_PATH) /libpath:"C:\Microsoft DirectX SDK\Lib\x86"
+LIB_PATH = $(LIB_PATH) /libpath:"C:\Microsoft DirectX SDK\Lib\$(GA_PLATFORM)"
 LIBS	= $(LIBS) d3d9.lib d3dx9.lib
 OBJS	= vsource-desktop-d3d.obj ga-win32-common.obj ga-win32-d3d.obj
 TARGET	= vsource-desktop-d3d.$(EXT)

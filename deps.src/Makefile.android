@@ -195,7 +195,8 @@ live555:
 	$(TGZUNPACK) $(LIVE555)
 	cp patches/android-live555-config.android $(LIVE555DIR)/config.android
 	# need to apply the 4MB buffer patch?
-	#cd $(LIVE555DIR); cat ../patches/live555-* | patch -p1 
+	cd $(LIVE555DIR); cat ../patches/live555-* | patch -p1 
+	#
 	cd $(LIVE555DIR); ./genMakefiles android
 	make -C $(LIVE555DIR) $(PARALLEL_MAKE)
 	-mkdir -p $(GADEPS)/lib

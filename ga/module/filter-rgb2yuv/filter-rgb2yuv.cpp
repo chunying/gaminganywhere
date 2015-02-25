@@ -236,20 +236,23 @@ filter_RGB2YUV_threadproc(void *arg) {
 		swsctx = lookup_frame_converter(
 				srcframe->realwidth,
 				srcframe->realheight,
-				srcframe->pixelformat);
+				srcframe->pixelformat,
+				dstframe->realwidth,
+				dstframe->realheight,
+				dstframe->pixelformat);
 		if(swsctx == NULL) {
 			swsctx = create_frame_converter(
 				srcframe->realwidth,
 				srcframe->realheight,
 				srcframe->pixelformat,
-				outputW,
-				outputH,
-				PIX_FMT_YUV420P);
+				dstframe->realwidth,
+				dstframe->realheight,
+				dstframe->pixelformat);
 		}
 		if(swsctx == NULL) {
 			ga_error("RGB2YUV filter: fatal - cannot create frame converter (%d,%d,%d)->(%x,%d,%d)\n",
 				srcframe->realwidth, srcframe->realheight, srcframe->pixelformat,
-				outputW, outputH, PIX_FMT_YUV420P);
+				dstframe->realwidth, dstframe->realheight, dstframe->pixelformat);
 		}
 		//
 		if(srcframe->pixelformat == PIX_FMT_RGBA

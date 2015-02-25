@@ -51,6 +51,7 @@ extern "C" {
 #include "ga-common.h"
 #include "ga-conf.h"
 #include "ga-avcodec.h"
+#include "vconverter.h"
 
 #include <map>
 using namespace std;
@@ -160,8 +161,7 @@ create_overlay(struct RTSPThreadParam *rtspParam, int ch) {
 	format = rtspParam->format[ch];
 	pthread_mutex_unlock(&rtspParam->surfaceMutex[ch]);
 	// swsctx
-	if((swsctx = sws_getContext(w, h, format, w, h, PIX_FMT_YUV420P,
-			SWS_BICUBIC, NULL, NULL, NULL)) == NULL) {
+	if((swsctx = create_frame_converter(w, h, format, w, h, PIX_FMT_YUV420P)) == NULL) {
 		rtsperror("ga-client: cannot create swsscale context.\n");
 		exit(-1);
 	}

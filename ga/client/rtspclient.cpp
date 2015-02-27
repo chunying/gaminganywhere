@@ -41,6 +41,7 @@ unsigned increaseReceiveBufferTo(UsageEnvironment& env,
 #ifdef ANDROID
 #include "android-decoders.h"
 #endif
+#include "vconverter.h"
 
 #ifdef ANDROID
 #include "libgaclient.h"
@@ -703,12 +704,47 @@ play_video_priv(int ch/*channel*/, unsigned char *buffer, int bufsize, struct ti
 			// copy into pool
 			data = dpipe_get(rtspParam->pipe[ch]);
 			dstframe = (AVPicture*) data->pointer;
-			sws_scale(rtspParam->swsctx[ch],
-				// source: decoded frame
-				vframe[ch]->data, vframe[ch]->linesize,
-				0, vframe[ch]->height,
-				// destination: texture
-				dstframe->data, dstframe->linesize);
+			// do scaling
+			if(vframe[ch]->width  == rtspParam->width[ch]
+			&& vframe[ch]->height == rtspParam->height[ch]
+			&& vframe[ch]->format == rtspParam->format[ch]) {
+				/* fast path? no lookup on converter */
+				sws_scale(rtspParam->swsctx[ch],
+					// source: decoded frame
+					vframe[ch]->data, vframe[ch]->linesize,
+					0, vframe[ch]->height,
+					// destination: texture
+					dstframe->data, dstframe->linesize);
+			} else {
+				/* slower path - need to lookup converter */
+				SwsContext *swsctx;
+				if((swsctx = create_frame_converter(
+						vframe[ch]->width,
+						vframe[ch]->height,
+						(PixelFormat) vframe[ch]->format,
+						rtspParam->width[ch],
+						rtspParam->height[ch],
+#ifdef ANDROID
+						PIX_FMT_RGB565
+#else
+						(PixelFormat) rtspParam->format[ch]
+#endif
+						)) == NULL) {
+					ga_error("*** FATAL *** Create frame converter failed.\n");
+#ifdef ANDROID
+					rtspParam->quitLive555 = 1;
+					return -1;
+#else
+					exit(-1);
+#endif
+				}
+				sws_scale(swsctx,
+					// source: decoded frame
+					vframe[ch]->data, vframe[ch]->linesize,
+					0, vframe[ch]->height,
+					// destination: texture
+					dstframe->data, dstframe->linesize);
+			}
 			if(ch==0 && savefp_yuv != NULL) {
 				ga_save_yuv420p(savefp_yuv, vframe[0]->width, vframe[0]->height, dstframe->data, dstframe->linesize);
 				if(savefp_yuvts != NULL) {
@@ -1197,6 +1233,14 @@ rtsp_thread(void *param) {
 	//
 	shutdownStream(client);
 	deinit_decoder_buffer();
+	// release resources in rtspThreadParam
+	for(int i = 0; i < VIDEO_SOURCE_CHANNEL_MAX; i++) {
+		if(rtspParam->pipe[i] != NULL) {
+			dpipe_destroy(rtspParam->pipe[i]);
+			rtspParam->pipe[i] = NULL;
+		}
+	}
+	//
 	rtsperror("rtsp thread: terminated.\n");
 #ifndef ANDROID
 	exit(0);

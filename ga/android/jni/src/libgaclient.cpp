@@ -30,6 +30,7 @@
 
 #include "ga-common.h"
 #include "ga-conf.h"
+#include "vconverter.h"
 #include "libgaclient.h"
 #include "rtspconf.h"
 #include "rtspclient.h"
@@ -429,8 +430,9 @@ create_overlay(int ch, int w, int h, PixelFormat format) {
 	//
 	setScreenDimension(rtspThreadParam.jnienv, w, h);
 	// XXX: assume surfaceMutex[ch] locked
-	if((swsctx = sws_getContext(w, h, format, w, h, PIX_FMT_RGB565,
-			SWS_BICUBIC, NULL, NULL, NULL)) == NULL) {
+	//if((swsctx = sws_getContext(w, h, format, w, h, PIX_FMT_RGB565,
+	//		SWS_BICUBIC, NULL, NULL, NULL)) == NULL) {
+	if((swsctx = create_frame_converter(w, h, format, w, h, PIX_FMT_RGB565)) == NULL) {
 		rtsperror("ga-client: cannot create swsscale context.\n");
 		rtspThreadParam.quitLive555 = 1;
 		return -1;

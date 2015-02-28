@@ -92,7 +92,7 @@ ga_client_set_host(const char *host) {
 	if(g_conf->servername != NULL)
 		free(g_conf->servername);
 	g_conf->servername = strdup(host);
-	ga_log("setHost: %s\n", g_conf->servername);
+	ga_log("set_host: %s\n", g_conf->servername);
 	return 0;
 }
 
@@ -160,7 +160,7 @@ ga_client_set_builtin_audio(bool enabled) {
 int
 ga_client_set_builtin_video(bool enabled) {
 	g_conf->builtin_video_decoder = enabled ? 1 : 0;
-	ga_log("set_builtin_audio: %s", g_conf->builtin_video_decoder ? "true" : "false");
+	ga_log("set_builtin_video: %s", g_conf->builtin_video_decoder ? "true" : "false");
 	return 0;
 }
 

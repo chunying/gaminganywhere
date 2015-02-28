@@ -38,6 +38,9 @@
 #ifdef ANDROID
 #include <android/log.h>
 #endif /* ANDROID */
+#ifdef __APPLE__
+#include <syslog.h>
+#endif
 
 #if !defined(WIN32) && !defined(__APPLE__) && !defined(ANDROID)
 #include <X11/Xlib.h>
@@ -168,6 +171,9 @@ ga_log(const char *fmt, ...) {
 #endif
 	vsnprintf(msg, sizeof(msg), fmt, ap);
 	va_end(ap);
+#ifdef __APPLE__
+	syslog(LOG_NOTICE, "%s", msg);
+#endif
 	//
 	ga_writelog(tv, msg);
 	//
@@ -195,6 +201,9 @@ ga_error(const char *fmt, ...) {
 #endif
 	vsnprintf(msg, sizeof(msg), fmt, ap);
 	va_end(ap);
+#ifdef __APPLE__
+	syslog(LOG_NOTICE, "%s", msg);
+#endif
 	fprintf(stderr, "# [%d] %ld.%06ld %s", getpid(), tv.tv_sec, tv.tv_usec, msg);
 	//
 	ga_writelog(tv, msg);

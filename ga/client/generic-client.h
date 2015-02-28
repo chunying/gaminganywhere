@@ -21,6 +21,12 @@
 
 #include <stdio.h>
 
+/* XXX: must be pure-C interface */
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 int ga_client_init();
 
 int ga_client_set_host(const char *host);
@@ -43,5 +49,9 @@ int ga_client_launch_controller();
 int ga_client_start();
 int ga_client_stop();
 int ga_client_cleanup();
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* defined(__GA_IOS_CLIENT_H__) */

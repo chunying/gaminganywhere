@@ -153,14 +153,14 @@ ga_client_set_ctrl_port(int port) {
 int
 ga_client_set_builtin_audio(bool enabled) {
 	g_conf->builtin_audio_decoder = enabled ? 1 : 0;
-	ga_log("set_buildin_audio: %s", g_conf->builtin_audio_decoder ? "true" : "false");
+	ga_log("set_builtin_audio: %s", g_conf->builtin_audio_decoder ? "true" : "false");
 	return 0;
 }
 
 int
 ga_client_set_builtin_video(bool enabled) {
 	g_conf->builtin_video_decoder = enabled ? 1 : 0;
-	ga_log("set_buildin_audio: %s", g_conf->builtin_video_decoder ? "true" : "false");
+	ga_log("set_builtin_audio: %s", g_conf->builtin_video_decoder ? "true" : "false");
 	return 0;
 }
 

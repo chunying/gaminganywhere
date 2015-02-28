@@ -32,6 +32,10 @@
 #include <android/log.h>
 #endif
 
+#ifdef __APPLE__
+#include <TargetConditionals.h>
+#endif
+
 #if defined WIN32 && defined GA_LIB
 /** Functions exported from DLL's */
 #define	EXPORT __declspec(dllexport)

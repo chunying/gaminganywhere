@@ -82,6 +82,7 @@ static enum AVCodecID audio_codec_id = AV_CODEC_ID_NONE;
 #define	MAX_FRAMING_SIZE	8
 static int video_framing = 0;
 static int audio_framing = 0;
+static int log_rtp = 0;
 
 #ifdef COUNT_FRAME_RATE
 static int cf_frame[VIDEO_SOURCE_CHANNEL_MAX];
@@ -507,6 +508,12 @@ pktloss_monitor(void *clientData, unsigned char *packet, unsigned &packetSize) {
 		return;
 	ssrc = ntohl(rtp->ssrc);
 	seqnum = ntohs(rtp->seqnum);
+	if(log_rtp > 0) {
+		unsigned short flags = ntohs(rtp->flags);
+		unsigned int timestamp = ntohl(rtp->timestamp);
+		ga_log("log_rtp: flags %04x seq %u ts %u ssrc %u size %u\n",
+			flags, seqnum, timestamp, ssrc, packetSize);
+	}
 	pktloss_monitor_update(ssrc, seqnum);
 	return;
 }
@@ -1171,6 +1178,8 @@ rtsp_thread(void *param) {
 		ga_save_close(savefp_yuvts);
 	savefp_yuv = savefp_yuvts = NULL;
 	//
+	if(ga_conf_readbool("log-rtp-packet", 0) != 0)
+		log_rtp = 1;
 	if(ga_conf_readv("save-yuv-image", savefile_yuv, sizeof(savefile_yuv)) != NULL)
 		savefp_yuv = ga_save_init(savefile_yuv);
 	if(savefp_yuv != NULL

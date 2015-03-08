@@ -61,8 +61,8 @@ qos_report(void *clientData) {
 		dRcvd = pkts_received - qrec[i].pkts_received;
 		dKB = KB_received - qrec[i].KB_received;
 		// show info
-		rtsperror("# %u.%06u %s-report: %.0fKB rcvd; pkt-loss=%d/%d,%.2f%%; bitrate=%.0fKbps; jitter=%u (freq=%uHz)\n",
-			now.tv_sec, now.tv_usec,
+		ga_error("%s-report: %.0fKB rcvd; pkt-loss=%d/%d,%.2f%%; bitrate=%.0fKbps; jitter=%u (freq=%uHz)\n",
+			//now.tv_sec, now.tv_usec,
 			qrec[i].prefix, dKB, dExp-dRcvd, dExp, 100.0*(dExp-dRcvd)/dExp,
 			8000000.0*dKB/elapsed,
 			stats->jitter(),

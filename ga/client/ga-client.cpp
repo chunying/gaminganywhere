@@ -703,6 +703,8 @@ main(int argc, char *argv[]) {
 		return -1;
 	}
 #endif
+	// enable logging
+	ga_openlog();
 	//
 	if(ga_conf_readbool("control-relative-mouse-mode", 0) != 0) {
 		rtsperror("*** Relative mouse mode enabled.\n");

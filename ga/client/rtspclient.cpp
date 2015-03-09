@@ -511,8 +511,15 @@ pktloss_monitor(void *clientData, unsigned char *packet, unsigned &packetSize) {
 	if(log_rtp > 0) {
 		unsigned short flags = ntohs(rtp->flags);
 		unsigned int timestamp = ntohl(rtp->timestamp);
+#ifdef ANDROID
+		struct timeval tv;
+		gettimeofday(&tv, NULL);
+		ga_log("%10u.%06u log_rtp: flags %04x seq %u ts %u ssrc %u size %u\n",
+			tv.tv_sec, tv.tv_usec, flags, seqnum, timestamp, ssrc, packetSize);
+#else
 		ga_log("log_rtp: flags %04x seq %u ts %u ssrc %u size %u\n",
 			flags, seqnum, timestamp, ssrc, packetSize);
+#endif
 	}
 	pktloss_monitor_update(ssrc, seqnum);
 	return;

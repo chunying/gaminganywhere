@@ -45,7 +45,8 @@ using namespace std;
 
 int vsource_initialized = 0;
 int resolution_retrieved = 0;
-int game_width, game_height;
+int game_width = 0;
+int game_height = 0;
 int encoder_width, encoder_height;
 int hook_boost = 0;
 int no_default_controller = 0;

@@ -791,7 +791,7 @@ hook_SDL_SetVideoMode(int width, int height, int bpp, uint32_t flags) {
 			ga_error("SDL_SetVideoMode: GA detect endianness failed.\n");
 			goto err_quit;
 		}
-		dupsurface = old_SDL_CreateRGBSurface(SDL_SWSURFACE, width, height, 32,
+		dupsurface = old_SDL_CreateRGBSurface(SDL12_SWSURFACE, width, height, 32,
 				rmask, gmask, bmask, amask);
 		if(dupsurface == NULL) {
 			ga_error("SDL_SetVideoMode: GA cannot create RGB surface.\n");
@@ -896,7 +896,7 @@ hook_SDL_BlitSurface(SDL12_Surface *src, SDL12_Rect *srcrect, SDL12_Surface *dst
 	ret = old_SDL_BlitSurface(src, srcrect, dst, dstrect);
 	//
 	if(dst == screensurface) {
-		if((screensurface->flags & SDL_HWSURFACE) != 0) {
+		if((screensurface->flags & SDL12_HWSURFACE) != 0) {
 			hook_SDL_capture_screen("SDL_BlitSurface");
 		}
 	}
@@ -1077,7 +1077,7 @@ hook_SDL_PeepEvents(SDL12_Event *event, int numevents, SDL12_eventaction action,
 	if(old_SDL_PeepEvents == NULL) {
 		sdl_hook_symbols();
 	}
-	if(action == SDL_ADDEVENT)
+	if(action == SDL12_ADDEVENT)
 		return old_SDL_PeepEvents(event, numevents, action, mask);
 	ret = old_SDL_PeepEvents(event, numevents, action, mask);
 	if(ret > 0) {

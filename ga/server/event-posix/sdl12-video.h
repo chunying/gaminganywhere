@@ -21,9 +21,9 @@
 
 /** Available for SDL_CreateRGBSurface() or SDL_SetVideoMode() */
 /*@{*/
-#define SDL_SWSURFACE	0x00000000	/**< Surface is in system memory */
-#define SDL_HWSURFACE	0x00000001	/**< Surface is in video memory */
-#define SDL_ASYNCBLIT	0x00000004	/**< Use asynchronous blits if possible */
+#define SDL12_SWSURFACE	0x00000000	/**< Surface is in system memory */
+#define SDL12_HWSURFACE	0x00000001	/**< Surface is in video memory */
+#define SDL12_ASYNCBLIT	0x00000004	/**< Use asynchronous blits if possible */
 /*@}*/
 
 /** Available for SDL_SetVideoMode() */

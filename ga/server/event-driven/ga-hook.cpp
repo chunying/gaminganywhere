@@ -33,7 +33,10 @@
 #include "ga-hook-common.h"
 #include "ga-hook-sdl.h"
 #include "ga-hook-sdlaudio.h"
+#include "ga-hook-sdl2.h"
+#include "ga-hook-sdl2audio.h"
 #include "ga-hook-coreaudio.h"
+#include "ga-hook-gl.h"
 
 #include "easyhook.h"
 
@@ -93,10 +96,18 @@ static int
 hook_sdl12(const char *hook_type, const char *hook_method) {
 	HMODULE hMod;
 	char audio_type[64] = "";
-	const char *sdlpath = getenv("LIBSDL_SO");
-	const char *def_sdlpath = "SDL.dll";
-	if(sdlpath == NULL)
+	//const char *sdlpath = getenv("LIBSDL_SO");
+	char real_sdlpath[256];
+	const char *sdlpath = NULL;
+	const char def_sdlpath[] = "SDL.dll";
+	if(getenv("LIBSDL_SO") != NULL) {
+		strncpy(real_sdlpath, getenv("LIBSDL_SO"), sizeof(real_sdlpath));
+		sdlpath = real_sdlpath;
+	} else if(ga_conf_readv("hook-sdl-path", real_sdlpath, sizeof(real_sdlpath)) != NULL) {
+		sdlpath = real_sdlpath;
+	} else {
 		sdlpath = def_sdlpath;
+	}
 	//
 	if((hMod = GetModuleHandle(sdlpath)) == NULL) {
 		if((hMod = LoadLibrary(sdlpath)) == NULL) {
@@ -155,6 +166,118 @@ hook_sdl12(const char *hook_type, const char *hook_method) {
 	SDL_DO_HOOK(SDL_PollEvent);
 #undef	SDL_DO_HOOK
 	ga_error("hook_sdl12: done\n");
+	//
+	return 0;
+}
+
+static int
+hook_sdl2(const char *hook_type, const char *hook_method) {
+	HMODULE hMod, hModGL;
+	char audio_type[64] = "";
+	//const char *sdlpath = getenv("LIBSDL_SO");
+	char real_sdlpath[256];
+	const char *sdlpath = NULL;
+	const char def_sdlpath[] = "SDL.dll";
+	if(getenv("LIBSDL_SO") != NULL) {
+		strncpy(real_sdlpath, getenv("LIBSDL_SO"), sizeof(real_sdlpath));
+		sdlpath = real_sdlpath;
+	} else if(ga_conf_readv("hook-sdl-path", real_sdlpath, sizeof(real_sdlpath)) != NULL) {
+		sdlpath = real_sdlpath;
+	} else {
+		sdlpath = def_sdlpath;
+	}
+	//
+	if((hMod = GetModuleHandle(sdlpath)) == NULL) {
+		if((hMod = LoadLibrary(sdlpath)) == NULL) {
+			ga_error("Load %s failed.\n", sdlpath);
+			return -1;
+		}
+	}
+	if((hModGL = GetModuleHandle("OPENGL32.DLL")) == NULL) {
+		if((hModGL = LoadLibrary("OPENGL32.DLL")) == NULL) {
+			ga_error("hook_sdl2: unable to load opengl32.dll.\n");
+		} else {
+			ga_error("hook_sdl2: opengl32.dll loaded.\n");
+		}
+	}
+	if(ga_conf_readv("hook-audio", audio_type, sizeof(audio_type)) == NULL)
+		audio_type[0] = '\0';
+	//
+	//load_hook_function(hMod, t_SDL_Init, old_SDL_Init, "SDL_Init");
+	load_hook_function(hMod, t_SDL2_Init, old_SDL2_Init, "SDL_Init");
+	load_hook_function(hMod, t_SDL2_CreateWindow, old_SDL2_CreateWindow, "SDL_CreateWindow");
+	load_hook_function(hMod, t_SDL2_CreateRenderer, old_SDL2_CreateRenderer, "SDL_CreateRenderer");
+	load_hook_function(hMod, t_SDL2_CreateTexture, old_SDL2_CreateTexture, "SDL_CreateTexture");
+	load_hook_function(hMod, t_SDL2_UpperBlit, old_SDL2_UpperBlit, "SDL_UpperBlit");
+	// XXX: BlitSurface == UpperBlit
+	load_hook_function(hMod, t_SDL2_BlitSurface, old_SDL2_BlitSurface, "SDL_UpperBlit");
+	load_hook_function(hMod, t_SDL2_GetRendererInfo, old_SDL2_GetRendererInfo, "SDL_GetRendererInfo");
+	load_hook_function(hMod, t_SDL2_RenderReadPixels, old_SDL2_RenderReadPixels, "SDL_RenderReadPixels");
+	load_hook_function(hMod, t_SDL2_RenderPresent, old_SDL2_RenderPresent, "SDL_RenderPresent");
+	load_hook_function(hMod, t_SDL2_GL_SwapWindow, old_SDL2_GL_SwapWindow, "SDL_GL_SwapWindow");
+	if(hModGL != NULL) {
+		load_hook_function(hModGL, t_SDL2_GL_glFlush, old_SDL2_GL_glFlush, "glFlush");
+	}
+	load_hook_function(hMod, t_SDL2_PollEvent, old_SDL2_PollEvent, "SDL_PollEvent");
+	load_hook_function(hMod, t_SDL2_WaitEvent, old_SDL2_WaitEvent, "SDL_WaitEvent");
+	load_hook_function(hMod, t_SDL2_PeepEvents, old_SDL2_PeepEvents, "SDL_PeepEvents");
+	load_hook_function(hMod, t_SDL2_SetEventFilter, old_SDL2_SetEventFilter, "SDL_SetEventFilter");
+	if(strcmp("sdl2audio", audio_type) == 0) {
+	/////////////////////////////////////////
+	load_hook_function(hMod, t_SDL2_OpenAudio, old_SDL2_OpenAudio, "SDL_OpenAudio");
+	load_hook_function(hMod, t_SDL2_PauseAudio, old_SDL2_PauseAudio, "SDL_PauseAudio");
+	load_hook_function(hMod, t_SDL2_CloseAudio, old_SDL2_CloseAudio, "SDL_CloseAudio");
+	ga_error("hook: sdl2audio enabled.\n");
+	/////////////////////////////////////////
+	}
+	// for internal use
+	load_hook_function(hMod, t_SDL2_CreateRGBSurface, old_SDL2_CreateRGBSurface, "SDL_CreateRGBSurface");
+	load_hook_function(hMod, t_SDL2_FreeSurface, old_SDL2_FreeSurface, "SDL_FreeSurface");
+	load_hook_function(hMod, t_SDL2_PushEvent, old_SDL2_PushEvent, "SDL_PushEvent");
+	//
+#define	SDL_DO_HOOK(name)	ga_hook_function(#name, old_##name, hook_##name)
+	//SDL_DO_HOOK(SDL_Init);
+	SDL_DO_HOOK(SDL2_CreateWindow);
+	SDL_DO_HOOK(SDL2_CreateRenderer);
+	SDL_DO_HOOK(SDL2_CreateTexture);
+	SDL_DO_HOOK(SDL2_UpperBlit);
+	SDL_DO_HOOK(SDL2_RenderPresent);
+	SDL_DO_HOOK(SDL2_WaitEvent);
+	SDL_DO_HOOK(SDL2_PeepEvents);
+	SDL_DO_HOOK(SDL2_SetEventFilter);
+	if(strcmp("sdl2audio", audio_type) == 0) {
+	/////////////////////////////////////////
+	SDL_DO_HOOK(SDL2_OpenAudio);
+	SDL_DO_HOOK(SDL2_PauseAudio);
+	SDL_DO_HOOK(SDL2_CloseAudio);
+	/////////////////////////////////////////
+	}
+	SDL_DO_HOOK(SDL2_GL_SwapWindow);
+	SDL_DO_HOOK(SDL2_GL_glFlush);
+	SDL_DO_HOOK(SDL2_PollEvent);
+#undef	SDL_DO_HOOK
+	ga_error("hook_sdl2: done\n");
+	//
+	return 0;
+}
+
+static int
+hook_gl() {
+	HMODULE hMod;
+	//
+	if((hMod = GetModuleHandle("OPENGL32.DLL")) == NULL) {
+		if((hMod = LoadLibrary("OPENGL32.DLL")) == NULL) {
+			ga_error("hook_gl: unable to load opengl32.dll.\n");
+			return -1;
+		} else {
+			ga_error("hook_gl: opengl32.dll loaded.\n");
+		}
+	}
+	//
+	load_hook_function(hMod, t_glFlush, old_glFlush, "glFlush");
+	//
+	ga_hook_function("glFlush", old_glFlush, hook_glFlush);
+	ga_error("hook_gl: done\n");
 	//
 	return 0;
 }
@@ -429,6 +552,12 @@ do_hook(char *hook_type, int hook_type_sz) {
 	if(strcasecmp(hook_type, "sdl") == 0) {
 		return hook_sdl12(hook_type, hook_method);
 	}
+	if(strcasecmp(hook_type, "sdl2") == 0) {
+		return hook_sdl2(hook_type, hook_method);
+	}
+	if(strcasecmp(hook_type, "gl") == 0) {
+		return hook_gl();
+	}
 	// d9?
 	if(strcasecmp(hook_type, "d9") == 0) {
 		return hook_d9(hook_type, hook_method);
@@ -473,6 +602,11 @@ hook_proc() {
 		ctrl_server_setreplay(sdl_hook_replay_callback);
 		no_default_controller = 1;
 		ga_error("hook_proc: sdl - use native replayer.\n");
+	} else if(strcasecmp(hook_type, "sdl2") == 0) {
+		sdlmsg_kb_init();
+		ctrl_server_setreplay(sdl2_hook_replay_callback);
+		no_default_controller = 1;
+		ga_error("hook_proc: sdl2 - use native replayer.\n");
 	}
 
 	// start hook server

@@ -80,6 +80,7 @@ hook_and_launch(const char *ga_root, const char *config_path, const char *app_ex
 	if(ga_conf_mapsize("game-argv") > 0) {
 		int n;
 		ga_conf_mapreset("game-argv");
+		cmdpos = snprintf(cmdline, cmdspace, "\"%s\"", app_exe);
 		for(	ptr = ga_conf_mapkey("game-argv", buf, sizeof(buf));
 			ptr != NULL && cmdpos < cmdspace;
 			ptr = ga_conf_mapnextkey("game-argv", buf, sizeof(buf))) {
@@ -123,8 +124,13 @@ hook_and_launch(const char *ga_root, const char *config_path, const char *app_ex
 			ptr_cmdline_w,		/* command line arguments */
 			0,	/* process creation flags */
 			EASYHOOK_INJECT_DEFAULT,/* hook options */
+#ifdef _WIN64
+			NULL,			/* x86 dll */
+			dllpath_w,		/* x64 dll */
+#else
 			dllpath_w,		/* x86 dll */
 			NULL,			/* x64 dll */
+#endif
 			NULL, 0,		/* passthrough buffer and size */
 			&pid);
 	if(r == 0) {

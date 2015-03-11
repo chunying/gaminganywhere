@@ -17,6 +17,8 @@ all: $(TARGET)
 
 ga-hook.dll:	ga-hook.obj ga-hook-common.obj \
 		ga-hook-sdl.obj ga-hook-sdlaudio.obj \
+		ga-hook-sdl2.obj ga-hook-sdl2audio.obj \
+		ga-hook-gl.obj \
 		ga-hook-coreaudio.obj \
 		hook-function.obj ctrl-sdl.obj
 	$(CXX) /LD /MD $** $(LIBS) /link /DLL $(LIB_PATH) opengl32.lib glu32.lib /opt:noref

@@ -32,7 +32,9 @@
 
 #include "ga-hook-common.h"
 #include "ga-hook-gl.h"
+#ifndef WIN32
 #include "ga-hook-lib.h"
+#endif
 
 #include <map>
 using namespace std;
@@ -52,6 +54,7 @@ t_glFlush		old_glFlush = NULL;
 
 static void
 gl_global_init() {
+#ifndef WIN32
 	static int initialized = 0;
 	pthread_t t;
 	if(initialized != 0)
@@ -63,7 +66,7 @@ gl_global_init() {
 	}
 
 	initialized = 1;
-
+#endif
 	return;
 }
 
@@ -99,6 +102,9 @@ quit:
 }
 
 void
+#ifdef WIN32
+WINAPI
+#endif
 hook_glFlush() {
 	static int frame_interval;
 	static struct timeval initialTv, captureTv;
@@ -130,6 +136,13 @@ hook_glFlush() {
 	vp_width = vp[2];
 	vp_height = vp[3];		
 	//
+	if(vp_width < 16 || vp_height < 16) {
+		return;
+	}
+	//
+	ga_error("XXX hook_gl: viewport (%d,%d)-(%d,%d)\n",
+		vp_x, vp_y, vp_width, vp_height);
+	//
 	if(ga_hook_capture_prepared(vp_width, vp_height, 1) < 0)
 		return;
 	//
@@ -155,21 +168,21 @@ hook_glFlush() {
 	do {
 		unsigned char *src, *dst;
 		//
-		frameLinesize = vp_width<<2;
+		frameLinesize = game_width<<2;
 		//
 		data = dpipe_get(g_pipe[0]);
 		frame = (vsource_frame_t*) data->pointer;
 		frame->pixelformat = PIX_FMT_RGBA;
-		frame->realwidth = vp_width;
-		frame->realheight = vp_height;
+		frame->realwidth = game_width;
+		frame->realheight = game_height;
 		frame->realstride = frameLinesize;
-		frame->realsize = vp_height/*vp_width*/ * frameLinesize;
+		frame->realsize = game_height * frameLinesize;
 		frame->linesize[0] = frameLinesize;/*frame->stride*/;
 		// read a block of pixels from the framebuffer (backbuffer)
 		glReadBuffer(GL_BACK);
-		glReadPixels(vp_x, vp_y, vp_width, vp_height, GL_RGBA, GL_UNSIGNED_BYTE, frameBuf);
+		glReadPixels(0, 0, game_width, game_height, GL_RGBA, GL_UNSIGNED_BYTE, frameBuf);
 		// image is upside down!
-		src = frameBuf + frameLinesize * (vp_height - 1);
+		src = frameBuf + frameLinesize * (game_height - 1);
 		dst = frame->imgbuf;
 		for(i = 0; i < frame->realheight; i++) {
 			bcopy(src, dst, frameLinesize);

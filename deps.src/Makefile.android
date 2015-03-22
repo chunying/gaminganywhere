@@ -1,5 +1,5 @@
 
-GADEPS		?= $(HOME)/myprog/gaminganywhere/deps.android
+GADEPS		?= $(HOME)/myprog/gaminganywhere/deps.android-arm
 MACHINE		= $(shell uname -m)
 PARALLEL_MAKE	= -j5
 PACKAGES	= sdl2 yasm lame opus ogg vorbis theora vpx x264 ffmpeg live555
@@ -7,14 +7,23 @@ PACKAGES	= sdl2 yasm lame opus ogg vorbis theora vpx x264 ffmpeg live555
 TBZUNPACK	= tar xjf
 TGZUNPACK	= tar xzf
 
+ifeq ($(TOOLCHAIN_ARCH),x86)
+TOOLCHAIN_ABI	= x86
+TARGET		= i686-linux
+TARGET_VPX	= x86-android-gcc
+SDL_ANDROID	=
+FFMPEG_ANDROID	= --arch=i686 --cpu=i686 --enable-asm --disable-inline-asm
+else
 TOOLCHAIN_ABI	= armeabi-v7a
-LINKSTL		= shared
 HAS_NEON	= yes
-TARGET_PLATFORM	= android-9
-NDK_ROOT	= $(HOME)/android/android-ndk/.
-
 TARGET		= arm-linux
 TARGET_VPX	= armv7-android-gcc
+SDL_ANDROID	= LOCAL_ARM_MODE=arm LOCAL_ARM_NEON=true
+FFMPEG_ANDROID	= --arch=armv7 --cpu=cortex-a8 --enable-asm --enable-neon --disable-runtime-cpudetect
+endif
+LINKSTL		= shared
+TARGET_PLATFORM	= android-9
+NDK_ROOT	= $(HOME)/android/android-ndk/.
 
 include Makefile.packages
 include Makefile.ndk
@@ -35,10 +44,10 @@ pkg-config:
 sdl2:
 	$(TGZUNPACK) $(SDL2)
 	-cd $(SDL2DIR); ln -sf . jni
-	cd $(SDL2DIR); V=1 ndk-build $(PARALLEL_MAKE) LOCAL_ARM_MODE=arm LOCAL_ARM_NEON=true \
-		APP_ABI=armeabi-v7a TARGET_CPU_ABI=armeabi-v7a TARGET_PLATFORM=$(TARGET_PLATFORM)
+	cd $(SDL2DIR); V=1 ndk-build $(PARALLEL_MAKE) $(SDL_ANDROID) \
+		APP_ABI=$(TOOLCHAIN_ABI) TARGET_CPU_ABI=$(TOOLCHAIN_ABI) TARGET_PLATFORM=$(TARGET_PLATFORM)
 	mkdir -p $(GADEPS)/lib $(GADEPS)/include/SDL2
-	cp $(SDL2DIR)/libs/armeabi-v7a/libSDL2.so $(GADEPS)/lib/
+	cp $(SDL2DIR)/libs/$(TOOLCHAIN_ABI)/libSDL2.so $(GADEPS)/lib/
 	cp $(SDL2DIR)/include/*.h $(GADEPS)/include/SDL2/
 	# generate sdl2-config
 	mkdir -p $(GADEPS)/bin
@@ -125,16 +134,17 @@ theora:
 	rm -rf $(THEORADIR)
 
 vpx:
-	$(TBZUNPACK) $(VPX)
-	cd $(VPXDIR); ./configure --prefix=$(GADEPS) --disable-examples \
+	$(TBZUNPACK) $(VPX)	# ASFLAGS="-D__ANDROID__"
+	cd $(VPXDIR); CROSS=$(CCPREFIX) LDFLAGS="--sysroot=$(SYSROOT)" CFLAGS="--sysroot=$(SYSROOT)" \
+		./configure --prefix=$(GADEPS) --disable-examples \
 		--target=$(TARGET_VPX) --sdk-path=$(NDK_ROOT) \
-		--libc=$(NDK_ROOT)/platforms/$(TARGET_PLATFORM)/arch-arm \
+		--libc=$(NDK_ROOT)/platforms/$(TARGET_PLATFORM)/arch-$(TOOLCHAIN_ARCH) \
 		--disable-runtime-cpu-detect
 	# patch to disable runtime-cpu-detect on linux
 	mv $(VPXDIR)/vpx_config.h $(VPXDIR)/vpx_config.h.old
 	cat $(VPXDIR)/vpx_config.h.old | sed -e 's,CONFIG_RUNTIME_CPU_DETECT 1,CONFIG_RUNTIME_CPU_DETECT 0,' > $(VPXDIR)/vpx_config.h
 	#
-	make -C $(VPXDIR) $(PARALLEL_MAKE)
+	make -C $(VPXDIR) $(PARALLEL_MAKE) STRIP=
 	make -C $(VPXDIR) install
 	rm -rf $(VPXDIR)
 
@@ -179,8 +189,7 @@ ffmpeg:
 		--enable-gpl --enable-nonfree --disable-outdev=sdl \
 		--disable-doc \
 		--enable-cross-compile --cross-prefix=$(CCPREFIX) \
-		--target-os=linux --arch=armv7 --cpu=cortex-a8 \
-		--enable-asm --enable-neon --disable-runtime-cpudetect \
+		--target-os=linux $(FFMPEG_ANDROID) \
 		--extra-cflags="$(ANDROID_CFLAGS) -I$(GADEPS)/include $(ANDROID_EXTRA_HEADERS)" \
 		--extra-cxxflags="$(ANDROID_CFLAGS) -I$(GADEPS)/include $(ANDROID_EXTRA_HEADERS)"\
 		--extra-ldflags="$(ANDROID_LDFLAGS) -L$(GADEPS)/lib -Wl,--allow-shlib-undefined -Wl,-rpath-link=$(GADEPS)/lib"

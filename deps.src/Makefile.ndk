@@ -104,5 +104,5 @@ ANDROID_LDFLAGS	= -L$(ANDROID_LIBPATH) \
 		$(ABI_LDFLAGS) \
 		-Wl,--no-undefined \
 		-Wl,-z,noexecstack -Wl,-z,relro -Wl,-z,now \
-		-lc -lm -lstdc++ $(ANDROID_STLLIB)
+		-lc -lm -llog -lstdc++ $(ANDROID_STLLIB)
 

@@ -189,6 +189,20 @@ test_reconfig(void *) {
 }
 #endif
 
+void
+handle_netreport(ctrlmsg_system_t *msg) {
+	ctrlmsg_system_netreport_t *msgn = (ctrlmsg_system_netreport_t*) msg;
+	ga_error("net-report: capacity=%.3f Kbps; loss-rate=%.2f%% (%u/%u); overhead=%.2f [%u KB received in %.3fs (%.2fKB/s)]\n",
+		msgn->capacity / 1024.0,
+		100.0 * msgn->pktloss / msgn->pktcount,
+		msgn->pktloss, msgn->pktcount,
+		1.0 * msgn->pktcount / msgn->framecount,
+		msgn->bytecount / 1024,
+		msgn->duration / 1000000.0,
+		msgn->bytecount / 1024.0 / (msgn->duration / 1000000.0));
+	return;
+}
+
 int
 main(int argc, char *argv[]) {
 	int notRunning = 0;
@@ -226,6 +240,9 @@ main(int argc, char *argv[]) {
 	if(load_modules() < 0)	 	{ return -1; }
 	if(init_modules() < 0)	 	{ return -1; }
 	if(run_modules() < 0)	 	{ return -1; }
+	// enable handler to monitored network status
+	ctrlsys_set_handler(CTRL_MSGSYS_SUBTYPE_NETREPORT, handle_netreport);
+	//
 #ifdef TEST_RECONFIGURE
 	pthread_t t;
 	pthread_create(&t, NULL, test_reconfig, NULL);

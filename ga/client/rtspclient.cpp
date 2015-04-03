@@ -481,6 +481,102 @@ pktloss_monitor_get(unsigned int ssrc, int *count = NULL, int reset = 0) {
 	return mi->second.lost;
 }
 
+//// bandwidth estimator
+
+typedef struct bwe_record_s {
+	struct timeval initTime;
+	unsigned int framecount;
+	unsigned int pktcount;
+	unsigned int pktloss;
+	unsigned int bytesRcvd;
+	unsigned short lastPktSeq;
+	struct timeval lastPktRcvdTimestamp;
+	unsigned int lastPktSentTimestamp;
+	unsigned int lastPktSize;
+	// for estimating capacity
+	unsigned int samples;
+	unsigned int totalBytes;
+	unsigned int totalElapsed;
+}	bwe_record_t;
+
+static map<unsigned int,bwe_record_t> bwe_watchlist;
+
+void
+bandwidth_estimator_update(unsigned int ssrc, unsigned short seq, struct timeval rcvtv, unsigned int timestamp, unsigned int pktsize) {
+	bwe_record_t r;
+	map<unsigned int,bwe_record_t>::iterator mi;
+	bool sampleframe = true;
+	//
+	if((mi = bwe_watchlist.find(ssrc)) == bwe_watchlist.end()) {
+		bzero(&r, sizeof(r));
+		r.initTime = rcvtv;
+		r.framecount = 1;
+		r.pktcount = 1;
+		r.bytesRcvd = pktsize;
+		r.lastPktSeq = seq;
+		r.lastPktRcvdTimestamp = rcvtv;
+		r.lastPktSentTimestamp = timestamp;
+		r.lastPktSize = pktsize;
+		bwe_watchlist[ssrc] = r;
+		return;
+	}
+	// new frame?
+	if(timestamp != mi->second.lastPktSentTimestamp) {
+		mi->second.framecount++;
+		sampleframe = false;
+	}
+	// no packet loss && is the same frame
+	if((seq-1) == mi->second.lastPktSeq) {
+		if(sampleframe) {
+			unsigned cbw;
+			unsigned elapsed = tvdiff_us(&rcvtv, &mi->second.lastPktRcvdTimestamp);
+			//cbw = 8.0 * mi->second.lastPktSize / (elapsed / 1000000.0);
+			//ga_error("XXX: sampled bw = %u bps\n", cbw);
+			mi->second.samples++;
+			mi->second.totalElapsed += elapsed;
+			mi->second.totalBytes += mi->second.lastPktSize;
+			if(mi->second.framecount >= 240 && mi->second.samples >= 3000) {
+				ctrlmsg_t m;
+				cbw = 8.0 * mi->second.totalBytes / (mi->second.totalElapsed / 1000000.0);
+				ga_error("XXX: received: %uKB; capacity = %.3fKbps (%d samples); loss-rate = %.2f%% (%u/%u); average per-frame overhead factor = %.2f\n",
+					mi->second.bytesRcvd / 1024,
+					cbw / 1024.0, mi->second.samples,
+					100.0 * mi->second.pktloss / mi->second.pktcount,
+					mi->second.pktloss, mi->second.pktcount,
+					1.0 * mi->second.pktcount / mi->second.framecount);
+				// send back to the server
+				ctrlsys_netreport(&m,
+					tvdiff_us(&rcvtv, &mi->second.initTime),
+					mi->second.framecount,
+					mi->second.pktcount,
+					mi->second.pktloss,
+					mi->second.bytesRcvd,
+					cbw);
+				ctrl_client_sendmsg(&m, sizeof(ctrlmsg_system_netreport_t));
+				//
+				bzero(&mi->second, sizeof(bwe_record_t));
+				mi->second.initTime = rcvtv;
+				mi->second.framecount = 1;
+			}
+		}
+	// has packet loss
+	} else {
+		unsigned short delta = (seq - mi->second.lastPktSeq - 1);
+		mi->second.pktloss += delta;
+		mi->second.pktcount += delta;
+	}
+	// update the rest
+	mi->second.pktcount++;
+	mi->second.bytesRcvd += pktsize;
+	mi->second.lastPktSeq = seq;
+	mi->second.lastPktRcvdTimestamp = rcvtv;
+	mi->second.lastPktSentTimestamp = timestamp;
+	mi->second.lastPktSize = pktsize;
+	return;
+}
+
+////
+
 #ifdef WIN32
 #pragma pack(push, 1)
 #endif
@@ -500,20 +596,23 @@ __attribute__((__packed__))
 typedef struct rtp_pkt_minimum_s rtp_pkt_minimum_t;
 
 void
-pktloss_monitor(void *clientData, unsigned char *packet, unsigned &packetSize) {
+rtp_packet_handler(void *clientData, unsigned char *packet, unsigned &packetSize) {
 	rtp_pkt_minimum_t *rtp = (rtp_pkt_minimum_t*) packet;
 	unsigned int ssrc;
 	unsigned short seqnum;
+	unsigned short flags;
+	unsigned int timestamp;
+	struct timeval tv;
 	if(packet == NULL || packetSize < 12)
 		return;
+	gettimeofday(&tv, NULL);
 	ssrc = ntohl(rtp->ssrc);
 	seqnum = ntohs(rtp->seqnum);
+	flags = ntohs(rtp->flags);
+	timestamp = ntohl(rtp->timestamp);
+	//
 	if(log_rtp > 0) {
-		unsigned short flags = ntohs(rtp->flags);
-		unsigned int timestamp = ntohl(rtp->timestamp);
 #ifdef ANDROID
-		struct timeval tv;
-		gettimeofday(&tv, NULL);
 		ga_log("%10u.%06u log_rtp: flags %04x seq %u ts %u ssrc %u size %u\n",
 			tv.tv_sec, tv.tv_usec, flags, seqnum, timestamp, ssrc, packetSize);
 #else
@@ -521,7 +620,10 @@ pktloss_monitor(void *clientData, unsigned char *packet, unsigned &packetSize) {
 			flags, seqnum, timestamp, ssrc, packetSize);
 #endif
 	}
+	//
+	bandwidth_estimator_update(ssrc, seqnum, tv, timestamp, packetSize);
 	pktloss_monitor_update(ssrc, seqnum);
+	//
 	return;
 }
 
@@ -550,7 +652,6 @@ drop_video_frame_init(long long max_delay_us) {
 
 static int
 drop_video_frame(int ch/*channel*/, unsigned char *buffer, int bufsize, struct timeval pts) {
-	long long delta;
 	struct timeval now;
 	// disabled?
 	if(max_tolerable_video_delay_us <= 0)
@@ -1410,7 +1511,7 @@ setupNextSubsession(RTSPClient* rtspClient) {
 				video_sess_fmt = scs.subsession->rtpPayloadFormat();
 				video_codec_name = strdup(scs.subsession->codecName());
 				qos_add_source(video_codec_name, scs.subsession->rtpSource());
-				scs.subsession->rtpSource()->setAuxilliaryReadHandler(pktloss_monitor, NULL);
+				scs.subsession->rtpSource()->setAuxilliaryReadHandler(rtp_packet_handler, NULL);
 				if(rtp_packet_reordering_threshold > 0)
 					scs.subsession->rtpSource()->setPacketReorderingThresholdTime(rtp_packet_reordering_threshold);
 				if(port2channel.find(scs.subsession->clientPortNum()) == port2channel.end()) {

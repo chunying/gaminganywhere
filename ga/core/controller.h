@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 Chun-Ying Huang
+ * Copyright (c) 2012-2015 Chun-Ying Huang
  *
  * This file is part of GamingAnywhere (GA).
  *
@@ -20,6 +20,7 @@
 #define __CONTROLLER_H__
 
 #include "rtspconf.h"
+#include "ctrl-msg.h"
 
 #define	CTRL_MAX_ID_LENGTH	64
 #define	CTRL_CURRENT_VERSION	"GACtrlV01"

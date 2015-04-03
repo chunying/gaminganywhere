@@ -113,4 +113,10 @@ EXPORT const char * ga_lookup_mime(const char *key);
 EXPORT const char ** ga_lookup_ffmpeg_decoders(const char *key);
 EXPORT enum AVCodecID ga_lookup_codec_id(const char *key);
 
+EXPORT void	pthread_cancel_init();
+#ifdef ANDROID
+#include <pthread.h>
+EXPORT int	pthread_cancel(pthread_t thread);
+#endif
+
 #endif

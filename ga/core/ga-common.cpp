@@ -31,6 +31,7 @@
 #ifndef ANDROID
 #include <execinfo.h>
 #endif /* !ANDROID */
+#include <signal.h>
 #include <unistd.h>
 #include <sys/time.h>
 #include <sys/syscall.h>
@@ -1037,4 +1038,54 @@ ga_lookup_codec_id(const char *key) {
 	}
 	return e->id;
 }
+
+#ifdef ANDROID
+/**
+ * Built-in signal handler for emulating pthread_cancel.
+ */
+static void
+pthread_cancel_handler(int s) {
+	if(s == SIGUSR2) {
+		pthread_exit(NULL);
+	}
+	return;
+}
+#endif
+
+/**
+ * Initialize the emulated pthread_cancel function.
+ *
+ * This function MUST be called before calling pthread_cancel.
+ * Otherwise, the entire process would be killed.
+ * pthread_cancel() emulating is done by using pthread_kill,
+ * which wake up the specified thread to handle the signal.
+ *
+ * This function can be called only once because a handler is
+ * registered process-wide.
+ *
+ * This function registers a handler for SIGUSR2.
+ */
+void
+pthread_cancel_init() {
+#ifdef ANDROID
+	signal(SIGUSR2, pthread_cancel_handler);
+#endif
+	return;
+}
+
+#ifdef ANDROID
+/**
+ * Emulate pthread_cancel in Android
+ *
+ * @param thread [in] thread id.
+ *
+ * The threa to be cancelled must be setup by calling pthread_cancel_init().
+ * Otherwise, it could be terminated, and not sure if there would be side-effect
+ * or not.
+ */
+int
+pthread_cancel(pthread_t thread) {
+	return pthread_kill(thread, SIGUSR2);
+}
+#endif
 

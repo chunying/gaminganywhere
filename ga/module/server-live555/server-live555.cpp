@@ -61,6 +61,7 @@ live_server_init(void *arg) {
 
 static int
 live_server_start(void *arg) {
+	pthread_cancel_init();
 	if(pthread_create(&server_tid, NULL, liveserver_main, NULL) != 0) {
 		ga_error("start live-server failed.\n");
 		return -1;

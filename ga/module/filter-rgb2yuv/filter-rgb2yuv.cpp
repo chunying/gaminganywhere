@@ -338,6 +338,7 @@ filter_RGB2YUV_start(void *arg) {
 		snprintf(params[iid][1], MAXPARAMLEN, filterpipe[1], iid);
 		filter_param[iid][0] = params[iid][0];
 		filter_param[iid][1] = params[iid][1];
+		pthread_cancel_init();
 		if(pthread_create(&filter_tid[iid], NULL, filter_RGB2YUV_threadproc, filter_param[iid]) != 0) {
 			filter_started = 0;
 			ga_error("filter RGB2YUV: create thread failed.\n");

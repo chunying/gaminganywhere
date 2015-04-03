@@ -104,6 +104,7 @@ ff_server_main(void *arg) {
 			}
 		} while(0);
 		//
+		pthread_cancel_init();
 		if(pthread_create(&thread, NULL, rtspserver, &cs) != 0) {
 			close(cs);
 			ga_error("ffmpeg-server: cannot create service thread.\n");

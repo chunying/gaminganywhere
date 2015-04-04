@@ -21,6 +21,9 @@
     <ClCompile Include="..\..\core\controller.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\core\ctrl-msg.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\core\dpipe.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -66,6 +69,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\core\controller.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\core\ctrl-msg.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\core\dpipe.h">

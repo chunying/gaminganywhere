@@ -70,6 +70,7 @@
   <ItemGroup>
     <ClCompile Include="..\..\core\asource.cpp" />
     <ClCompile Include="..\..\core\controller.cpp" />
+    <ClCompile Include="..\..\core\ctrl-msg.cpp" />
     <ClCompile Include="..\..\core\dpipe.cpp" />
     <ClCompile Include="..\..\core\encoder-common.cpp" />
     <ClCompile Include="..\..\core\ga-avcodec.cpp" />
@@ -87,6 +88,7 @@
   <ItemGroup>
     <ClInclude Include="..\..\core\asource.h" />
     <ClInclude Include="..\..\core\controller.h" />
+    <ClInclude Include="..\..\core\ctrl-msg.h" />
     <ClInclude Include="..\..\core\dpipe.h" />
     <ClInclude Include="..\..\core\encoder-common.h" />
     <ClInclude Include="..\..\core\ga-avcodec.h" />

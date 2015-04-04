@@ -24,7 +24,16 @@
     <ClCompile Include="..\..\server\event-driven\ga-hook-common.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\server\event-driven\ga-hook-sdlaudio.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\server\event-driven\ga-hook-sdl.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\server\event-driven\ga-hook-sdl2audio.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\server\event-driven\ga-hook-sdl2.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\server\event-driven\hook-function.cpp">
@@ -38,7 +47,16 @@
     <ClInclude Include="..\..\server\event-driven\ga-hook-common.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\server\event-driven\ga-hook-sdlaudio.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="..\..\server\event-driven\ga-hook-sdl.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\server\event-driven\ga-hook-sdl2audio.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\server\event-driven\ga-hook-sdl2.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\server\event-driven\hook-common.h">

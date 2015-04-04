@@ -22,7 +22,9 @@
  */
 
 #include <stdio.h>
+#ifndef WIN32
 #include <arpa/inet.h>
+#endif
 
 #include "ga-common.h"
 #include "ctrl-msg.h"

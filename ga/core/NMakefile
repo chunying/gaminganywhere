@@ -12,7 +12,7 @@ OBJS	= libga.obj \
 	  ga-common.obj ga-conf.obj ga-confvar.obj ga-module.obj ga-avcodec.obj ga-win32.obj rtspconf.obj \
 	  ga-crc.obj \
 	  dpipe.obj vconverter.obj vsource.obj asource.obj encoder-common.obj \
-	  controller.obj
+	  controller.obj ctrl-msg.obj
 
 all: $(TARGET)
 

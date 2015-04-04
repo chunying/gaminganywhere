@@ -24,6 +24,8 @@
 #ifndef __CTRL_MSG_H__
 #define	__CTRL_MSG_H__
 
+#include "ga-common.h"
+
 #define	CTRL_MSGTYPE_NULL	0xff	/* system control message starting from 0xff - reserved */
 #define	CTRL_MSGTYPE_SYSTEM	0xfe	/* system control message type */
 

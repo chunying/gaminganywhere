@@ -356,7 +356,7 @@ encoder_pktqueue_init(int channels, int qsize) {
 }
 
 /**
- * Empty packets stored in the packet queue.
+ * Empty packets stored in all packet queues.
  */
 int
 encoder_pktqueue_reset() {
@@ -364,13 +364,24 @@ encoder_pktqueue_reset() {
 	if(pktqueue_initchannels <= 0)
 		return -1;
 	for(i = 0; i < pktqueue_initchannels; i++) {
-		pthread_mutex_lock(&pktqueue[i].mutex);
-		pktlist[i].clear();
-		pktqueue[i].head = pktqueue[i].tail = 0;
-		pktqueue[i].datasize = 0;
-		pktqueue[i].bufsize = pktqueue_initqsize;
-		pthread_mutex_unlock(&pktqueue[i].mutex);
+		encoder_pktqueue_reset_channel(i);
 	}
+	return 0;
+}
+
+/**
+ * Empty packets stored in a single packet queue.
+ *
+ * @param channelId [in] Chennel id.
+ */
+int
+encoder_pktqueue_reset_channel(int channelId) {
+	pthread_mutex_lock(&pktqueue[channelId].mutex);
+	pktlist[channelId].clear();
+	pktqueue[channelId].head = pktqueue[channelId].tail = 0;
+	pktqueue[channelId].datasize = 0;
+	pktqueue[channelId].bufsize = pktqueue_initqsize;
+	pthread_mutex_unlock(&pktqueue[channelId].mutex);
 	return 0;
 }
 

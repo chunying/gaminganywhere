@@ -71,6 +71,7 @@ EXPORT int encoder_send_packet(const char *prefix, int channelId, AVPacket *pkt,
 // encoder packet queue - for async packet delivery
 EXPORT int encoder_pktqueue_init(int channels, int qsize);
 EXPORT int encoder_pktqueue_reset();
+EXPORT int encoder_pktqueue_reset_channel(int channelId);
 EXPORT int encoder_pktqueue_size(int channelId);
 EXPORT int encoder_pktqueue_append(int channelId, AVPacket *pkt, int64_t encoderPts, struct timeval *ptv);
 EXPORT char * encoder_pktqueue_front(int channelId, encoder_packet_t *pkt);

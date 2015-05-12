@@ -187,6 +187,8 @@ vencoder_threadproc(void *arg) {
 	outputW = video_source_out_width(iid);
 	outputH = video_source_out_height(iid);
 	//
+	encoder_pts_clear(iid);
+	//
 	nalbuf_size = 100000+12 * outputW * outputH;
 	if(ga_malloc(nalbuf_size, (void**) &nalbuf, &nalign) < 0) {
 		ga_error("video encoder: buffer allocation failed, terminated.\n");
@@ -247,6 +249,7 @@ vencoder_threadproc(void *arg) {
 			dpipe_put(pipe, data);
 			goto video_quit;
 		}
+		tv = frame->timestamp;
 		dpipe_put(pipe, data);
 		// pts must be monotonically increasing
 		if(newpts > pts) {
@@ -255,6 +258,7 @@ vencoder_threadproc(void *arg) {
 			pts++;
 		}
 		// encode
+		encoder_pts_put(iid, pts, &tv);
 		pic_in->pts = pts;
 		av_init_packet(&pkt);
 		pkt.data = nalbuf_a;
@@ -282,10 +286,18 @@ vencoder_threadproc(void *arg) {
 				fprintf(stderr, "\n");
 			} while(0);
 #endif
+			//
+			if(pkt.pts != AV_NOPTS_VALUE) {
+				if(encoder_ptv_get(iid, pkt.pts, &tv, 0) == NULL) {
+					gettimeofday(&tv, NULL);
+				}
+			} else {
+				gettimeofday(&tv, NULL);
+			}
 			// send the packet
 			if(encoder_send_packet("video-encoder",
 				iid/*rtspconf->video_id*/, &pkt,
-				pkt.pts, NULL) < 0) {
+				pkt.pts, &tv) < 0) {
 				goto video_quit;
 			}
 			// free unused side-data

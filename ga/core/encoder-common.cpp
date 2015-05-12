@@ -310,6 +310,92 @@ encoder_send_packet(const char *prefix, int channelId, AVPacket *pkt, int64_t en
 	return -1;
 }
 
+// encoder pts to ptv mapping function
+#define	MAX_PTS_QUEUE	8
+static list<encoder_pts_t> pts_queue[MAX_PTS_QUEUE];	// up to 8 queues
+
+/**
+ * Clear all pts records in a pts queue.
+ *
+ * @param queueid [in] The id of the pts queue.
+ */
+int
+encoder_pts_clear(unsigned queueid) {
+	if(queueid >= MAX_PTS_QUEUE)
+		return -1;
+	pts_queue[queueid].clear();
+	return 0;
+}
+
+/**
+ * Append a pts to ptv record into a pts queue.
+ *
+ * @param queueid [in] The id of the pts queue.
+ * @param pts [in] The pts value.
+ * @param ptv [in] The correspond ptv value for the \a pts.
+ * @return 0 on success, or -1 on failure.
+ */
+int
+encoder_pts_put(unsigned queueid, long long pts, struct timeval *ptv) {
+	encoder_pts_t p;
+	if(queueid >= MAX_PTS_QUEUE)
+		return -1;
+	p.pts = pts;
+	p.ptv = *ptv;
+	pts_queue[queueid].push_back(p);
+	return 0;
+}
+
+/**
+ * Retrieve the ptv value for a given pts.
+ *
+ * @param queueid [in] The id of the pts queue.
+ * @param pts [in] The pts value.
+ * @param ptv [out] Store the retrieved ptv value.
+ * @param interpolation [in] Use interpolation to get an approximate ptv value.
+ * @return The \a ptv pointer if success, or NULL on failure.
+ *
+ * Note that the interpolation feature may be only required for audio packets.
+ * The \a interpolation value should be the sample rate of audio frames.
+ */
+struct timeval *
+encoder_ptv_get(unsigned queueid, long long pts, struct timeval *ptv, int interpolation) {
+	if(ptv == NULL)
+		return NULL;
+	if(queueid >= MAX_PTS_QUEUE)
+		return NULL;
+	while(pts_queue[queueid].size() > 0) {
+		if(pts > pts_queue[queueid].front().pts) {
+			pts_queue[queueid].pop_front();
+			continue;
+		}
+		if(pts_queue[queueid].front().pts == pts) {
+			*ptv = pts_queue[queueid].front().ptv;
+			pts_queue[queueid].pop_front();
+			return ptv;
+		}
+		if(interpolation > 0) {
+			long long delta_ts, delta_tv;
+			delta_ts = pts_queue[queueid].front().pts - pts;
+			delta_tv = (long long) (1.0 * delta_ts / interpolation);
+			*ptv = pts_queue[queueid].front().ptv;
+			ptv->tv_sec -= (delta_tv / 1000000LL);
+			delta_tv %= 1000000LL;
+			if(ptv->tv_usec < delta_tv) {
+				ptv->tv_sec--;
+				ptv->tv_usec += 1000000LL;
+			}
+			ptv->tv_usec -= delta_tv;
+			return ptv;
+		}
+		break;
+	}
+#if 1
+	ga_error("FIXME: encoder_ptv_get failed: id=%d, pts=%lld\n", queueid, pts);
+#endif
+	return NULL;
+}
+
 // encoder packet queue functions - for async packet delivery
 static int pktqueue_initqsize = -1;
 static int pktqueue_initchannels = -1;

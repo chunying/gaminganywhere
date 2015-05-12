@@ -53,6 +53,11 @@ typedef struct encoder_packet_queue_s {
 	int tail;		/**< Position of queue tail */
 }	encoder_packet_queue_t;
 
+typedef struct encoder_pts_s {
+	long long pts;
+	struct timeval ptv;
+}	encoder_pts_t;
+
 typedef void (*qcallback_t)(int);
 
 EXPORT int encoder_pts_sync(int samplerate);
@@ -67,6 +72,11 @@ EXPORT int encoder_register_client(void *ctx);
 EXPORT int encoder_unregister_client(void *ctx);
 
 EXPORT int encoder_send_packet(const char *prefix, int channelId, AVPacket *pkt, int64_t encoderPts, struct timeval *ptv);
+
+// encoder pts to ptv mapping function
+EXPORT int encoder_pts_clear(unsigned queueid);
+EXPORT int encoder_pts_put(unsigned queueid, long long pts, struct timeval *ptv);
+EXPORT struct timeval * encoder_ptv_get(unsigned queueid, long long pts, struct timeval *ptv, int interpolation);
 
 // encoder packet queue - for async packet delivery
 EXPORT int encoder_pktqueue_init(int channels, int qsize);

@@ -548,6 +548,8 @@ vencoder_raw(void *arg, int *size) {
 #if defined __APPLE__
 	int64_t in = (int64_t) arg;
 	int iid = (int) (in & 0xffffffffLL);
+#elif defined __x86_64__
+	int iid = (long long) arg;
 #else
 	int iid = (int) arg;
 #endif

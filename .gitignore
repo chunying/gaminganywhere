@@ -1,0 +1,6 @@
+# Dependencies need to be unzipped, but we don't commit them
+/deps.win32
+/deps.win64
+/deps.posix
+/deps.android-arm
+/deps.android-x86

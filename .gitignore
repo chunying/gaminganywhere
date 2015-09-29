@@ -1,6 +1,16 @@
 # Dependencies need to be unzipped, but we don't commit them
+/bin
 /deps.win32
 /deps.win64
-/deps.posix
+/deps.posix*
 /deps.android-arm
 /deps.android-x86
+/do-release.sh
+/EXCLUDE
+/ga/core/deprecated
+/ga/doxygen
+/prebuilt.*
+/profile
+/release
+/sync.sh
+/tmp

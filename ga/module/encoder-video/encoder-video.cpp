@@ -200,6 +200,9 @@ vencoder_threadproc(void *arg) {
 		ga_error("video encoder: picture allocation failed, terminated.\n");
 		goto video_quit;
 	}
+	pic_in->width = outputW;
+	pic_in->height = outputH;
+	pic_in->format = PIX_FMT_YUV420P;
 	pic_in_size = avpicture_get_size(PIX_FMT_YUV420P, outputW, outputH);
 	if((pic_in_buf = (unsigned char*) av_malloc(pic_in_size)) == NULL) {
 		ga_error("video encoder: picture buffer allocation failed, terminated.\n");

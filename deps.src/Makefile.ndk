@@ -26,7 +26,8 @@ LINKSTL		?= static
 HAS_NEON	?= no
 
 TARGET_PLATFORM	?= android-9
-NDK_ROOT	?= $(HOME)/android/android-ndk-r8b
+#NDK_ROOT	?= $(HOME)/android/android-ndk-r8b
+NDK_ROOT	?= $(HOME)/android/android-ndk-r10e
 HOST_OS		?= linux	# windows | darwin
 HOST_ARCH	?= x86		# x86 | ppc
 HOST_EXEEXT	?=		# none | .exe

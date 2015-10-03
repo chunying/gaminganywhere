@@ -1,7 +1,7 @@
 
 GADEPS		?= $(HOME)/myprog/gaminganywhere/deps.android-arm
+PARALLEL_MAKE	?= -j5
 MACHINE		= $(shell uname -m)
-PARALLEL_MAKE	= -j5
 PACKAGES	= sdl2 yasm lame opus ogg vorbis theora vpx x264 ffmpeg live555
 
 TBZUNPACK	= tar xjf
@@ -13,6 +13,7 @@ TARGET		= i686-linux
 TARGET_VPX	= x86-android-gcc
 SDL_ANDROID	=
 FFMPEG_ANDROID	= --arch=i686 --cpu=i686 --enable-asm --disable-inline-asm
+AS_FLAGS	= -D__ANDROID__
 else
 TOOLCHAIN_ABI	= armeabi-v7a
 HAS_NEON	= yes
@@ -20,6 +21,7 @@ TARGET		= arm-linux
 TARGET_VPX	= armv7-android-gcc
 SDL_ANDROID	= LOCAL_ARM_MODE=arm LOCAL_ARM_NEON=true
 FFMPEG_ANDROID	= --arch=armv7 --cpu=cortex-a8 --enable-asm --enable-neon --disable-runtime-cpudetect
+AS_FLAGS	=
 endif
 LINKSTL		= shared
 TARGET_PLATFORM	= android-9
@@ -136,6 +138,7 @@ theora:
 vpx:
 	$(TBZUNPACK) $(VPX)	# ASFLAGS="-D__ANDROID__"
 	cd $(VPXDIR); CROSS=$(CCPREFIX) LDFLAGS="--sysroot=$(SYSROOT)" CFLAGS="--sysroot=$(SYSROOT)" \
+		ASFLAGS="$(AS_FLAGS)" \
 		./configure --prefix=$(GADEPS) --disable-examples \
 		--target=$(TARGET_VPX) --sdk-path=$(NDK_ROOT) \
 		--libc=$(NDK_ROOT)/platforms/$(TARGET_PLATFORM)/arch-$(TOOLCHAIN_ARCH) \

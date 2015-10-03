@@ -116,7 +116,7 @@ asource_init(void *arg) {
 static void *
 asource_threadproc(void *arg) {
 	int r;
-	unsigned char *fbuffer;
+	unsigned char *fbuffer = NULL;
 	//
 	if(asource_init(NULL) < 0) {
 		exit(-1);
@@ -150,6 +150,8 @@ asource_threadproc(void *arg) {
 		audio_source_buffer_fill(fbuffer, r);
 	}
 	//
+	if(fbuffer)
+		free(fbuffer);
 	ga_error("audio capture thread terminated.\n");
 	//
 	return NULL;

@@ -1,12 +1,13 @@
 
 GADEPS		?= $(HOME)/myprog/gaminganywhere/deps.posix
 MACHINE		?= $(shell uname -m)
+PARALLEL_MAKE	?= -j5
 SYSTEM		= $(shell uname -s)
-PARALLEL_MAKE	= -j5
 PACKAGES	= sdl2 sdl2_ttf yasm lame opus ogg vorbis theora vpx \
 		  x264 x265 xvid ffmpeg live555
 OSX_CLANG_PATCH	= echo '*** Not on OS X: not applied ***'
 
+### package configurations for Mac
 ifeq ($(SYSTEM),Darwin)
 VPX_EXTRA_CONFIG =
 HAS_BREW	?= $(shell if which -s brew; then echo 1; else echo 0; fi)
@@ -109,7 +110,7 @@ x264:
 	rm -rf $(X264DIR)
 
 x265:
-	$(TBZUNPACK) $(X265)
+	$(TGZUNPACK) $(X265)
 	cd $(X265DIR)/build/linux; cmake \
 		-D CMAKE_INSTALL_PREFIX:PATH=$(GADEPS) \
 		-D CMAKE_CXX_FLAGS="-fPIC" -D CMAKE_C_FLAGS="-fPIC" \

@@ -10,7 +10,7 @@ endif
 
 ifeq ($(OS), Linux)
 CFLAGS	+= $(ASNDCF) $(X11CF)
-LDFLAGS	+= $(EXTRALDFLAGS) $(AVCLD)
+LDFLAGS	+= $(EXTRALDFLAGS) $(AVCLD) $(X11LD)
 endif
 
 ifeq ($(OS), Darwin)

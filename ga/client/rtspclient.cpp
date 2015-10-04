@@ -131,14 +131,33 @@ static AVCodecContext *adecoder = NULL;
 static AVFrame *aframe = NULL;
 
 static int packet_queue_initialized = 0;
+static int packet_queue_limit = 5;	// limit the queue size
+static int packet_queue_dropfactor = 2;	// default drop half
 static PacketQueue audioq;
 
 void
 packet_queue_init(PacketQueue *q) {
+	int val;
+	char buf[8];
 	packet_queue_initialized = 1;
 	q->queue.clear();
 	pthread_mutex_init(&q->mutex, NULL);
 	pthread_cond_init(&q->cond, NULL);
+	if(ga_conf_readv("audio-playback-queue-limit", buf, sizeof(buf)) != NULL) {
+		// must ensure that we have configured audio-playback-queue-limit
+		if((val = ga_conf_readint("audio-playback-queue-limit")) >= 0) {
+			packet_queue_limit = val;
+		}
+	}
+	if((val = ga_conf_readint("audio-playback-queue-dropfactor")) > 0) {
+		packet_queue_dropfactor = val;
+	}
+	ga_error("packet queue: initialized - limit %d%s; dropfactor %d%s\n",
+		packet_queue_limit,
+		packet_queue_limit <= 0 ? " (unlimited)" : "",
+		packet_queue_dropfactor,
+		packet_queue_dropfactor <= 0 ? " (no drop)" : "");
+	return;
 }
 
 int
@@ -197,6 +216,36 @@ packet_queue_get(PacketQueue *q, AVPacket *pkt, int block) {
 	}
 	pthread_mutex_unlock(&q->mutex);
 	return ret;
+}
+
+int
+packet_queue_drop(PacketQueue *q) {
+	int dropped, count = 0;
+	AVPacket pkt;
+	// dropping enabled?
+	if(packet_queue_limit <= 0 || packet_queue_dropfactor <= 0)
+		return 0;
+	pthread_mutex_lock(&q->mutex);
+	// queue size exceeded?
+	if(q->queue.size() <= packet_queue_limit) {
+		pthread_mutex_unlock(&q->mutex);
+		return 0;
+	}
+	// start dropping
+	dropped = q->queue.size() / packet_queue_dropfactor;
+	// keep at least one
+	if(dropped == q->queue.size())
+		dropped--;
+	while(dropped-- > 0) {
+		if(q->queue.size() <= 0)
+			break;
+		pkt = q->queue.front();
+		q->queue.pop_front();
+		q->size -= pkt.size;
+		count++;
+	}
+	pthread_mutex_unlock(&q->mutex);
+	return count;
 }
 
 UsageEnvironment&
@@ -1244,9 +1293,13 @@ play_audio(unsigned char *buffer, int bufsize, struct timeval pts) {
 	avpkt.data = buffer;
 	avpkt.size = bufsize;
 	if(avpkt.size > 0) {
-		//fprintf(stderr, "DEBUG: audio pts=%08ld.%06ld\n",
-		//	pts.tv_sec, pts.tv_usec);
+#if 0
+		fprintf(stderr, "DEBUG: audio pts=%08ld.%06ld queue-count=%u queue-size=%u\n",
+			pts.tv_sec, pts.tv_usec,
+			audioq.queue.size(), audioq.size);
+#endif
 		packet_queue_put(&audioq, &avpkt);
+		packet_queue_drop(&audioq);
 	}
 #ifndef ANDROID
 	if(rtspParam->audioOpened == false) {

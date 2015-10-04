@@ -14,3 +14,10 @@
 /release
 /sync.sh
 /tmp
+# ga/android/gaclient
+/ga/android/gaclient/.gradle
+/ga/android/gaclient/.idea
+/ga/android/gaclient/GAClient/*.apk
+/ga/android/gaclient/GAClient/build
+/ga/android/gaclient/GAClient/src/main/libs
+/ga/android/gaclient/GAClient/src/main/obj

@@ -1,0 +1,61 @@
+import org.apache.tools.ant.taskdefs.condition.Os
+
+apply plugin: 'com.android.application'
+
+android {
+    compileSdkVersion 16
+    buildToolsVersion "23.0.0"
+
+    defaultConfig {
+        applicationId "org.gaminganywhere.gaclient"
+        minSdkVersion 16
+        targetSdkVersion 16
+
+        ndk {
+            moduleName "gaclient"
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled true
+            proguardFiles 'proguard.cfg'
+        }
+    }
+
+    sourceSets.main {
+        jni.srcDirs = [] // This prevents the auto generation of Android.mk
+        jniLibs.srcDir 'src/main/libs'
+        // This is not necessary unless you have precompiled libraries in your project.
+    }
+
+    task buildNative(type: Exec, description: 'Compile JNI source via NDK') {
+        def ndkCommand = "${android.ndkDirectory}/ndk-build"
+        if (Os.isFamily(Os.FAMILY_WINDOWS)) {
+            ndkCommand += ".cmd"
+        }
+
+        commandLine ndkCommand,
+                '-C', file('src/main/jni').absolutePath,
+                '-j', Runtime.runtime.availableProcessors(),
+                'all',
+                'NDK_DEBUG=1'
+    }
+
+    task cleanNative(type: Exec, description: 'Clean JNI object files') {
+        def ndkCommand = "${android.ndkDirectory}/ndk-build"
+        if (Os.isFamily(Os.FAMILY_WINDOWS)) {
+            ndkCommand += ".cmd"
+        }
+
+        commandLine ndkCommand,
+                '-C', file('src/main/jni').absolutePath,
+                'clean'
+    }
+
+    clean.dependsOn 'cleanNative'
+
+    tasks.withType(JavaCompile) {
+        compileTask -> compileTask.dependsOn buildNative
+    }
+}

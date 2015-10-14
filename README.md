@@ -26,7 +26,7 @@ can be ported to other OS's including OS X and Android.
 
 * Required packages on Linux OS (both runtime and development files):
 ```libX11```, ```libXext```, ```libXtst```, ```libfreetype6```,
-```libgl1-mesa```, ```libglu1-mesa```, ```libpulse```,
+```libgl1-mesa```, ```libglu1-mesa-dev```, ```libpulse```,
 ```libasound2```, ```lib32z1```
 
 * Sample command to install required packages on Ubuntu Linux:

@@ -36,6 +36,9 @@
     <ClCompile Include="..\..\server\event-driven\ga-hook-sdl2.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\server\event-driven\ga-hook-gl.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\server\event-driven\hook-function.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -57,6 +60,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\server\event-driven\ga-hook-sdl2.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\server\event-driven\ga-hook-gl.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\server\event-driven\hook-common.h">

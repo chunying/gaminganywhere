@@ -14,8 +14,8 @@ bin\7za x -y msinttypes-r26.zip *.h
 move /y *.h %GADEPS%\include
 @REM
 echo Installing ffmpeg ...
-@REM set FFMPEG=2.2.3
-set FFMPEG=2.5.2
+@REM set FFMPEG=2.5.2
+set FFMPEG=2.8
 bin\7za x -y ffmpeg-%FFMPEG%-win32-shared.7z
 move /y ffmpeg-%FFMPEG%-win32-shared\bin\* %GADEPS%\bin\
 rmdir /s /q ffmpeg-%FFMPEG%-win32-shared

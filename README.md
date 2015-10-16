@@ -33,6 +33,6 @@ can be ported to other OS's including OS X and Android.
   ```
   apt-get install patch make cmake g++ pkg-config \
 		libX11-dev libXext-dev libXtst-dev libfreetype6-dev \
-		libgl1-mesa-dev libglu1-mesa \
+		libgl1-mesa-dev libglu1-mesa-dev \
 		libpulse-dev libasound2-dev lib32z1
   ```

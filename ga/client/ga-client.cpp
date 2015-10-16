@@ -139,7 +139,8 @@ create_overlay(struct RTSPThreadParam *rtspParam, int ch) {
 	int w, h;
 	PixelFormat format;
 #if 1	// only support SDL2
-	unsigned int renderer_flags = SDL_RENDERER_SOFTWARE;
+	unsigned int renderer_flags = 0;
+	int renderer_index = -1;
 	SDL_Window *surface = NULL;
 	SDL_Renderer *renderer = NULL;
 	SDL_Texture *overlay = NULL;
@@ -227,24 +228,35 @@ create_overlay(struct RTSPThreadParam *rtspParam, int ch) {
 	do {	// choose SW or HW renderer?
 		// XXX: Windows crashed if there is not a HW renderer!
 		int i, n = SDL_GetNumRenderDrivers();
+		char renderer_name[64] = "";
 		SDL_RendererInfo info;
+
+		ga_conf_readv("video-renderer", renderer_name, sizeof(renderer_name));
+		if(strcmp("software", renderer_name) == 0) {
+			rtsperror("ga-client: configured to use software renderer.\n");
+			renderer_flags = SDL_RENDERER_SOFTWARE;
+		}
+
 		for(i = 0; i < n; i++) {
 			if(SDL_GetRenderDriverInfo(i, &info) < 0)
 				continue;
-			rtsperror("ga-client: renderer#%d - %s (%s%s%s%s)\n",
+			if(strcmp(renderer_name, info.name) == 0)
+				renderer_index = i;
+			rtsperror("ga-client: renderer#%d - %s (%s%s%s%s)%s\n",
 				i, info.name,
 				info.flags & SDL_RENDERER_SOFTWARE ? "SW" : "",
 				info.flags & SDL_RENDERER_ACCELERATED? "HW" : "",
 				info.flags & SDL_RENDERER_PRESENTVSYNC ? ",vsync" : "",
-				info.flags & SDL_RENDERER_TARGETTEXTURE ? ",texture" : "");
-			if(info.flags & SDL_RENDERER_ACCELERATED)
+				info.flags & SDL_RENDERER_TARGETTEXTURE ? ",texture" : "",
+				i != renderer_index ? "" : " *");
+			if(renderer_flags != SDL_RENDERER_SOFTWARE && info.flags & SDL_RENDERER_ACCELERATED)
 				renderer_flags = SDL_RENDERER_ACCELERATED;
 		}
 	} while(0);
 	//
-	renderer = SDL_CreateRenderer(surface, -1,
-			rtspconf->video_renderer_software ?
-				SDL_RENDERER_SOFTWARE : renderer_flags);
+	renderer = SDL_CreateRenderer(surface, renderer_index, renderer_flags);
+			//rtspconf->video_renderer_software ?
+			//	SDL_RENDERER_SOFTWARE : renderer_flags);
 	if(renderer == NULL) {
 		rtsperror("ga-client: create renderer failed.\n");
 		exit(-1);

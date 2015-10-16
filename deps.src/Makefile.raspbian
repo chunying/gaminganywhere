@@ -14,16 +14,22 @@ all: raspbian_pkgs $(PACKAGES)
 
 raspbian_pkgs:
 	sudo apt-get install \
+		libdirectfb-dev \
 		libmp3lame-dev libopus-dev libogg-dev libvorbis-dev \
 		libtheora-dev libvpx-dev libx264-dev libxvidcore-dev
 
 sdl2:
 	$(TGZUNPACK) $(SDL2)
 	mkdir -p $(SDL2DIR)/mybuild
-	cd $(SDL2DIR)/mybuild; ../configure --prefix=$(GADEPS) --with-pic
+	cd $(SDL2DIR)/mybuild; ../configure --prefix=$(GADEPS) --with-pic \
+		--disable-video-opengl --enable-video-directfb
 	make -C $(SDL2DIR)/mybuild $(PARALLEL_MAKE)
 	make -C $(SDL2DIR)/mybuild install
 	rm -rf $(SDL2DIR)
+
+# this two for opengles/2:
+#		CPPFLAGS='-I/opt/vc/include -I/opt/vc/include/interface/vcos/pthreads' \
+#		LDFLAGS='-L/opt/vc/lib'
 
 sdl2_ttf:
 	$(TGZUNPACK) $(SDL2_TTF)

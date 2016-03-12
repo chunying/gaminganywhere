@@ -6,7 +6,10 @@ module: $(OBJS)
 
 install: module
 	-mkdir ..\..\..\bin\mod
-	copy /y *.$(EXT) ..\..\..\bin\mod\
+	-mkdir ..\..\..\bin\log
+	-mkdir ..\..\..\bin\data
+	copy /y data\*.ptx ..\..\..\bin\data\;
+	copy /y *.$(EXT) ..\..\..\bin\mod\ 
 
 clean:
 	-del /f /q *.o *.obj *.lib *.exp *.dll *.dylib *.so

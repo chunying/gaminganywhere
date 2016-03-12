@@ -1,3 +1,0 @@
-# NVENC Module
-
-Jiaming Zhang

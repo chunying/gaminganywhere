@@ -12,14 +12,18 @@ TARGET	= encoder-nvenc.$(EXT)
 
 nvenc: $(TARGET)
 
-#encoder-nvenc.exe: $(OBJS)
-#	$(CXX) /MD $** $(LIBS) /link $(LIB_PATH) /opt:noref
+all: module
 
-# load-mod.exe: load_mod.obj
-# 	$(CXX) /MD $** $(LIBS) /link $(LIB_PATH) /opt:noref
+module: $(OBJS)
+	$(MAKEMODULE)
 
-# encoder-nvenc.dll: $(OBJS)
-#	$(MAKEMODULE)
+install: module
+	-mkdir ..\..\..\bin\mod
+	-mkdir ..\..\..\bin\log
+	-mkdir ..\..\..\bin\data
+	copy /y data\*.ptx ..\..\..\bin\data\;
+	copy /y *.$(EXT) ..\..\..\bin\mod\ 
 
-!include <..\NMakefile.build>
+clean:
+	-del /f /q *.o *.obj *.lib *.exp *.dll *.dylib *.so
 

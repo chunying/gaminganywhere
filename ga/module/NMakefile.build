@@ -6,9 +6,6 @@ module: $(OBJS)
 
 install: module
 	-mkdir ..\..\..\bin\mod
-	-mkdir ..\..\..\bin\log
-	-mkdir ..\..\..\bin\data
-	copy /y data\*.ptx ..\..\..\bin\data\;
 	copy /y *.$(EXT) ..\..\..\bin\mod\ 
 
 clean:

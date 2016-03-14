@@ -9,6 +9,7 @@ all:
 	cd encoder-audio && nmake /f $(MAKEFILE) && cd ..
 	cd encoder-video && nmake /f $(MAKEFILE) && cd ..
 	cd encoder-x264 && nmake /f $(MAKEFILE) && cd ..
+	cd encoder-nvenc && nmake /f $(MAKEFILE) && cd ..
 	cd filter-rgb2yuv && nmake /f $(MAKEFILE) && cd ..
 	cd server-ffmpeg && nmake /f $(MAKEFILE) && cd ..
 	cd server-live555 && nmake /f $(MAKEFILE) && cd ..
@@ -23,6 +24,7 @@ install:
 	cd encoder-audio && nmake /f $(MAKEFILE) install && cd ..
 	cd encoder-video && nmake /f $(MAKEFILE) install && cd ..
 	cd encoder-x264 && nmake /f $(MAKEFILE) install && cd ..
+	cd encoder-nvenc && nmake /f $(MAKEFILE) install && cd ..
 	cd filter-rgb2yuv && nmake /f $(MAKEFILE) install && cd ..
 	cd server-ffmpeg && nmake /f $(MAKEFILE) install && cd ..
 	cd server-live555 && nmake /f $(MAKEFILE) install && cd ..

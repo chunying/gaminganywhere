@@ -1,0 +1,29 @@
+
+!include <..\NMakefile.common>
+
+NVENC_INC	= "/I..\..\..\deps.win32\include\NVENC"
+NVENC_LIB	= winspool.lib comdlg32.lib advapi32.lib shell32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib
+
+CXX_FLAGS	= $(CXX_FLAGS) $(NVENC_INC)
+LIBS		= $(LIBS) $(NVENC_LIB)
+
+OBJS	= encoder-nvenc.obj NvEncoderLowLatency.obj NvHWEncoder.obj NvEncoderCommandParser.obj NvEncoderPreProcessor.obj dynlink_cuda.obj
+TARGET	= encoder-nvenc.$(EXT)
+
+nvenc: $(TARGET)
+
+all: module
+
+module: $(OBJS)
+	$(MAKEMODULE)
+
+install: module
+	-mkdir ..\..\..\bin\mod
+	-mkdir ..\..\..\bin\log
+	-mkdir ..\..\..\bin\data
+	copy /y data\*.ptx ..\..\..\bin\data\;
+	copy /y *.$(EXT) ..\..\..\bin\mod\ 
+
+clean:
+	-del /f /q *.o *.obj *.lib *.exp *.dll *.dylib *.so
+

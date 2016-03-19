@@ -129,7 +129,7 @@ public:
 	int		ThreadProc();  // smtech
 	int		GetSPSPPS(); // smtech
 
-	int		SetBitrates(int bitrate, int buffsize);
+	int		SetBitRate(int bitrate, int buffsize);
 
 
 

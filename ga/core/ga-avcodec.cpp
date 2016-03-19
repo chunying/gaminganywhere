@@ -30,18 +30,18 @@ using namespace std;
 // avcodec_open/close is not thread-safe
 static pthread_mutex_t avcodec_open_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-struct SwsContext *
+/*struct SwsContext *
 ga_swscale_init(PixelFormat format, int inW, int inH, int outW, int outH) {
 	struct SwsContext *swsctx = NULL;
 	//
 	if((swsctx = sws_getContext(
-				inW, inH, format, //PIX_FMT_BGRA/*PIX_FMT_ARGB*/,
+				inW, inH, format,
 				outW, outH, PIX_FMT_YUV420P,
 				SWS_BICUBIC, NULL, NULL, NULL)) == NULL) {
 		fprintf(stderr, "# ga-swscale-init: cannot create swscale context\n");
 	}
 	return swsctx;
-}
+}*/
 
 AVFormatContext*
 ga_format_init(const char *filename) {

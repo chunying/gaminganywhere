@@ -2,9 +2,9 @@
 !include <..\NMakefile.def>
 
 CXX_FLAGS	= $(CXX_FLAGS) -I"C:\Microsoft DirectX SDK\Include"
-LIB_PATH	= $(LIB_PATH) /libpath:..\..\core /libpath:"C:\Microsoft DirectX SDK\Lib\x86"
+LIB_PATH	= $(LIB_PATH) /libpath:..\..\core /libpath:"C:\Microsoft DirectX SDK\Lib\$(GA_PLATFORM)"
 LIBS		= $(LIB_SYSTEM) $(LIB_SDL) $(LIB_FFMPEG) $(LIB_PTHREAD) \
-		  libga.lib $(LIB_D3D)
+		  libga.lib $(LIB_D3D) EasyHook$(GA_CPUBITS).lib
 #LDFLAGS	= -rdynamic -L../../core -Wl,--whole-archive -lga -Wl,--no-whole-archive $(AVCLD) $(SDLLD)
 LDFLAGS		= $(LIB_PATH) /libpath:..\..\core $(LIBS) /opt:noref
 
@@ -17,18 +17,20 @@ all: $(TARGET)
 
 ga-hook.dll:	ga-hook.obj ga-hook-common.obj \
 		ga-hook-sdl.obj ga-hook-sdlaudio.obj \
+		ga-hook-sdl2.obj ga-hook-sdl2audio.obj \
+		ga-hook-gl.obj \
 		ga-hook-coreaudio.obj \
 		hook-function.obj ctrl-sdl.obj
-	$(CXX) /LD /MD $** $(LIBS) /link /DLL $(LIB_PATH) detours.lib detoured.lib opengl32.lib glu32.lib /opt:noref
+	$(CXX) /LD /MD $** $(LIBS) /link /DLL $(LIB_PATH) opengl32.lib glu32.lib /opt:noref
 
 ga-server-event-driven.exe: ga-server-event-driven.obj
 	$(CXX) /MD $** $(LIBS) /link $(LIB_PATH) /opt:noref
 #	link /out:$@ $(LDFLAGS) $**
 
 install:
-	-mkdir ..\..\..\bin
-	copy /y *.exe ..\..\..\bin
-	copy /y *.dll ..\..\..\bin
+	-mkdir ..\..\..\bin.$(GA_WINSYS)
+	copy /y *.exe ..\..\..\bin.$(GA_WINSYS)
+	copy /y *.dll ..\..\..\bin.$(GA_WINSYS)
 
 clean:
 	-del /f /q $(TARGET) *.obj *.lib *.exp *~

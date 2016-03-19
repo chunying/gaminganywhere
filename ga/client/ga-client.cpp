@@ -51,6 +51,7 @@ extern "C" {
 #include "ga-common.h"
 #include "ga-conf.h"
 #include "ga-avcodec.h"
+#include "vconverter.h"
 
 #include <map>
 using namespace std;
@@ -138,15 +139,17 @@ create_overlay(struct RTSPThreadParam *rtspParam, int ch) {
 	int w, h;
 	PixelFormat format;
 #if 1	// only support SDL2
-	unsigned int renderer_flags = SDL_RENDERER_SOFTWARE;
+	unsigned int renderer_flags = 0;
+	int renderer_index = -1;
 	SDL_Window *surface = NULL;
 	SDL_Renderer *renderer = NULL;
 	SDL_Texture *overlay = NULL;
 #endif
 	struct SwsContext *swsctx = NULL;
-	pipeline *pipe = NULL;
-	pooldata_t *data = NULL;
+	dpipe_t *pipe = NULL;
+	dpipe_buffer_t *data = NULL;
 	char windowTitle[64];
+	char pipename[64];
 	//
 	pthread_mutex_lock(&rtspParam->surfaceMutex[ch]);
 	if(rtspParam->surface[ch] != NULL) {
@@ -159,23 +162,19 @@ create_overlay(struct RTSPThreadParam *rtspParam, int ch) {
 	format = rtspParam->format[ch];
 	pthread_mutex_unlock(&rtspParam->surfaceMutex[ch]);
 	// swsctx
-	if((swsctx = sws_getContext(w, h, format, w, h, PIX_FMT_YUV420P,
-			SWS_BICUBIC, NULL, NULL, NULL)) == NULL) {
+	if((swsctx = create_frame_converter(w, h, format, w, h, PIX_FMT_YUV420P)) == NULL) {
 		rtsperror("ga-client: cannot create swsscale context.\n");
 		exit(-1);
 	}
 	// pipeline
-	if((pipe = new pipeline()) == NULL) {
+	snprintf(pipename, sizeof(pipename), "channel-%d", ch);
+	if((pipe = dpipe_create(ch, pipename, POOLSIZE, sizeof(AVPicture))) == NULL) {
 		rtsperror("ga-client: cannot create pipeline.\n");
 		exit(-1);
 	}
-	if((data = pipe->datapool_init(POOLSIZE, sizeof(AVPicture))) == NULL) {
-		rtsperror("ga-client: cannot allocate data pool.\n");
-		exit(-1);
-	}
-	for(; data != NULL; data = data->next) {
-		bzero(data->ptr, sizeof(AVPicture));
-		if(avpicture_alloc((AVPicture*) data->ptr, PIX_FMT_YUV420P, w, h) != 0) {
+	for(data = pipe->in; data != NULL; data = data->next) {
+		bzero(data->pointer, sizeof(AVPicture));
+		if(avpicture_alloc((AVPicture*) data->pointer, PIX_FMT_YUV420P, w, h) != 0) {
 			rtsperror("ga-client: per frame initialization failed.\n");
 			exit(-1);
 		}
@@ -229,24 +228,35 @@ create_overlay(struct RTSPThreadParam *rtspParam, int ch) {
 	do {	// choose SW or HW renderer?
 		// XXX: Windows crashed if there is not a HW renderer!
 		int i, n = SDL_GetNumRenderDrivers();
+		char renderer_name[64] = "";
 		SDL_RendererInfo info;
+
+		ga_conf_readv("video-renderer", renderer_name, sizeof(renderer_name));
+		if(strcmp("software", renderer_name) == 0) {
+			rtsperror("ga-client: configured to use software renderer.\n");
+			renderer_flags = SDL_RENDERER_SOFTWARE;
+		}
+
 		for(i = 0; i < n; i++) {
 			if(SDL_GetRenderDriverInfo(i, &info) < 0)
 				continue;
-			rtsperror("ga-client: renderer#%d - %s (%s%s%s%s)\n",
+			if(strcmp(renderer_name, info.name) == 0)
+				renderer_index = i;
+			rtsperror("ga-client: renderer#%d - %s (%s%s%s%s)%s\n",
 				i, info.name,
 				info.flags & SDL_RENDERER_SOFTWARE ? "SW" : "",
 				info.flags & SDL_RENDERER_ACCELERATED? "HW" : "",
 				info.flags & SDL_RENDERER_PRESENTVSYNC ? ",vsync" : "",
-				info.flags & SDL_RENDERER_TARGETTEXTURE ? ",texture" : "");
-			if(info.flags & SDL_RENDERER_ACCELERATED)
+				info.flags & SDL_RENDERER_TARGETTEXTURE ? ",texture" : "",
+				i != renderer_index ? "" : " *");
+			if(renderer_flags != SDL_RENDERER_SOFTWARE && info.flags & SDL_RENDERER_ACCELERATED)
 				renderer_flags = SDL_RENDERER_ACCELERATED;
 		}
 	} while(0);
 	//
-	renderer = SDL_CreateRenderer(surface, -1,
-			rtspconf->video_renderer_software ?
-				SDL_RENDERER_SOFTWARE : renderer_flags);
+	renderer = SDL_CreateRenderer(surface, renderer_index, renderer_flags);
+			//rtspconf->video_renderer_software ?
+			//	SDL_RENDERER_SOFTWARE : renderer_flags);
 	if(renderer == NULL) {
 		rtsperror("ga-client: create renderer failed.\n");
 		exit(-1);
@@ -370,7 +380,7 @@ render_text(SDL_Renderer *renderer, SDL_Window *window, int x, int y, int line, 
 #if 1
 static void
 render_image(struct RTSPThreadParam *rtspParam, int ch) {
-	pooldata_t *data;
+	dpipe_buffer_t *data;
 	AVPicture *vframe;
 	SDL_Rect rect;
 #if 1	// only support SDL2
@@ -378,10 +388,10 @@ render_image(struct RTSPThreadParam *rtspParam, int ch) {
 	int pitch;
 #endif
 	//
-	if((data = rtspParam->pipe[ch]->load_data()) == NULL) {
+	if((data = dpipe_load_nowait(rtspParam->pipe[ch])) == NULL) {
 		return;
 	}
-	vframe = (AVPicture*) data->ptr;
+	vframe = (AVPicture*) data->pointer;
 	//
 #if 1	// only support SDL2
 	if(SDL_LockTexture(rtspParam->overlay[ch], NULL, (void**) &pixels, &pitch) == 0) {
@@ -393,7 +403,7 @@ render_image(struct RTSPThreadParam *rtspParam, int ch) {
 		rtsperror("ga-client: lock textture failed - %s\n", SDL_GetError());
 	}
 #endif
-	rtspParam->pipe[ch]->release_data(data);
+	dpipe_put(rtspParam->pipe[ch], data);
 	rect.x = 0;
 	rect.y = 0;
 	rect.w = rtspParam->width[ch];
@@ -705,6 +715,8 @@ main(int argc, char *argv[]) {
 		return -1;
 	}
 #endif
+	// enable logging
+	ga_openlog();
 	//
 	if(ga_conf_readbool("control-relative-mouse-mode", 0) != 0) {
 		rtsperror("*** Relative mouse mode enabled.\n");

@@ -15,45 +15,59 @@
 #	Android 4.0-4.0.2	API level 14
 #	Android 4.0.3-4.0.4	API level 15
 #	Android 4.1		API level 16
+#	Android 4.2		API level 17
+#	Android 4.3		API level 18
+#	Android 4.4		API level 19
+#	Android 5.0		API level 21
+#	Android 5.1		API level 22
 
-TOOLCHAIN_ARCH	= arm
-#TOOLCHAIN_ABI	= armeabi
-TOOLCHAIN_ABI	?= armeabi-v7a
+TOOLCHAIN_ARCH	?= arm# arm | x86
 LINKSTL		?= static
 HAS_NEON	?= no
 
 TARGET_PLATFORM	?= android-9
-NDK_ROOT	?= $(HOME)/android/android-ndk-r8b
+#NDK_ROOT	?= $(HOME)/android/android-ndk-r8b
+NDK_ROOT	?= $(HOME)/android/android-ndk-r10e
 HOST_OS		?= linux	# windows | darwin
 HOST_ARCH	?= x86		# x86 | ppc
 HOST_EXEEXT	?=		# none | .exe
 
 HOST_OS_BASE	= $(HOST_OS)
 HOST_TAG	= $(HOST_OS_BASE)-$(HOST_ARCH)
+ANDROID_GCC	?= 4.6
 
+ifeq ($(TOOLCHAIN_ARCH),x86)
+TOOLCHAIN_ABI	?= x86# armeabi | armeabi-v7a | x86
+CCPREFIX	?= i686-linux-android-
+else
+TOOLCHAIN_ABI	?= armeabi-v7a# armeabi | armeabi-v7a | x86
 CCPREFIX	?= arm-linux-androideabi-
+endif
 CC		= $(CCPREFIX)gcc
 CXX		= $(CCPREFIX)g++
+SYSROOT		= $(NDK_ROOT)/platforms/$(TARGET_PLATFORM)/arch-$(TOOLCHAIN_ARCH)
 
 ABI_CFLAGS	=
 ABI_LDFLAGS	=
 
-ANDROID_LIBPATH	= $(NDK_ROOT)/platforms/$(TARGET_PLATFORM)/arch-arm/usr/lib
+ANDROID_LIBPATH	= $(NDK_ROOT)/platforms/$(TARGET_PLATFORM)/arch-$(TOOLCHAIN_ARCH)/usr/lib
+ANDROID_CFLAGS	=
 
 ifeq ($(LINKSTL),shared)
 	#APP_STL = stlport_shared
 	#ANDROID_STLLIB = $(NDK_ROOT)/sources/cxx-stl/stlport/libs/armeabi/libstlport_shared.so
 	APP_STL = gnustl_shared
-	ANDROID_STLLIB = $(NDK_ROOT)/sources/cxx-stl/gnu-libstdc++/4.6/libs/armeabi/libgnustl_shared.so
+	ANDROID_STLLIB = $(NDK_ROOT)/sources/cxx-stl/gnu-libstdc++/$(ANDROID_GCC)/libs/$(TOOLCHAIN_ABI)/libgnustl_shared.so
 else
 	#APP_STL = stlport_static
 	#ANDROID_STLLIB = $(NDK_ROOT)/sources/cxx-stl/stlport/libs/armeabi/libstlport_static.a
 	APP_STL = gnustl_static
-	ANDROID_STLLIB = $(NDK_ROOT)/sources/cxx-stl/gnu-libstdc++/4.6/libs/armeabi/libgnustl_static.a \
-		$(NDK_ROOT)/sources/cxx-stl/gnu-libstdc++/4.6/libs/armeabi/libsupc++.a
+	ANDROID_STLLIB = $(NDK_ROOT)/sources/cxx-stl/gnu-libstdc++/$(ANDROID_GCC)/libs/$(TOOLCHAIN_ABI)/libgnustl_static.a \
+		$(NDK_ROOT)/sources/cxx-stl/gnu-libstdc++/$(ANDROID_GCC)/libs/$(TOOLCHAIN_ABI)/libsupc++.a
 endif
 
-ifeq ($(TOOLCHAIN_ABI),armeabi-v7a)
+ifeq ($(TOOLCHAIN_ARCH),armeabi-v7a)
+	ABI_CFLAGS	+= -D__ARM_ARCH_5__ -D__ARM_ARCH_5T__ -D__ARM_ARCH_5E__ -D__ARM_ARCH_5TE__
 	ABI_CFLAGS	+= -march=armv7-a -mfloat-abi=softfp
 	ABI_LDFLAGS	+= -Wl,--fix-cortex-a8
 	ifeq ($(HAS_NEON),yes)
@@ -61,31 +75,35 @@ ifeq ($(TOOLCHAIN_ABI),armeabi-v7a)
 	else
 		ABI_CFLAGS	+= -mfpu=vfp
 	endif
-else
+endif
+ifeq ($(TOOLCHAIN_ARCH),armeabi)
+	ABI_CFLAGS	+= -D__ARM_ARCH_5__ -D__ARM_ARCH_5T__ -D__ARM_ARCH_5E__ -D__ARM_ARCH_5TE__
 	ABI_CFLAGS	+= -march=armv5te -mtune=xscale -msoft-float
 endif
 
 ANDROID_CFLAGS	= -fpic -ffunction-sections -funwind-tables -fstack-protector \
-		-D__ARM_ARCH_5__ -D__ARM_ARCH_5T__ -D__ARM_ARCH_5E__ -D__ARM_ARCH_5TE__ $(ABI_CFLAGS) \
+		$(ABI_CFLAGS) \
 		-O2 -fomit-frame-pointer -fno-strict-aliasing -funswitch-loops -finline-limit=300 \
-		-I$(NDK_ROOT)/platforms/$(TARGET_PLATFORM)/arch-arm/usr/include \
-		-I$(NDK_ROOT)/sources/cxx-stl/gnu-libstdc++/4.6/include \
-		-I$(NDK_ROOT)/sources/cxx-stl/gnu-libstdc++/4.6/libs/armeabi/include \
-		-DANDROID -D_FILE_OFFSET_BITS=64 -Wa,--noexecstack -O2 -DNDEBUG
+		-I$(NDK_ROOT)/platforms/$(TARGET_PLATFORM)/arch-$(TOOLCHAIN_ARCH)/usr/include \
+		-I$(NDK_ROOT)/sources/cxx-stl/gnu-libstdc++/$(ANDROID_GCC)/include \
+		-I$(NDK_ROOT)/sources/cxx-stl/gnu-libstdc++/$(ANDROID_GCC)/libs/$(TOOLCHAIN_ABI)/include \
+		-DANDROID -D_FILE_OFFSET_BITS=64 -Wa,--noexecstack -O2 -DNDEBUG \
+		--sysroot="$(SYSROOT)"
 # XXX: use gnustl_shared instead of stlport_shared
 #		-I$(NDK_ROOT)/sources/cxx-stl/stlport/stlport \
 #		-I$(NDK_ROOT)/sources/cxx-stl/gabi++/include \
 
 ANDROID_CXXFLAGS =  $(ANDROID_CFLAGS) \
-		-I$(NDK_ROOT)/sources/cxx-stl/gnu-libstdc++/4.6/include \
-		-I$(NDK_ROOT)/sources/cxx-stl/gnu-libstdc++/4.6/libs/armeabi/include
+		-I$(NDK_ROOT)/sources/cxx-stl/gnu-libstdc++/$(ANDROID_GCC)/include \
+		-I$(NDK_ROOT)/sources/cxx-stl/gnu-libstdc++/$(ANDROID_GCC)/libs/$(TOOLCHAIN_ABI)/include
 #		-frtti -fexceptions \
 
 ANDROID_LDFLAGS	= -L$(ANDROID_LIBPATH) \
+		--sysroot="$(SYSROOT)" \
 		-Wl,--gc-sections -Wl,-z,nocopyreloc \
-		--sysroot=$(NDK_ROOT)/platforms/$(TARGET_PLATFORM)/arch-arm \
+		--sysroot=$(NDK_ROOT)/platforms/$(TARGET_PLATFORM)/arch-$(TOOLCHAIN_ARCH) \
 		$(ABI_LDFLAGS) \
 		-Wl,--no-undefined \
 		-Wl,-z,noexecstack -Wl,-z,relro -Wl,-z,now \
-		-lc -lm -lstdc++ $(ANDROID_STLLIB)
+		-lc -lm -llog -lstdc++ $(ANDROID_STLLIB)
 

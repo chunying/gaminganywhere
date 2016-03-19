@@ -19,15 +19,16 @@
 #include <stdio.h>
 #include <pthread.h>
 #ifndef WIN32
+#include <unistd.h>
 #include <sys/time.h>
 #endif
 
 #include <map>
 
-#include "server.h"
 #include "vsource.h"
-#include "pipeline.h"
+#include "dpipe.h"
 #include "encoder-common.h"
+#include "rtspconf.h"
 
 #include "ga-common.h"
 
@@ -42,6 +43,8 @@
 #endif
 #elif defined __APPLE__
 #include "ga-osx.h"
+#elif defined ANDROID
+#include "ga-androidvideo.h"
 #else
 #include "ga-xwin.h"
 #endif
@@ -124,8 +127,12 @@ vsource_init(void *arg) {
 		ga_error("Mac OS X capture init failed.\n");
 		return -1;
 	}
+#elif defined ANDROID
+	if(ga_androidvideo_init(image) < 0) {
+		ga_error("Android capture init failed.\n");
+		return -1;
+	}
 #else
-	//if(ga_xwin_init(rtspconf->display, &display, &rootWindow, &image) < 0) {
 	if(ga_xwin_init(rtspconf->display, image) < 0) {
 		ga_error("XWindow capture init failed.\n");
 		return -1;
@@ -169,16 +176,13 @@ vsource_init(void *arg) {
 static void *
 vsource_threadproc(void *arg) {
 	int i;
+	int token;
 	int frame_interval;
 	struct timeval tv;
-	pooldata_t *data;
+	dpipe_buffer_t *data;
 	vsource_frame_t *frame;
-	pipeline *pipe[SOURCES];
-#ifdef WIN32
-	LARGE_INTEGER initialTv, captureTv, freq;
-#else
-	struct timeval initialTv, captureTv;
-#endif
+	dpipe_t *pipe[SOURCES];
+	struct timeval initialTv, lastTv, captureTv;
 	struct RTSPConf *rtspconf = rtspconf_global();
 	// reset framerate setup
 	vsource_framerate_n = rtspconf->video_fps;
@@ -193,24 +197,37 @@ vsource_threadproc(void *arg) {
 	for(i = 0; i < SOURCES; i++) {
 		char pipename[64];
 		snprintf(pipename, sizeof(pipename), VIDEO_SOURCE_PIPEFORMAT, i);
-		if((pipe[i] = pipeline::lookup(pipename)) == NULL) {
+		if((pipe[i] = dpipe_lookup(pipename)) == NULL) {
 			ga_error("video source: cannot find pipeline '%s'\n", pipename);
 			exit(-1);
 		}
 	}
 	//
 	ga_error("video source thread started: tid=%ld\n", ga_gettid());
-#ifdef WIN32
-	QueryPerformanceFrequency(&freq);
-	QueryPerformanceCounter(&initialTv);
-#else
 	gettimeofday(&initialTv, NULL);
-#endif
+	lastTv = initialTv;
+	token = frame_interval;
 	while(vsource_started != 0) {
-		//
-		gettimeofday(&tv, NULL);
-		//if(pipe->client_count() <= 0) {
+		// encoder has not launched?
 		if(encoder_running() == 0) {
+#ifdef WIN32
+			Sleep(1);
+#else
+			usleep(1000);
+#endif
+			gettimeofday(&lastTv, NULL);
+			token = frame_interval;
+			continue;
+		}
+		// token bucket based capturing
+		gettimeofday(&captureTv, NULL);
+		token += tvdiff_us(&captureTv, &lastTv);
+		if(token > (frame_interval<<1)) {
+			token = (frame_interval<<1);
+		}
+		lastTv = captureTv;
+		//
+		if(token < frame_interval) {
 #ifdef WIN32
 			Sleep(1);
 #else
@@ -218,9 +235,10 @@ vsource_threadproc(void *arg) {
 #endif
 			continue;
 		}
+		token -= frame_interval;
 		// copy image 
-		data = pipe[0]->allocate_data();
-		frame = (vsource_frame_t*) data->ptr;
+		data = dpipe_get(pipe[0]);
+		frame = (vsource_frame_t*) data->pointer;
 #ifdef __APPLE__
 		frame->pixelformat = PIX_FMT_RGBA;
 #else
@@ -243,7 +261,6 @@ vsource_threadproc(void *arg) {
 		}
 		frame->linesize[0] = frame->realstride/*frame->stride*/;
 #ifdef WIN32
-		QueryPerformanceCounter(&captureTv);
 	#ifdef D3D_CAPTURE
 		ga_win32_D3D_capture((char*) frame->imgbuf, frame->imgbufsize, prect);
 	#elif defined DFM_CAPTURE
@@ -252,10 +269,10 @@ vsource_threadproc(void *arg) {
 		ga_win32_GDI_capture((char*) frame->imgbuf, frame->imgbufsize, prect);
 	#endif
 #elif defined __APPLE__
-		gettimeofday(&captureTv, NULL);
 		ga_osx_capture((char*) frame->imgbuf, frame->imgbufsize, prect);
+#elif defined ANDROID
+		ga_androidvideo_capture((char*) frame->imgbuf, frame->imgbufsize);
 #else // X11
-		gettimeofday(&captureTv, NULL);
 		ga_xwin_capture((char*) frame->imgbuf, frame->imgbufsize, prect);
 #endif
 		// draw cursor
@@ -263,31 +280,24 @@ vsource_threadproc(void *arg) {
 		ga_win32_draw_system_cursor(frame);
 #endif
 		//gImgPts++;
-#ifdef WIN32
-		frame->imgpts = pcdiff_us(captureTv, initialTv, freq)/frame_interval;
-		gettimeofday(&frame->timestamp, NULL);
-#else
 		frame->imgpts = tvdiff_us(&captureTv, &initialTv)/frame_interval;
 		frame->timestamp = captureTv;
-#endif
 		// embed color code?
 #ifdef ENABLE_EMBED_COLORCODE
 		vsource_embed_colorcode_inc(frame);
 #endif
 		// duplicate from channel 0 to other channels
 		for(i = 1; i < SOURCES; i++) {
-			pooldata_t *dupdata;
+			dpipe_buffer_t *dupdata;
 			vsource_frame_t *dupframe;
-			dupdata = pipe[i]->allocate_data();
-			dupframe = (vsource_frame_t*) dupdata->ptr;
+			dupdata = dpipe_get(pipe[i]);
+			dupframe = (vsource_frame_t*) dupdata->pointer;
 			//
 			vsource_dup_frame(frame, dupframe);
 			//
-			pipe[i]->store_data(dupdata);
-			pipe[i]->notify_all();
+			dpipe_store(pipe[i], dupdata);
 		}
-		pipe[0]->store_data(data);
-		pipe[0]->notify_all();
+		dpipe_store(pipe[0], data);
 		// reconfigured?
 		if(vsource_reconfigured != 0) {
 			frame_interval = (int) (1000000.0 * vsource_framerate_d / vsource_framerate_n);
@@ -296,8 +306,6 @@ vsource_threadproc(void *arg) {
 			ga_error("video source: reconfigured - framerate=%d/%d (interval=%d)\n",
 				vsource_framerate_n, vsource_framerate_d, frame_interval);
 		}
-		//
-		ga_usleep(frame_interval, &tv);
 	}
 	//
 	ga_error("video source: thread terminated.\n");
@@ -320,6 +328,8 @@ vsource_deinit(void *arg) {
 	CoUninitialize();
 #elif defined __APPLE__
 	ga_osx_deinit();
+#elif defined ANDROID
+	ga_androidvideo_deinit();
 #else
 	//ga_xwin_deinit(display, image);
 	ga_xwin_deinit();

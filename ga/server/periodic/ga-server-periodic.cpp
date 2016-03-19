@@ -18,15 +18,18 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#ifndef WIN32
+#include <unistd.h>
+#endif
 
 #include "ga-common.h"
 #include "ga-conf.h"
 #include "ga-module.h"
 #include "rtspconf.h"
-#include "server.h"
-#include "ga-liveserver.h"
 #include "controller.h"
 #include "encoder-common.h"
+
+//#define	TEST_RECONFIGURE
 
 // image source pipeline:
 //	vsource -- [vsource-%d] --> filter -- [filter-%d] --> encoder
@@ -43,7 +46,7 @@ static void *audio_encoder_param = NULL;
 static struct gaRect *prect = NULL;
 static struct gaRect rect;
 
-static ga_module_t *m_vsource, *m_filter, *m_vencoder, *m_asource, *m_aencoder, *m_ctrl;
+static ga_module_t *m_vsource, *m_filter, *m_vencoder, *m_asource, *m_aencoder, *m_ctrl, *m_server;
 
 int
 load_modules() {
@@ -64,6 +67,8 @@ load_modules() {
 	//////////////////////////
 	}
 	if((m_ctrl = ga_load_module("mod/ctrl-sdl", "sdlmsg_replay_")) == NULL)
+		return -1;
+	if((m_server = ga_load_module("mod/server-live555", "live_")) == NULL)
 		return -1;
 	return 0;
 }
@@ -89,6 +94,9 @@ init_modules() {
 	ga_init_single_module_or_quit("audio-encoder", m_aencoder, NULL);
 	//////////////////////////
 	}
+	//
+	ga_init_single_module_or_quit("server-live555", m_server, NULL);
+	//
 	return 0;
 }
 
@@ -118,7 +126,81 @@ run_modules() {
 	encoder_register_aencoder(m_aencoder, audio_encoder_param);
 	//////////////////////////
 	}
+	// server
+	if(m_server->start(NULL) < 0)		exit(-1);
+	//
 	return 0;
+}
+
+#ifdef TEST_RECONFIGURE
+static void *
+test_reconfig(void *) {
+	int s = 0, err;
+	int kbitrate[] = { 2000, 8000 };
+	int framerate[][2] = { { 12, 1 }, {30, 1}, {24, 1} };
+	ga_error("reconfigure thread started ...\n");
+	while(1) {
+		ga_ioctl_reconfigure_t reconf;
+		if(encoder_running() == 0) {
+#ifdef WIN32
+			Sleep(1);
+#else
+			sleep(1);
+#endif
+			continue;
+		}
+#ifdef WIN32
+		Sleep(20 * 1000);
+#else
+		sleep(20);
+#endif
+		bzero(&reconf, sizeof(reconf));
+		reconf.id = 0;
+#if 0
+		reconf.bitrateKbps = kbitrate[s%2];
+		reconf.bufsize = 5 * kbitrate[s%2] / 24;
+#endif
+		reconf.framerate_n = framerate[s%3][0];
+		reconf.framerate_d = framerate[s%3][1];
+		// vsource
+		if(m_vsource->ioctl) {
+			err = m_vsource->ioctl(GA_IOCTL_RECONFIGURE, sizeof(reconf), &reconf);
+			if(err < 0) {
+				ga_error("reconfigure vsource failed, err = %d.\n", err);
+			} else {
+				ga_error("reconfigure vsource OK, framerate=%d/%d.\n",
+						reconf.framerate_n, reconf.framerate_d);
+			}
+		}
+		// encoder
+		if(m_vencoder->ioctl) {
+			err = m_vencoder->ioctl(GA_IOCTL_RECONFIGURE, sizeof(reconf), &reconf);
+			if(err < 0) {
+				ga_error("reconfigure encoder failed, err = %d.\n", err);
+			} else {
+				ga_error("reconfigure encoder OK, bitrate=%d; bufsize=%d; framerate=%d/%d.\n",
+						reconf.bitrateKbps, reconf.bufsize,
+						reconf.framerate_n, reconf.framerate_d);
+			}
+		}
+		s = (s + 1) % 6;
+	}
+	return NULL;
+}
+#endif
+
+void
+handle_netreport(ctrlmsg_system_t *msg) {
+	ctrlmsg_system_netreport_t *msgn = (ctrlmsg_system_netreport_t*) msg;
+	ga_error("net-report: capacity=%.3f Kbps; loss-rate=%.2f%% (%u/%u); overhead=%.2f [%u KB received in %.3fs (%.2fKB/s)]\n",
+		msgn->capacity / 1024.0,
+		100.0 * msgn->pktloss / msgn->pktcount,
+		msgn->pktloss, msgn->pktcount,
+		1.0 * msgn->pktcount / msgn->framecount,
+		msgn->bytecount / 1024,
+		msgn->duration / 1000000.0,
+		msgn->bytecount / 1024.0 / (msgn->duration / 1000000.0));
+	return;
 }
 
 int
@@ -158,9 +240,18 @@ main(int argc, char *argv[]) {
 	if(load_modules() < 0)	 	{ return -1; }
 	if(init_modules() < 0)	 	{ return -1; }
 	if(run_modules() < 0)	 	{ return -1; }
+	// enable handler to monitored network status
+	ctrlsys_set_handler(CTRL_MSGSYS_SUBTYPE_NETREPORT, handle_netreport);
 	//
+#ifdef TEST_RECONFIGURE
+	pthread_t t;
+	pthread_create(&t, NULL, test_reconfig, NULL);
+#endif
 	//rtspserver_main(NULL);
-	liveserver_main(NULL);
+	//liveserver_main(NULL);
+	while(1) {
+		usleep(5000000);
+	}
 	// alternatively, it is able to create a thread to run rtspserver_main:
 	//	pthread_create(&t, NULL, rtspserver_main, NULL);
 	//

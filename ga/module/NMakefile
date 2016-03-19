@@ -9,21 +9,23 @@ all:
 	cd encoder-audio && nmake /f $(MAKEFILE) && cd ..
 	cd encoder-video && nmake /f $(MAKEFILE) && cd ..
 	cd encoder-x264 && nmake /f $(MAKEFILE) && cd ..
-	cd encoder-nvenc && nmake /f $(MAKEFILE) && cd ..
 	cd filter-rgb2yuv && nmake /f $(MAKEFILE) && cd ..
+	cd server-ffmpeg && nmake /f $(MAKEFILE) && cd ..
+	cd server-live555 && nmake /f $(MAKEFILE) && cd ..
 	cd vsource-desktop && nmake /f $(MAKEFILE) && cd ..
 	cd vsource-desktop && nmake /f $(MAKEFILE).d3d && cd ..
 	cd vsource-desktop && nmake /f $(MAKEFILE).dfm && cd ..
 
 install:
-	-mkdir ..\..\bin\mod
+	-mkdir ..\..\bin.$(GA_WINSYS)\mod
 	cd asource-system && nmake /f $(MAKEFILE) install && cd ..
 	cd ctrl-sdl && nmake /f $(MAKEFILE) install && cd ..
 	cd encoder-audio && nmake /f $(MAKEFILE) install && cd ..
 	cd encoder-video && nmake /f $(MAKEFILE) install && cd ..
 	cd encoder-x264 && nmake /f $(MAKEFILE) install && cd ..
-	cd encoder-nvenc && nmake /f $(MAKEFILE) install && cd ..
 	cd filter-rgb2yuv && nmake /f $(MAKEFILE) install && cd ..
+	cd server-ffmpeg && nmake /f $(MAKEFILE) install && cd ..
+	cd server-live555 && nmake /f $(MAKEFILE) install && cd ..
 	cd vsource-desktop && nmake /f $(MAKEFILE) install && cd ..
 
 clean:
@@ -33,5 +35,7 @@ clean:
 	cd encoder-video && nmake /f $(MAKEFILE) clean && cd ..
 	cd encoder-x264 && nmake /f $(MAKEFILE) clean && cd ..
 	cd filter-rgb2yuv && nmake /f $(MAKEFILE) clean && cd ..
+	cd server-ffmpeg && nmake /f $(MAKEFILE) clean && cd ..
+	cd server-live555 && nmake /f $(MAKEFILE) clean && cd ..
 	cd vsource-desktop && nmake /f $(MAKEFILE) clean && cd ..
 

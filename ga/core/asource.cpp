@@ -32,18 +32,18 @@
 using namespace std;
 
 static pthread_mutex_t ccmutex = PTHREAD_MUTEX_INITIALIZER;
-static map<long,AudioBuffer*> gClients;
+static map<long,audio_buffer_t*> gClients;
 //
 static int gChunksize = 0;
 static int gSamplerate = 0;
 static int gBitspersample = 0;
 static int gChannels = 0;
 
-struct AudioBuffer *
+audio_buffer_t *
 audio_source_buffer_init() {
 	// XXX:	frames, chennels, and bitspersample should be the same as the
 	//	configuration -- since these are provided by encoders (clients)
-	struct AudioBuffer *ab;
+	audio_buffer_t *ab;
 	int frames = gChunksize*4;
 	int channels = gChannels;
 	int bitspersample = gBitspersample;
@@ -54,10 +54,10 @@ audio_source_buffer_init() {
 			frames, channels, bitspersample);
 		return NULL;
 	}
-	if((ab = (struct AudioBuffer*) malloc(sizeof(struct AudioBuffer))) == NULL) {
+	if((ab = (audio_buffer_t*) malloc(sizeof(audio_buffer_t))) == NULL) {
 		return NULL;
 	}
-	bzero(ab, sizeof(struct AudioBuffer));
+	bzero(ab, sizeof(audio_buffer_t));
 	pthread_mutex_init(&ab->bufmutex, NULL);
 	pthread_cond_init(&ab->bufcond, NULL);
 	ab->frames = frames;
@@ -72,7 +72,7 @@ audio_source_buffer_init() {
 }
 
 void
-audio_source_buffer_deinit(struct AudioBuffer *ab) {
+audio_source_buffer_deinit(audio_buffer_t *ab) {
 	if(ab == NULL)
 		return;
 	if(ab->buffer != NULL)
@@ -82,7 +82,7 @@ audio_source_buffer_deinit(struct AudioBuffer *ab) {
 }
 
 void
-audio_source_buffer_fill_one(AudioBuffer *ab, const unsigned char *data, int frames) {
+audio_source_buffer_fill_one(audio_buffer_t *ab, const unsigned char *data, int frames) {
 	int headspace, tailspace;
 	int framesize;
 	if(ab == NULL)
@@ -125,7 +125,7 @@ retry:
 
 void
 audio_source_buffer_fill(const unsigned char *data, int frames) {
-	map<long,AudioBuffer*>::iterator mi;
+	map<long,audio_buffer_t*>::iterator mi;
 	pthread_mutex_lock(&ccmutex);
 	for(mi = gClients.begin(); mi != gClients.end(); mi++) {
 		if(mi->second != NULL) {
@@ -136,7 +136,7 @@ audio_source_buffer_fill(const unsigned char *data, int frames) {
 }
 
 int
-audio_source_buffer_read(AudioBuffer *ab, unsigned char *buf, int frames) {
+audio_source_buffer_read(audio_buffer_t *ab, unsigned char *buf, int frames) {
 	int copyframe = 0, copysize = 0;
 	struct timeval tv;
 	struct timespec to;
@@ -177,7 +177,7 @@ audio_source_buffer_read(AudioBuffer *ab, unsigned char *buf, int frames) {
 }
 
 void
-audio_source_buffer_purge(AudioBuffer *ab) {
+audio_source_buffer_purge(audio_buffer_t *ab) {
 	ga_error("audio: buffer purged (%d bytes / %d frames).\n",
 		ab->buftail - ab->bufhead, ab->bframes);
 	pthread_mutex_lock(&ab->bufmutex);
@@ -188,7 +188,7 @@ audio_source_buffer_purge(AudioBuffer *ab) {
 }
 
 void
-audio_source_client_register(long tid, AudioBuffer *ab) {
+audio_source_client_register(long tid, audio_buffer_t *ab) {
 	pthread_mutex_lock(&ccmutex);
 	gClients[tid] = ab;
 	pthread_mutex_unlock(&ccmutex);

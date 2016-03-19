@@ -30,7 +30,7 @@
 #ifndef ANDROID
 #include "vsource.h"
 #endif
-#include "pipeline.h"
+#include "dpipe.h"
 
 #define	SDL_USEREVENT_CREATE_OVERLAY	0x0001
 #define	SDL_USEREVENT_OPEN_AUDIO	0x0002
@@ -50,29 +50,24 @@ extern int image_rendered;
 struct RTSPThreadParam {
 	const char *url;
 	bool running;
-#ifdef ANDROID
 	bool rtpOverTCP;
-#endif
 	char quitLive555;
 	// video
 	int width[VIDEO_SOURCE_CHANNEL_MAX];
 	int height[VIDEO_SOURCE_CHANNEL_MAX];
 	PixelFormat format[VIDEO_SOURCE_CHANNEL_MAX];
-#ifdef ANDROID
-	JNIEnv *jnienv;
 	pthread_mutex_t surfaceMutex[VIDEO_SOURCE_CHANNEL_MAX];
 	struct SwsContext *swsctx[VIDEO_SOURCE_CHANNEL_MAX];
-	pipeline *pipe[VIDEO_SOURCE_CHANNEL_MAX];
+	dpipe_t *pipe[VIDEO_SOURCE_CHANNEL_MAX];
+#ifdef ANDROID
+	JNIEnv *jnienv;
 #else
-	pthread_mutex_t surfaceMutex[VIDEO_SOURCE_CHANNEL_MAX];
 #if 1	// only support SDL2
 	unsigned int windowId[VIDEO_SOURCE_CHANNEL_MAX];
 	SDL_Window *surface[VIDEO_SOURCE_CHANNEL_MAX];
 	SDL_Renderer *renderer[VIDEO_SOURCE_CHANNEL_MAX];
 	SDL_Texture *overlay[VIDEO_SOURCE_CHANNEL_MAX];
 #endif
-	struct SwsContext *swsctx[VIDEO_SOURCE_CHANNEL_MAX];
-	pipeline *pipe[VIDEO_SOURCE_CHANNEL_MAX];
 	// audio
 	pthread_mutex_t audioMutex;
 	bool audioOpened;

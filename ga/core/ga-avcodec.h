@@ -39,9 +39,6 @@ extern "C" {
 #include <string>
 #include <vector>
 
-EXPORT struct SwsContext* ga_swscale_init(PixelFormat format, int inW, int inH, int outW, int outH);
-//	format = PIX_FMT_BGRA. PIX_FMT_RGBA, ...
-
 EXPORT AVFormatContext* ga_format_init(const char *filename);
 EXPORT AVFormatContext* ga_rtp_init(const char *url);
 EXPORT AVStream* ga_avformat_new_stream(AVFormatContext *ctx, int id, AVCodec *codec);

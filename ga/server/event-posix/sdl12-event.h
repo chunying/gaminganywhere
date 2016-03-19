@@ -25,9 +25,9 @@
 #define	SDL_PRESSED	1
 
 typedef enum {
-	SDL_ADDEVENT,
-	SDL_PEEKEVENT,
-	SDL_GETEVENT
+	SDL12_ADDEVENT,
+	SDL12_PEEKEVENT,
+	SDL12_GETEVENT
 } SDL12_eventaction;
 
 /* SDL 1.2 event type */

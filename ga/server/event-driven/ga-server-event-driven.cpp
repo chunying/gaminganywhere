@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 Chun-Ying Huang
+ * Copyright (c) 2012-2015 Chun-Ying Huang
  *
  * This file is part of GamingAnywhere (GA).
  *
@@ -22,6 +22,8 @@
 #include "ga-common.h"
 #include "ga-conf.h"
 
+#include "easyhook.h"
+
 int
 hook_and_launch(const char *ga_root, const char *config_path, const char *app_exe) {
 	PROCESS_INFORMATION procInfo;
@@ -29,36 +31,20 @@ hook_and_launch(const char *ga_root, const char *config_path, const char *app_ex
 	HINSTANCE hDLL;
 	int (*install_hook)(const char *, const char *, const char *);
 	int (*uninstall_hook)();
-	char cmdline[8192];
+	char cmdline[2048];
 	char buf[2048], *ptr;
 	int cmdpos, cmdspace = sizeof(cmdline);
+	//
+	int r;
+	unsigned long pid = 0;
+	wchar_t app_exe_w[1024];
+	wchar_t cmdline_w[2048], *ptr_cmdline_w = NULL;
+	wchar_t dllpath_w[1024];
 
 	if(ga_root == NULL || config_path == NULL) {
 		ga_error("[hook_and_launch] no ga-root nor configuration were specified.\n");
 		return -1;
 	}
-
-	// load ga-hook.dll
-	if((hDLL = LoadLibrary("ga-hook.dll")) == NULL) {
-		fprintf(stderr, "LoadLibrary(ga-hook.dll) failed: 0x%08x\n", GetLastError());
-		return -1;
-	}
-	fprintf(stderr, "LoadLibrary(ga-hook.dll) success (0x%p).\n", hDLL);
-
-	if((install_hook = (int (*)(const char *, const char *, const char *))
-			GetProcAddress(hDLL, "install_hook")) == NULL) {
-		fprintf(stderr, "GetProcAddress(install_hook) failed: 0x%08x\n", GetLastError());
-		return -1;
-	}
-	if((uninstall_hook = (int (*)())
-			GetProcAddress(hDLL, "uninstall_hook")) == NULL) {
-		fprintf(stderr, "GetProcAddress(uninstall_hook) failed: 0x%08x\n", GetLastError());
-		return -1;
-	}
-	fprintf(stderr, "GetProcAddress() success install=0x%p; uninstall=0x%p.\n",
-		install_hook, uninstall_hook);
-
-	install_hook(ga_root, config_path, app_exe);
 
 	// handle environment variables
 	do {
@@ -89,10 +75,12 @@ hook_and_launch(const char *ga_root, const char *config_path, const char *app_ex
 		}
 	} while(0);
 
-	cmdpos = snprintf(cmdline, cmdspace, "%s", app_exe);
+	cmdline[0] = '\0';
+	cmdpos = 0;
 	if(ga_conf_mapsize("game-argv") > 0) {
 		int n;
 		ga_conf_mapreset("game-argv");
+		cmdpos = snprintf(cmdline, cmdspace, "\"%s\"", app_exe);
 		for(	ptr = ga_conf_mapkey("game-argv", buf, sizeof(buf));
 			ptr != NULL && cmdpos < cmdspace;
 			ptr = ga_conf_mapnextkey("game-argv", buf, sizeof(buf))) {
@@ -106,26 +94,51 @@ hook_and_launch(const char *ga_root, const char *config_path, const char *app_ex
 				val);
 			cmdpos += n;
 		}
+		fprintf(stderr, "cmdline: %s\n", cmdline);
 	}
 
-	fprintf(stderr, "cmdline: %s\n", cmdline);
-	// launch the app
-	ZeroMemory(&procInfo, sizeof(PROCESS_INFORMATION));
-	ZeroMemory(&startupInfo, sizeof(STARTUPINFO));
-
-	if (CreateProcess(app_exe, cmdline, NULL, NULL, FALSE,
-		NORMAL_PRIORITY_CLASS, NULL, NULL, 
-		&startupInfo, &procInfo) == 0) {
-		//
-		fprintf(stderr, "CreateProcess failed: 0x%08x\n", GetLastError());
+	snprintf(buf, sizeof(buf), "%s%s", ga_root, "ga-hook.dll");
+	if(MultiByteToWideChar(CP_UTF8, 0, buf, -1, dllpath_w, sizeof(dllpath_w)/sizeof(wchar_t)) <= 0) {
+		fprintf(stderr, "error converting dllpath to wchar_t.\n");
 		return -1;
 	}
+	fwprintf(stderr, L"dllpath: %s\n", dllpath_w);
 
-	fprintf(stderr, "Waiting for app termination ...\n");
+	if(MultiByteToWideChar(CP_UTF8, 0, app_exe, -1, app_exe_w, sizeof(app_exe_w)/sizeof(wchar_t)) <= 0) {
+		fprintf(stderr, "error converting app_exe to wchar_t.\n");
+		return -1;
+	}
+	fwprintf(stderr, L"appexe: %s\n", app_exe_w);
 
-	WaitForSingleObject(procInfo.hProcess, INFINITE);
+	if(cmdpos > 0) {
+		if(MultiByteToWideChar(CP_UTF8, 0, cmdline, -1, cmdline_w, sizeof(cmdline_w)/sizeof(wchar_t)) <= 0) {
+			fprintf(stderr, "error converting arguments to wchar_t.\n");
+			return -1;
+		}
+		ptr_cmdline_w = cmdline_w;
+	} else {
+		ptr_cmdline_w = NULL;
+	}
 
-	uninstall_hook();
+	r = RhCreateAndInject(app_exe_w, /* command */
+			ptr_cmdline_w,		/* command line arguments */
+			0,	/* process creation flags */
+			EASYHOOK_INJECT_DEFAULT,/* hook options */
+#ifdef _WIN64
+			NULL,			/* x86 dll */
+			dllpath_w,		/* x64 dll */
+#else
+			dllpath_w,		/* x86 dll */
+			NULL,			/* x64 dll */
+#endif
+			NULL, 0,		/* passthrough buffer and size */
+			&pid);
+	if(r == 0) {
+		fprintf(stderr, "launch success (pid=%u).\n", pid);
+	} else {
+		fprintf(stderr, "launch failed, err=%08x.\n", r);
+	}
+
 
 	return 0;
 }

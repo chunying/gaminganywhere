@@ -13,6 +13,7 @@
   <PropertyGroup Label="Globals">
     <ProjectGuid>{EACEE870-A658-4AD9-B91D-87A8677CD692}</ProjectGuid>
     <RootNamespace>gahook</RootNamespace>
+    <ProjectName>ga-hook</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -47,7 +48,7 @@
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>..\..\..\deps.win32\lib;C:\Microsoft DirectX SDK\Lib\x86;$(OutDir)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>libga.lib;ws2_32.lib;SDL2.lib;swscale.lib;swresample.lib;postproc.lib;avdevice.lib;avfilter.lib;avformat.lib;avcodec.lib;avutil.lib;pthreadVC2.lib;d3d9.lib;d3dx9.lib;d3d10.lib;d3d10_1.lib;d3d11.lib;DXGI.lib;dxguid.lib;dxerr.lib;detours.lib;detoured.lib;opengl32.lib;glu32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>libga.lib;ws2_32.lib;SDL2.lib;swscale.lib;swresample.lib;postproc.lib;avdevice.lib;avfilter.lib;avformat.lib;avcodec.lib;avutil.lib;pthreadVC2.lib;d3d9.lib;d3dx9.lib;d3d10.lib;d3d10_1.lib;d3d11.lib;DXGI.lib;dxguid.lib;dxerr.lib;EasyHook32.lib;opengl32.lib;glu32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <SubSystem>Console</SubSystem>
     </Link>
   </ItemDefinitionGroup>
@@ -65,7 +66,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>false</OptimizeReferences>
       <SubSystem>Console</SubSystem>
-      <AdditionalDependencies>libga.lib;ws2_32.lib;SDL2.lib;swscale.lib;swresample.lib;postproc.lib;avdevice.lib;avfilter.lib;avformat.lib;avcodec.lib;avutil.lib;pthreadVC2.lib;d3d9.lib;d3dx9.lib;d3d10.lib;d3d10_1.lib;d3d11.lib;DXGI.lib;dxguid.lib;dxerr.lib;detours.lib;detoured.lib;opengl32.lib;glu32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>libga.lib;ws2_32.lib;SDL2.lib;swscale.lib;swresample.lib;postproc.lib;avdevice.lib;avfilter.lib;avformat.lib;avcodec.lib;avutil.lib;pthreadVC2.lib;d3d9.lib;d3dx9.lib;d3d10.lib;d3d10_1.lib;d3d11.lib;DXGI.lib;dxguid.lib;dxerr.lib;EasyHook32.lib;opengl32.lib;glu32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>..\..\..\deps.win32\lib;C:\Microsoft DirectX SDK\Lib\x86;$(OutDir)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
@@ -75,6 +76,9 @@
     <ClCompile Include="..\..\server\event-driven\ga-hook-coreaudio.cpp" />
     <ClCompile Include="..\..\server\event-driven\ga-hook-sdlaudio.cpp" />
     <ClCompile Include="..\..\server\event-driven\ga-hook-sdl.cpp" />
+    <ClCompile Include="..\..\server\event-driven\ga-hook-sdl2audio.cpp" />
+    <ClCompile Include="..\..\server\event-driven\ga-hook-sdl2.cpp" />
+    <ClCompile Include="..\..\server\event-driven\ga-hook-gl.cpp" />
     <ClCompile Include="..\..\server\event-driven\ga-hook.cpp" />
     <ClCompile Include="..\..\server\event-driven\hook-function.cpp" />
   </ItemGroup>
@@ -84,6 +88,9 @@
     <ClInclude Include="..\..\server\event-driven\ga-hook-coreaudio.h" />
     <ClInclude Include="..\..\server\event-driven\ga-hook-sdlaudio.h" />
     <ClInclude Include="..\..\server\event-driven\ga-hook-sdl.h" />
+    <ClInclude Include="..\..\server\event-driven\ga-hook-sdl2audio.h" />
+    <ClInclude Include="..\..\server\event-driven\ga-hook-sdl2.h" />
+    <ClInclude Include="..\..\server\event-driven\ga-hook-gl.h" />
     <ClInclude Include="..\..\server\event-driven\hook-common.h" />
     <ClInclude Include="..\..\server\event-driven\hook-function.h" />
     <ClInclude Include="..\..\server\event-driven\sdl12-audio.h" />

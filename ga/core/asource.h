@@ -23,22 +23,22 @@
 
 #include "ga-common.h"
 
-struct AudioBuffer {
+typedef struct audio_buffer_s {
 	pthread_mutex_t bufmutex;
 	pthread_cond_t bufcond;
 	long long bufPts;
 	int frames, channels, bitspersample;
 	int bufsize, bufhead, buftail, bframes;
 	unsigned char *buffer;
-};
+}	audio_buffer_t;
 
-EXPORT struct AudioBuffer * audio_source_buffer_init();
-EXPORT void audio_source_buffer_deinit(struct AudioBuffer *ab);
-EXPORT void audio_source_buffer_fill_one(AudioBuffer *ab, const unsigned char *data, int frames);
+EXPORT audio_buffer_t * audio_source_buffer_init();
+EXPORT void audio_source_buffer_deinit(audio_buffer_t *ab);
+EXPORT void audio_source_buffer_fill_one(audio_buffer_t *ab, const unsigned char *data, int frames);
 EXPORT void audio_source_buffer_fill(const unsigned char *data, int frames);
-EXPORT int audio_source_buffer_read(AudioBuffer *ab, unsigned char *buf, int frames);
-EXPORT void audio_source_buffer_purge(AudioBuffer *ab);
-EXPORT void audio_source_client_register(long tid, AudioBuffer *ab);
+EXPORT int audio_source_buffer_read(audio_buffer_t *ab, unsigned char *buf, int frames);
+EXPORT void audio_source_buffer_purge(audio_buffer_t *ab);
+EXPORT void audio_source_client_register(long tid, audio_buffer_t *ab);
 EXPORT void audio_source_client_unregister(long tid);
 EXPORT int audio_source_client_count();
 

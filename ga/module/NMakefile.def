@@ -1,16 +1,28 @@
 
 # NMakefile.def for Windows
 
-INCLUDES	= -I..\..\..\deps.win32\include \
-		  -I..\..\..\deps.win32\include\SDL2 \
-		  -I..\..\..\deps.win32\include\live555
+# Support 64-bit on Windows
+GA_PLATFORM =	x86
+GA_CPUBITS =	32
+GA_WINSYS =	win32
+
+!if ("$(PLATFORM)" == "X64")
+GA_PLATFORM =	x64
+GA_CPUBITS =	64
+GA_WINSYS =	win64
+!endif
+
+INCLUDES	= -I..\..\..\deps.$(GA_WINSYS)\include \
+		  -I..\..\..\deps.$(GA_WINSYS)\include\SDL2 \
+		  -I..\..\..\deps.$(GA_WINSYS)\include\live555
 NODEBUG		= 1
 TARGETTOS	= WINNT
 
 !include <ntwin32.mak>
 
 TOOLS32		= $(VSINSTALLDIR)\VC
-CXX		= "$(TOOLS32)\bin\cl"
+#CXX		= "$(TOOLS32)\bin\cl"
+CXX		= cl
 CXX_FLAGS	= $(INCLUDES) $(cdebug) $(cflags) \
 		  -I. -I"$(TOOLS32)\include" \
 		  /EHsc \
@@ -24,7 +36,7 @@ CXX_FLAGS	= $(INCLUDES) $(cdebug) $(cflags) \
 
 #$(cvarsdll)
 
-LIB_PATH	= /libpath:..\..\..\deps.win32\lib
+LIB_PATH	= /libpath:..\..\..\deps.$(GA_WINSYS)\lib
 LIB_SYSTEM	= kernel32.lib user32.lib ws2_32.lib ole32.lib
 
 LIB_D3D		= d3d9.lib d3dx9.lib d3d10.lib d3d10_1.lib d3d11.lib DXGI.lib dxguid.lib dxerr.lib

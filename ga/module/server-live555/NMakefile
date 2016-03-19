@@ -1,0 +1,12 @@
+
+!include <..\NMakefile.common>
+
+LIBS	= $(LIBS) $(LIB_LIVE555)
+
+OBJS	= server-live555.obj ga-liveserver.obj ga-mediasubsession.obj ga-qossink.obj \
+	  ga-audiolivesource.obj ga-videolivesource.obj
+
+TARGET	= server-live555.$(EXT)
+
+!include <..\NMakefile.build>
+

@@ -19,7 +19,6 @@
 #ifndef __GA_HOOK_SDL_H__
 #define __GA_HOOK_SDL_H__
 
-//#include <SDL2/SDL.h>
 #include "sdl12-event.h"
 #include "sdl12-video.h"
 #include "sdl12-mouse.h"

@@ -70,35 +70,35 @@
   <ItemGroup>
     <ClCompile Include="..\..\core\asource.cpp" />
     <ClCompile Include="..\..\core\controller.cpp" />
+    <ClCompile Include="..\..\core\ctrl-msg.cpp" />
+    <ClCompile Include="..\..\core\dpipe.cpp" />
     <ClCompile Include="..\..\core\encoder-common.cpp" />
     <ClCompile Include="..\..\core\ga-avcodec.cpp" />
     <ClCompile Include="..\..\core\ga-common.cpp" />
     <ClCompile Include="..\..\core\ga-conf.cpp" />
     <ClCompile Include="..\..\core\ga-confvar.cpp" />
+    <ClCompile Include="..\..\core\ga-crc.cpp" />
     <ClCompile Include="..\..\core\ga-module.cpp" />
     <ClCompile Include="..\..\core\ga-win32.cpp" />
     <ClCompile Include="..\..\core\libga.cpp" />
-    <ClCompile Include="..\..\core\pipeline.cpp" />
     <ClCompile Include="..\..\core\rtspconf.cpp" />
-    <ClCompile Include="..\..\core\rtspserver.cpp" />
-    <ClCompile Include="..\..\core\server.cpp" />
     <ClCompile Include="..\..\core\vconverter.cpp" />
     <ClCompile Include="..\..\core\vsource.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\core\asource.h" />
     <ClInclude Include="..\..\core\controller.h" />
+    <ClInclude Include="..\..\core\ctrl-msg.h" />
+    <ClInclude Include="..\..\core\dpipe.h" />
     <ClInclude Include="..\..\core\encoder-common.h" />
     <ClInclude Include="..\..\core\ga-avcodec.h" />
     <ClInclude Include="..\..\core\ga-common.h" />
     <ClInclude Include="..\..\core\ga-conf.h" />
     <ClInclude Include="..\..\core\ga-confvar.h" />
+    <ClInclude Include="..\..\core\ga-crc.h" />
     <ClInclude Include="..\..\core\ga-module.h" />
     <ClInclude Include="..\..\core\ga-win32.h" />
-    <ClInclude Include="..\..\core\pipeline.h" />
     <ClInclude Include="..\..\core\rtspconf.h" />
-    <ClInclude Include="..\..\core\rtspserver.h" />
-    <ClInclude Include="..\..\core\server.h" />
     <ClInclude Include="..\..\core\vconverter.h" />
     <ClInclude Include="..\..\core\vsource.h" />
   </ItemGroup>

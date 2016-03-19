@@ -17,12 +17,13 @@
  */
 
 #include <stdio.h>
+#ifndef WIN32
+#include <unistd.h>
+#endif
 
 #include "vsource.h"	// for getting the current audio-id
 #include "asource.h"
-#include "server.h"
 #include "rtspconf.h"
-#include "rtspserver.h"
 #include "encoder-common.h"
 
 #include "ga-common.h"
@@ -213,9 +214,10 @@ aencoder_threadproc(void *arg) {
 #else
 	struct timeval baseT, currT;
 #endif
+	struct timeval tv;
 	long long pts = -1LL, newpts = 0LL, ptsOffset = 0LL, ptsSync = 0LL;
 	//
-	AudioBuffer *ab = NULL;
+	audio_buffer_t *ab = NULL;
 	int audio_written = 0;
 	int buffer_purged = 0;
 	//
@@ -223,6 +225,8 @@ aencoder_threadproc(void *arg) {
 	samplebytes = 0;
 	maxsamples = encoder->frame_size;
 	samplesize = encoder->frame_size * audio_source_channels() * audio_source_bitspersample() / 8;
+	//
+	encoder_pts_clear(rtp_id);
 	//
 	if((ab = audio_source_buffer_init()) == NULL) {
 		ga_error("audio encoder: cannot initialize audio source buffer.\n");
@@ -267,6 +271,7 @@ aencoder_threadproc(void *arg) {
 		}
 		// read audio frames
 		r = audio_source_buffer_read(ab, samples + samplebytes, maxsamples - nsamples);
+		gettimeofday(&tv, NULL);
 		if(r <= 0) {
 			usleep(1000);
 			continue;
@@ -305,6 +310,9 @@ aencoder_threadproc(void *arg) {
 			//
 			av_init_packet(pkt);
 			snd_in->nb_samples = encoder->frame_size;
+			snd_in->format = encoder->sample_fmt;
+			snd_in->channel_layout = encoder->channel_layout;
+			//
 			srcbuf = samples+offset;
 			srcsize = source_size;
 			//
@@ -321,11 +329,12 @@ aencoder_threadproc(void *arg) {
 			//
 			if(avcodec_fill_audio_frame(snd_in, encoder->channels,
 					encoder->sample_fmt, srcbuf/*samples+offset*/,
-					srcsize/*encoder_size*/, 1/*no-alignment*/) != 0) {
+					srcsize/*encoder_size*/, 1/*no-alignment*/) < 0) {
 				// error
 				ga_error("DEBUG: avcodec_fill_audio_frame failed.\n");
 			}
 			snd_in->pts = pts;
+			encoder_pts_put(rtp_id, pts, &tv);
 			//
 			pkt->data = buf;
 			pkt->size = bufsize;
@@ -336,7 +345,7 @@ aencoder_threadproc(void *arg) {
 			}
 			if(got_packet == 0/* || encoder->coded_frame == NULL*/)
 				goto drop_audio_frame;
-			// pts rescale is done in encoder_send_packet_all
+			// pts rescale is done in encoder_send_packet
 			// XXX: some encoder does not produce pts ...
 			if(pkt->pts == (int64_t) AV_NOPTS_VALUE) {
 				pkt->pts = pts;
@@ -349,11 +358,15 @@ aencoder_threadproc(void *arg) {
 			if(snd_in->extended_data && snd_in->extended_data != snd_in->data)
 				av_freep(snd_in->extended_data);
 			pkt->stream_index = 0;
+			//
+			if(encoder_ptv_get(rtp_id, pkt->pts, &tv, rtspconf->audio_samplerate) == NULL) {
+				gettimeofday(&tv, NULL);
+			}
 			// send the packet
-			if(encoder_send_packet_all("audio-encoder",
+			if(encoder_send_packet("audio-encoder",
 				rtp_id/*rtspconf->audio_id*/, pkt,
 				/*encoder->coded_frame->*/pkt->pts == AV_NOPTS_VALUE ? pts : /*encoder->coded_frame->*/pkt->pts,
-				NULL) < 0) {
+				&tv) < 0) {
 				goto audio_quit;
 			}
 			//

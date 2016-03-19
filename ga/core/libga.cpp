@@ -16,3 +16,8 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+/**
+ * @file
+ *
+ * This is a dummy file only used for VisualStudio project files.
+ */

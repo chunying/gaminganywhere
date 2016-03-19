@@ -21,19 +21,22 @@
 #include <pthread.h>
 #ifndef WIN32
 #include <dlfcn.h>
+#include <unistd.h>
 #endif
 
 #include "ga-common.h"
 #include "ga-conf.h"
 #include "ga-module.h"
 #include "rtspconf.h"
-#include "server.h"
-#include "ga-liveserver.h"
 #include "controller.h"
 #include "encoder-common.h"
 
 #include "ga-hook-common.h"
+#ifdef WIN32
+#include "easyhook.h"
+#endif
 
+#include <map>
 #include <string>
 using namespace std;
 
@@ -42,7 +45,8 @@ using namespace std;
 
 int vsource_initialized = 0;
 int resolution_retrieved = 0;
-int game_width, game_height;
+int game_width = 0;
+int game_height = 0;
 int encoder_width, encoder_height;
 int hook_boost = 0;
 int no_default_controller = 0;
@@ -53,7 +57,7 @@ int server_num_token_to_fill = 1;
 int server_max_tokens = 2;
 int video_fps = 24;
 
-pipeline *g_pipe[SOURCES];
+dpipe_t *g_pipe[SOURCES];
 
 static char *ga_root = NULL;
 
@@ -69,7 +73,7 @@ static struct gaImage realimage, *image = &realimage;
 static struct gaRect *prect = NULL;
 static struct gaRect rect;
 
-static ga_module_t *m_filter, *m_vencoder, *m_asource, *m_aencoder, *m_ctrl;
+static ga_module_t *m_filter, *m_vencoder, *m_asource, *m_aencoder, *m_ctrl, *m_server;
 
 int	// should be called only once
 vsource_init(int width, int height) {
@@ -111,7 +115,7 @@ vsource_init(int width, int height) {
 	for(i = 0; i < SOURCES; i++) {
 		char pipename[64];
 		snprintf(pipename, sizeof(pipename), imagepipefmt, i);
-		if ((g_pipe[i] = pipeline::lookup(pipename)) == NULL) {
+		if ((g_pipe[i] = dpipe_lookup(pipename)) == NULL) {
 			ga_error("image source hook: cannot find pipeline '%s'\n", pipename);
 			return -1;
 		}
@@ -151,15 +155,14 @@ void
 ga_hook_capture_dupframe(vsource_frame_t *frame) {
 	int i;
 	for(i = 1; i < SOURCES; i++) {
-		pooldata_t *dupdata;
+		dpipe_buffer_t *dupdata;
 		vsource_frame_t *dupframe;
-		dupdata = g_pipe[i]->allocate_data();
-		dupframe = (vsource_frame_t*) dupdata->ptr;
+		dupdata = dpipe_get(g_pipe[i]);
+		dupframe = (vsource_frame_t*) dupdata->pointer;
 		//
 		vsource_dup_frame(frame, dupframe);
 		//
-		g_pipe[i]->store_data(dupdata);
-		g_pipe[i]->notify_all();
+		dpipe_store(g_pipe[i], dupdata);
 	}
 	return;
 }
@@ -213,6 +216,13 @@ load_modules() {
 	if((m_ctrl = ga_load_module(module_path, "sdlmsg_replay_")) == NULL)
 		return -1;
 	}
+	//////////////////////////
+	snprintf(module_path, sizeof(module_path),
+		BACKSLASHDIR("%s/mod/server-live555", "%smod\\server-live555"),
+		ga_root);
+	if((m_server = ga_load_module(module_path, "live555_")) == NULL)
+		return -1;
+	//////////////////////////
 	return 0;
 }
 
@@ -244,6 +254,7 @@ init_modules() {
 	ga_init_single_module_or_quit("audio-encoder", m_aencoder, NULL);
 	//////////////////////////
 	}
+	ga_init_single_module_or_quit("rtsp-server", m_server, NULL);
 	return 0;
 }
 
@@ -277,6 +288,9 @@ run_modules() {
 	encoder_register_aencoder(m_aencoder, audio_encoder_param);
 	//////////////////////////
 	}
+	// server
+	if(m_server->start(NULL) < 0)	exit(-1);
+	//
 	return 0;
 }
 
@@ -311,7 +325,10 @@ ga_server(void *arg) {
 	if(run_modules() < 0)	 { return NULL; }
 	//
 	//rtspserver_main(NULL);
-	liveserver_main(NULL);
+	//liveserver_main(NULL);
+	while(1) {
+		usleep(5000000);
+	}
 	//
 	ga_deinit();
 	//
@@ -496,4 +513,39 @@ ga_hook_lookup_or_quit(void *handle, const char *name) {
 	return sym;
 }
 #endif
+
+#ifdef WIN32
+static map<string, TRACED_HOOK_HANDLE> hookdb;
+
+void
+ga_hook_function(const char *id, void *oldfunc, void *newfunc) {
+	unsigned long thread_ids[] = { GA_HOOK_INVALID_THREADID };
+	TRACED_HOOK_HANDLE h = NULL;
+	//
+	if(hookdb.find(id) != hookdb.end()) {
+		ga_error("[ga-hook] %s already hooked? please check.\n", id);
+		return;
+	}
+	//
+	if((h = (TRACED_HOOK_HANDLE) malloc(sizeof(HOOK_TRACE_INFO))) == NULL) {
+		ga_error("[ga-hook] alloc HOOK_TRACE_INFO failed.\n");
+		exit(-1);
+	}
+	memset(h, 0, sizeof(HOOK_TRACE_INFO));
+	//
+	if(LhInstallHook(oldfunc, newfunc, NULL, h) != 0) {
+		ga_error("[ga-hook] hook for function %s failed.\n", id);
+		exit(-1);
+	}
+	//
+	if(LhSetExclusiveACL(thread_ids, 1, h) != 0) {
+		ga_error("[ga-hook] cannot activate hook (%s)\n", id);
+		exit(-1);
+	}
+	//
+	hookdb[id] = h;
+	//
+	return;
+}
+#endif	/* WIN32 */
 

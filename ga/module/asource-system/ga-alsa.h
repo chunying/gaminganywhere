@@ -24,7 +24,7 @@
 
 #include <list>
 
-struct Xcap_alsa_param {
+struct ga_alsa_param {
 	snd_pcm_t *handle;
 	snd_output_t *sndlog;
 	snd_pcm_format_t format;
@@ -37,23 +37,7 @@ struct Xcap_alsa_param {
 	size_t chunk_bytes;		// chunk_size * bits_per_frame
 };
 
-class XcapAlsaReadiQueue {
-private:
-	int n;
-	int chunksize;			// max chunk size
-	int chunkbyte;			// unitsize per chunk
-	unsigned char *buffer;
-	// pool data format: ret value (sizeof(snd_pcm_sframes_t)) + data (up to chunksize)
-	std::list<unsigned char*> freepool;
-	std::list<unsigned char*> datapool;
-public:
-	XcapAlsaReadiQueue(int n, int chunksize, int chunkbyte);
-	~XcapAlsaReadiQueue();
-	snd_pcm_sframes_t readi(snd_pcm_t *handle, unsigned char *samples, int chunksize, int queue);
-	unsigned int size();
-};
-
-int ga_alsa_set_param(struct Xcap_alsa_param *param);
+int ga_alsa_set_param(struct ga_alsa_param *param);
 snd_pcm_t* ga_alsa_init(snd_output_t **pout);
 void ga_alsa_close(snd_pcm_t *handle, snd_output_t *pout);
 

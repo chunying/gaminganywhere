@@ -20,8 +20,7 @@
 #include <mfxvideo.h>
 
 #include "vsource.h"
-#include "server.h"
-#include "rtspserver.h"
+#include "rtspconf.h"
 #include "encoder-common.h"
 
 #include "ga-common.h"
@@ -29,7 +28,7 @@
 #include "ga-conf.h"
 #include "ga-module.h"
 
-#include "pipeline.h"
+#include "dpipe.h"
 #include "allocator.h"
 #include "mfx-common.h"
 
@@ -90,19 +89,19 @@ mfx_init(void *arg) {
 		char pipename[64];
 		int outputW, outputH;
 		int bitrate;
-		pipeline *pipe;
+		dpipe_t *pipe;
 		//
 		_sps[iid] = _pps[iid] = NULL;
 		_spslen[iid] = _ppslen[iid] = 0;
 		snprintf(pipename, sizeof(pipename), pipefmt, iid);
 		outputW = video_source_out_width(iid);
 		outputH = video_source_out_height(iid);
-		if((pipe = pipeline::lookup(pipename)) == NULL) {
+		if((pipe = dpipe_lookup(pipename)) == NULL) {
 			ga_error("video encoder: pipe %s is not found\n", pipename);
 			goto init_failed;
 		}
 		ga_error("video encoder: video source #%d from '%s' (%dx%d).\n",
-			iid, pipe->name(), outputW, outputH, iid);
+			iid, pipe->name, outputW, outputH, iid);
 		//
 		bitrate = ga_conf_mapreadint("video-specific", "b");
 		if(bitrate <= 0)
@@ -124,10 +123,10 @@ mfx_threadproc(void *arg) {
 	// arg is pointer to source pipename
 	int cid;
 	int RGBmode;
-	pooldata_t *data = NULL;
 	vsource_frame_t *frame = NULL;
 	char *pipename = (char*) arg;
-	pipeline *pipe = pipeline::lookup(pipename);
+	dpipe_t *pipe = dpipe_lookup(pipename);
+	dpipe_buffer_t *data = NULL;
 	struct RTSPConf *rtspconf = NULL;
 	//
 	long long basePts = -1LL, newpts = 0LL, pts = -1LL, ptsSync = 0LL;
@@ -153,7 +152,7 @@ mfx_threadproc(void *arg) {
 	}
 	//
 	rtspconf = rtspconf_global();
-	cid = ((vsource_t*) pipe->get_privdata())->channel;
+	cid = pipe->channel_id;
 	outputW = video_source_out_width(cid);
 	outputH = video_source_out_height(cid);
 	timeunit = 90000 / rtspconf->video_fps;	/* in 90KHz */
@@ -188,40 +187,28 @@ mfx_threadproc(void *arg) {
 		_encparam[cid].AsyncDepth,
 		_encparam[cid].mfx.BufferSizeInKB);
 	//
-	pipe->client_register(ga_gettid(), &cond);
-	//
 	while(mfx_started != 0 && encoder_running() > 0
 		&& (sts >= MFX_ERR_NONE || sts == MFX_ERR_MORE_DATA)) {
 		//
 		mfxFrameSurface1 *svppin, *svppout;
 		AVPacket pkt;
+		struct timeval tv;
+		struct timespec to;
 		// wait for notification
-		data = pipe->load_data();
+		gettimeofday(&tv, NULL);
+		to.tv_sec = tv.tv_sec+1;
+		to.tv_nsec = tv.tv_usec * 1000;
+		data = dpipe_load(pipe, &to);
 		if(data == NULL) {
-			int err;
-			struct timeval tv;
-			struct timespec to;
-			gettimeofday(&tv, NULL);
-			to.tv_sec = tv.tv_sec+1;
-			to.tv_nsec = tv.tv_usec * 1000;
-			//
-			if((err = pipe->timedwait(&cond, &condMutex, &to)) != 0) {
-				ga_error("viedo encoder: image source timed out.\n");
-				continue;
-			}
-			data = pipe->load_data();
-			if(data == NULL) {
-				ga_error("viedo encoder: unexpected NULL frame received (from '%s', data=%d, buf=%d).\n",
-					pipe->name(), pipe->data_count(), pipe->buf_count());
-				continue;
-			}
+			ga_error("viedo encoder: image source timed out.\n");
+			continue;
 		}
-		frame = (vsource_frame_t*) data->ptr;
+		frame = (vsource_frame_t*) data->pointer;
 		// get a surface
 		svppin  = frame_pool_get(_vpppool[cid][0], &_vppresponse[cid][0]);
 		svppout = frame_pool_get(_vpppool[cid][1], &_vppresponse[cid][1]);
 		if(svppin == NULL || svppout == NULL) {
-			pipe->release_data(data);
+			dpipe_put(pipe, data);
 			ga_error("video encoder: frame dropped - no surface available (%p, %p)\n", svppin, svppout);
 			continue;
 			//break;
@@ -308,7 +295,7 @@ mfx_threadproc(void *arg) {
 			ga_error("video encoder: Unable to unlock VPP frame\n");
 			break;
 		}
-		pipe->release_data(data);
+		dpipe_put(pipe, data);
 		// pts must be monotonically increasing
 		if(newpts > pts) {
 			pts = newpts;
@@ -369,7 +356,7 @@ mfx_threadproc(void *arg) {
 				pkt.size = nextptr != NULL ?
 						(nextptr - ptr) :
 						(_mfxbs[cid].Data+_mfxbs[cid].DataOffset+_mfxbs[cid].DataLength-ptr);
-				if(encoder_send_packet_all("video-encoder", cid, &pkt, pkt.pts, &pkttv) < 0) {
+				if(encoder_send_packet("video-encoder", cid, &pkt, pkt.pts, &pkttv) < 0) {
 					goto video_quit;
 				}
 				ptr = nextptr;
@@ -380,7 +367,7 @@ mfx_threadproc(void *arg) {
 			av_init_packet(&pkt);
 			pkt.data = ptr;
 			pkt.size = _mfxbs[cid].Data+_mfxbs[cid].DataOffset+_mfxbs[cid].DataLength-ptr;
-			if(encoder_send_packet_all("video-encoder", cid, &pkt, pkt.pts, &pkttv) < 0) {
+			if(encoder_send_packet("video-encoder", cid, &pkt, pkt.pts, &pkttv) < 0) {
 				goto video_quit;
 			}
 			video_written = 1;
@@ -390,7 +377,7 @@ mfx_threadproc(void *arg) {
 		if(_mfxbs[cid].Data) {
 			pkt.data = _mfxbs[cid].Data + _mfxbs[cid].DataOffset;
 			pkt.size = _mfxbs[cid].DataLength;
-			if(encoder_send_packet_all("video-encoder", cid, &pkt, pkt.pts, &pkttv) < 0) {
+			if(encoder_send_packet("video-encoder", cid, &pkt, pkt.pts, &pkttv) < 0) {
 				goto video_quit;
 			}
 		}
@@ -408,7 +395,6 @@ mfx_threadproc(void *arg) {
 	//
 video_quit:
 	if(pipe) {
-		pipe->client_unregister(ga_gettid());
 		pipe = NULL;
 	}
 	//

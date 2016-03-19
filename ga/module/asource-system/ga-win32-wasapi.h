@@ -26,7 +26,7 @@
 #include <mmdeviceapi.h>
 #include <audioclient.h>
 
-struct Xcap_wasapi_param {
+struct ga_wasapi_param {
 	UINT32 bufferFrameCount;
 	REFERENCE_TIME hnsActualDuration;
 	DWORD bufferFillInt;
@@ -59,8 +59,8 @@ struct Xcap_wasapi_param {
 	int slept;
 };
 
-int ga_wasapi_init(Xcap_wasapi_param *wasapi);
-int ga_wasapi_read(Xcap_wasapi_param *wasapi, unsigned char *wbuf, int wframes);
-int ga_wasapi_close(Xcap_wasapi_param *wasapi);
+int ga_wasapi_init(ga_wasapi_param *wasapi);
+int ga_wasapi_read(ga_wasapi_param *wasapi, unsigned char *wbuf, int wframes);
+int ga_wasapi_close(ga_wasapi_param *wasapi);
 
 #endif

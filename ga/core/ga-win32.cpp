@@ -16,6 +16,13 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+/**
+ * @file
+ * GamingAnywhere's common functions for Windows 
+ *
+ * This includes Windows specific functions and
+ * common UNIX function implementations for Windows.
+ */
 
 #include "ga-common.h"
 
@@ -27,6 +34,12 @@
 
 typedef unsigned __int64 u_int64_t;
 
+/**
+ * Convert Windows FILETIME to UNIX timestamp. This is an internal function.
+ *
+ * @param ft [in] Pointer to a FILETIME.
+ * @return UNIX timestamp time in microsecond unit.
+ */
 static u_int64_t
 filetime_to_unix_epoch(const FILETIME *ft) {
 	u_int64_t res = (u_int64_t) ft->dwHighDateTime << 32;
@@ -36,6 +49,12 @@ filetime_to_unix_epoch(const FILETIME *ft) {
 	return (res);
 }
 
+/**
+ * gettimeofday() implementation
+ *
+ * @param tv [in] \a timeval to store the timestamp.
+ * @param tz [in] timezone: unused.
+ */
 int
 gettimeofday(struct timeval *tv, void *tz) {
 	FILETIME  ft;
@@ -53,6 +72,12 @@ gettimeofday(struct timeval *tv, void *tz) {
 
 long long tvdiff_us(struct timeval *tv1, struct timeval *tv2);
 
+/**
+ * usleep() function: sleep in microsecond scale.
+ *
+ * @param waitTime [in] time to sleep (in microseconds).
+ * @return Always return 0.
+ */
 int
 usleep(long long waitTime) {
 #if 0
@@ -95,27 +120,62 @@ usleep(long long waitTime) {
 	return 0;
 }
 
+/**
+ * read() function to read from a socket.
+ *
+ * @param fd [in] The SOCKET identifier.
+ * @param buf [in] Buffer to receive data.
+ * @param count [in] Size limit of the \a buf.
+ * @return Number of bytes received, see MSDN recv() function.
+ */
 int
 read(SOCKET fd, void *buf, int count) {
 	return recv(fd, (char *) buf, count, 0);
 }
 
+/**
+ * write() function to write to a socket.
+ *
+ * @param fd [in] The SOCKET identifier.
+ * @param buf [in] Buffer to be sent.
+ * @param count [in] Number of bytes in the \a buf.
+ * @return Number of bytes sent, see MSDN send() function.
+ */
 int
 write(SOCKET fd, const void *buf, int count) {
 	return send(fd, (const char*) buf, count, 0);
 }
 
+/**
+ * close() function to close a socket.
+ *
+ * @param fd [in] The SOCKET identifier.
+ * @return Zero on success, otherwise see MSDN closesocket() function.
+ */
 int
 close(SOCKET fd) {
 	return closesocket(fd);
 }
 
+/**
+ * dlerror() to report error message of dl* functions
+ *
+ * Not supported on Windows.
+ */
 char *
 dlerror() {
 	static char notsupported[] = "dlerror() on Windows is not supported.";
 	return notsupported;
 }
 
+/**
+ * Fill BITMAPINFO data structure
+ *
+ * @param pinfo [in,out] The BITMAPINFO structure to be filled.
+ * @param w [in] The width of the bitmap image.
+ * @param h [in] The height of the bitmap image.
+ * @param bitsPerPixel [in] The bits-per-pixel of the bitmap image.
+ */
 void
 ga_win32_fill_bitmap_info(BITMAPINFO *pinfo, int w, int h, int bitsPerPixel) {
 	ZeroMemory(pinfo, sizeof(BITMAPINFO));
@@ -131,7 +191,15 @@ ga_win32_fill_bitmap_info(BITMAPINFO *pinfo, int w, int h, int bitsPerPixel) {
 	return;
 }
 
-long long	/* return microsecond */
+/**
+ * Compute time differece based on Windows performance counter.
+ *
+ * @param t1 [in] The first counter.
+ * @param t2 [in] The second counter.
+ * @param freq [in] The performance frequency obtained by \em QueryPerformanceFrequency().
+ * @return Time differece in microsecond unit, e.g., \a t1 - \a t2.
+ */
+long long
 pcdiff_us(LARGE_INTEGER t1, LARGE_INTEGER t2, LARGE_INTEGER freq) {
 	return 1000000LL * (t1.QuadPart - t2.QuadPart) / freq.QuadPart;
 }

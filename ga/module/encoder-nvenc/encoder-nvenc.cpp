@@ -533,17 +533,18 @@ NVENCSTATUS CNvHWEncoder::ProcessEncodeBuffer(const EncodeBuffer *pEncodeBuffer,
 /*
  *	NVENC Encoder Reset bitrate
  */
-int CNvEncoderLowLatency::SetBitrates(int bitrate, int buffsize) {
-	//NvEncPictureCommand encPicCommand;
- //   memset(&encPicCommand, 0, sizeof(encPicCommand));
-	//encPicCommand.bBitrateChangePending = true;
-	//encPicCommand.newBitrate = bitrate;
-	//encPicCommand.newVBVSize = buffsize;
- //   NVENCSTATUS nvStatus = m_pNvHWEncoder->NvEncReconfigureEncoder(&encPicCommand);
+int CNvEncoderLowLatency::SetBitRate(int bitrate, int buffsize) {
+	NvEncPictureCommand encPicCommand;
+    	memset(&encPicCommand, 0, sizeof(encPicCommand));
+	encPicCommand.bBitrateChangePending = true;
+	encPicCommand.newBitrate = bitrate;
+	encPicCommand.newVBVSize = buffsize;
 
-	// TODO
-	NVENCSTATUS nvStatus = NV_ENC_SUCCESS;
-	return nvStatus;
+    	NVENCSTATUS nvStatus = m_pNvHWEncoder->NvEncReconfigureEncoder(&encPicCommand);
+	if (nvStatus != NV_ENC_SUCCESS)
+		return -1;
+
+	return 0;
 }
 
 
@@ -595,9 +596,9 @@ nvenc_init(void *arg) {
  *	Encoder Reconfiguration
  */
 static int
-nvenc_reconfigure(int bitrate, int buffsize) {
+nvenc_reconfigure(int kbitrate, int buffsize) {
 	int sts;
-	if ((sts = nvEncoder.SetBitrates(bitrate, buffsize)) != NV_ENC_SUCCESS) {
+	if ((sts = nvEncoder.SetBitRate(kbitrate * 1000, buffsize * 1000)) < 0) {
 		ga_error("+++ NVENC Reconf failed! nvStatus: %d +++\n", sts);
 		return -1;
 	}
@@ -612,7 +613,7 @@ nvenc_threadproc(void *arg) {
 	ga_error("+++ NVENC thread process +++\n");
 	
 	int ret = nvEncoder.ThreadProc();
-	ga_error("+++++++++++++  nvStatus: %d ++++++++++++++\n", ret);
+	ga_error("+++++++++++++  nvStatus: %d ++++++++++++++\n\n\n", ret);
 
 	return NULL;
 }

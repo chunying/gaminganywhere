@@ -1,6 +1,7 @@
 
 GADEPS		?= $(HOME)/myprog/gaminganywhere/deps.posix
 MACHINE		?= $(shell uname -m)
+USE_SYSTEM_PACKAGES ?= 0
 PARALLEL_MAKE	?= -j5
 SYSTEM		= $(shell uname -s)
 PACKAGES	= sdl2 sdl2_ttf yasm lame opus ogg vorbis theora vpx \
@@ -21,6 +22,15 @@ else
 VPX_EXTRA_CONFIG = --enable-shared
 endif
 
+### package configurations for Linux
+ifeq ($(SYSTEM),Linux)
+###### Ubuntu?
+LINUXDIST	= $(shell grep '=Ubuntu' /etc/lsb-release | awk -F= '{print $$2}')
+ifeq ($(LINUXDIST),Ubuntu)
+PACKAGES	= linux_ubuntu x265 ffmpeg live555
+endif
+endif
+
 TBZUNPACK	= tar xjf
 TGZUNPACK	= tar xzf
 
@@ -33,6 +43,13 @@ osx_brew:
 		libvpx x264 x265 xvid
 	brew install --with-libvorbis --with-libvpx --with-opus \
 		--with-theora --with-x265 --with-tools ffmpeg
+
+linux_ubuntu:
+	@echo 'You will need root permissions to install packages'
+	sudo apt-get install libsdl2-dev libsdl2-ttf-dev yasm \
+			libmp3lame-dev libopus-dev libogg-dev \
+			libvorbis-dev libtheora-dev \
+			libvpx-dev libx264-dev libxvidcore-dev
 
 sdl2:
 	$(TGZUNPACK) $(SDL2)

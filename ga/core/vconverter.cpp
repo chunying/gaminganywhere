@@ -89,7 +89,7 @@ lookup_frame_converter_internal(struct vconvcfg *ccfg) {
  *	or NULL if not found.
  */
 struct SwsContext *
-lookup_frame_converter(int srcw, int srch, PixelFormat srcfmt, int dstw, int dsth, PixelFormat dstfmt) {
+lookup_frame_converter(int srcw, int srch, AVPixelFormat srcfmt, int dstw, int dsth, AVPixelFormat dstfmt) {
 	struct vconvcfg ccfg;
 	//
 	ccfg.src_width = srcw;
@@ -118,8 +118,8 @@ lookup_frame_converter(int srcw, int srch, PixelFormat srcfmt, int dstw, int dst
  * An existing converter is returned if it has already been created.
  */
 struct SwsContext *
-create_frame_converter(int srcw, int srch, PixelFormat srcfmt,
-		 int dstw, int dsth, PixelFormat dstfmt) {
+create_frame_converter(int srcw, int srch, AVPixelFormat srcfmt,
+		 int dstw, int dsth, AVPixelFormat dstfmt) {
 	map<struct vconvcfg, struct SwsContext *>::iterator mi;
 	struct vconvcfg ccfg;
 	struct SwsContext *ctx;

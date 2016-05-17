@@ -476,11 +476,11 @@ vsource_embed_colorcode(vsource_frame_t *frame, unsigned int value) {
 		return;
 	if(frame->realwidth < vsource_colorcode_total_width)
 		return;
-	if(frame->pixelformat == PIX_FMT_YUV420P) {
+	if(frame->pixelformat == AV_PIX_FMT_YUV420P) {
 		vsource_embed_yuv_code(frame, value);
-	} else if(frame->pixelformat == PIX_FMT_RGBA) {
+	} else if(frame->pixelformat == AV_PIX_FMT_RGBA) {
 		vsource_embed_rgba_code(frame, value, rgbacolor);
-	} else if(frame->pixelformat == PIX_FMT_BGRA) {
+	} else if(frame->pixelformat == AV_PIX_FMT_BGRA) {
 		vsource_embed_rgba_code(frame, value, bgracolor);
 	}
 	return;

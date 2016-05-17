@@ -56,7 +56,7 @@ typedef struct vsource_frame_s {
 				 * (or presentatin timestamp).
 				 * This is actually a sequence number of
 				 * captured video frame.  */
-	PixelFormat pixelformat;/**< pixel format, currently support
+	AVPixelFormat pixelformat;/**< pixel format, currently support
 				 * RGBA, BGRA, or YUV420P
 				 * Note: current use values defined in ffmpeg */
 	int linesize[VIDEO_SOURCE_MAX_STRIDE];	/**< strides

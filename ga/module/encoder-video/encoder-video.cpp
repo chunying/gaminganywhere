@@ -202,14 +202,14 @@ vencoder_threadproc(void *arg) {
 	}
 	pic_in->width = outputW;
 	pic_in->height = outputH;
-	pic_in->format = PIX_FMT_YUV420P;
-	pic_in_size = avpicture_get_size(PIX_FMT_YUV420P, outputW, outputH);
+	pic_in->format = AV_PIX_FMT_YUV420P;
+	pic_in_size = avpicture_get_size(AV_PIX_FMT_YUV420P, outputW, outputH);
 	if((pic_in_buf = (unsigned char*) av_malloc(pic_in_size)) == NULL) {
 		ga_error("video encoder: picture buffer allocation failed, terminated.\n");
 		goto video_quit;
 	}
 	avpicture_fill((AVPicture*) pic_in, pic_in_buf,
-			PIX_FMT_YUV420P, outputW, outputH);
+			AV_PIX_FMT_YUV420P, outputW, outputH);
 	//ga_error("video encoder: linesize = %d|%d|%d\n", pic_in->linesize[0], pic_in->linesize[1], pic_in->linesize[2]);
 	// start encoding
 	ga_error("video encoding started: tid=%ld %dx%d@%dfps, nalbuf_size=%d, pic_in_size=%d.\n",

@@ -240,9 +240,9 @@ vsource_threadproc(void *arg) {
 		data = dpipe_get(pipe[0]);
 		frame = (vsource_frame_t*) data->pointer;
 #ifdef __APPLE__
-		frame->pixelformat = PIX_FMT_RGBA;
+		frame->pixelformat = AV_PIX_FMT_RGBA;
 #else
-		frame->pixelformat = PIX_FMT_BGRA;
+		frame->pixelformat = AV_PIX_FMT_BGRA;
 #endif
 		if(prect == NULL) {
 		////////////////////////////////////////

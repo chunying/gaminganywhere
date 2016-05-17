@@ -137,7 +137,7 @@ xlat_mouseY(int ch, int y) {
 static void
 create_overlay(struct RTSPThreadParam *rtspParam, int ch) {
 	int w, h;
-	PixelFormat format;
+	AVPixelFormat format;
 #if 1	// only support SDL2
 	unsigned int renderer_flags = 0;
 	int renderer_index = -1;
@@ -162,7 +162,7 @@ create_overlay(struct RTSPThreadParam *rtspParam, int ch) {
 	format = rtspParam->format[ch];
 	pthread_mutex_unlock(&rtspParam->surfaceMutex[ch]);
 	// swsctx
-	if((swsctx = create_frame_converter(w, h, format, w, h, PIX_FMT_YUV420P)) == NULL) {
+	if((swsctx = create_frame_converter(w, h, format, w, h, AV_PIX_FMT_YUV420P)) == NULL) {
 		rtsperror("ga-client: cannot create swsscale context.\n");
 		exit(-1);
 	}
@@ -174,7 +174,7 @@ create_overlay(struct RTSPThreadParam *rtspParam, int ch) {
 	}
 	for(data = pipe->in; data != NULL; data = data->next) {
 		bzero(data->pointer, sizeof(AVPicture));
-		if(avpicture_alloc((AVPicture*) data->pointer, PIX_FMT_YUV420P, w, h) != 0) {
+		if(avpicture_alloc((AVPicture*) data->pointer, AV_PIX_FMT_YUV420P, w, h) != 0) {
 			rtsperror("ga-client: per frame initialization failed.\n");
 			exit(-1);
 		}

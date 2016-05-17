@@ -870,7 +870,7 @@ hook_SDL_capture_screen(const char *caller) {
 	do {
 		data = dpipe_get(g_pipe[0]);
 		frame = (vsource_frame_t*) data->pointer;
-		frame->pixelformat = PIX_FMT_RGBA;
+		frame->pixelformat = AV_PIX_FMT_RGBA;
 		frame->realwidth = dupsurface->w;
 		frame->realheight = dupsurface->h;
 		frame->realstride = dupsurface->pitch;
@@ -1001,7 +1001,7 @@ hook_SDL_GL_SwapBuffers() {
 		//
 		data = dpipe_get(g_pipe[0]);
 		frame = (vsource_frame_t*) data->pointer;
-		frame->pixelformat = PIX_FMT_RGBA;
+		frame->pixelformat = AV_PIX_FMT_RGBA;
 		frame->realwidth = vp_width;
 		frame->realheight = vp_height;
 		frame->realstride = frameLinesize;

@@ -172,7 +172,7 @@ hook_glFlush() {
 		//
 		data = dpipe_get(g_pipe[0]);
 		frame = (vsource_frame_t*) data->pointer;
-		frame->pixelformat = PIX_FMT_RGBA;
+		frame->pixelformat = AV_PIX_FMT_RGBA;
 		frame->realwidth = game_width;
 		frame->realheight = game_height;
 		frame->realstride = frameLinesize;

@@ -42,15 +42,15 @@ extern "C" {
 struct vconvcfg {
 	int src_width;		/**< source vodeo frame width */
 	int src_height;		/**< source vodeo frame height */
-	PixelFormat src_fmt;	/**< source vodeo frame pixel format */
+	AVPixelFormat src_fmt;	/**< source vodeo frame pixel format */
 	int dst_width;		/**< destination vodeo frame width */
 	int dst_height;		/**< destination vodeo frame height */
-	PixelFormat dst_fmt;	/**< destination vodeo frame pixel format */
+	AVPixelFormat dst_fmt;	/**< destination vodeo frame pixel format */
 };
 
-EXPORT struct SwsContext * lookup_frame_converter(int srcw, int srch, PixelFormat srcfmt, int dstw, int dsth, PixelFormat dstfmt);
+EXPORT struct SwsContext * lookup_frame_converter(int srcw, int srch, AVPixelFormat srcfmt, int dstw, int dsth, AVPixelFormat dstfmt);
 EXPORT struct SwsContext * create_frame_converter(
-		int srcw, int srch, PixelFormat srcfmt,
-		int dstw, int dsth, PixelFormat dstfmt);
+		int srcw, int srch, AVPixelFormat srcfmt,
+		int dstw, int dsth, AVPixelFormat dstfmt);
 
 #endif

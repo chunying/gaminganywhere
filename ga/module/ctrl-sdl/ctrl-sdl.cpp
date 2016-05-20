@@ -433,8 +433,8 @@ sdlmsg_replay_native(sdlmsg_t *msg) {
 			}
 			in.mi.dwFlags = MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE;
 		} else {
-			in.mi.dx = (short) (scaleFactorX * msgm->mouseRelX);
-			in.mi.dy = (short) (scaleFactorY * msgm->mouseRelY);
+			in.mi.dx = (short) (scaleFactorX * (short) msgm->mouseRelX);
+			in.mi.dy = (short) (scaleFactorY * (short) msgm->mouseRelY);
 			in.mi.dwFlags = MOUSEEVENTF_MOVE;
 		}
 		SendInput(1, &in, sizeof(in));

@@ -28,7 +28,7 @@
 using namespace std;
 
 // avcodec_open/close is not thread-safe
-static pthread_mutex_t avcodec_open_mutex = PTHREAD_MUTEX_INITIALIZER;
+// static pthread_mutex_t avcodec_open_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 /*struct SwsContext *
 ga_swscale_init(PixelFormat format, int inW, int inH, int outW, int outH) {
@@ -200,6 +200,7 @@ ga_avcodec_vencoder_init(AVCodecContext *ctx, AVCodec *codec, int width, int hei
 		avcodec_close(ctx);
 		av_free(ctx);
 		pthread_mutex_unlock(&avcodec_open_mutex);
+		ga_error("vencoder-init: Failed to initialize encoder for codec \"%s\"\n", codec->name);
 		return NULL;
 	}
 	pthread_mutex_unlock(&avcodec_open_mutex);

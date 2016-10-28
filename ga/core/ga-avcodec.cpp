@@ -28,7 +28,7 @@
 using namespace std;
 
 // avcodec_open/close is not thread-safe
-// static pthread_mutex_t avcodec_open_mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t avcodec_open_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 /*struct SwsContext *
 ga_swscale_init(PixelFormat format, int inW, int inH, int outW, int outH) {

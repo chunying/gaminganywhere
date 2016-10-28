@@ -159,8 +159,6 @@ init_failed:
 	return -1;
 }
 
-char *bitrate_string = "3000000";
-
 static int
 vencoder_reconfigure(int iid) {
 	struct RTSPConf *rtspconf = rtspconf_global();
@@ -173,39 +171,35 @@ vencoder_reconfigure(int iid) {
 		outputW = video_source_out_width(iid);
 		outputH = video_source_out_height(iid);
 
-		pthread_mutex_lock(&avcodec_open_mutex);
-		ga_error("Closing encoder context\n");
-		avcodec_close(vencoder[iid]);
+		ga_avcodec_close(vencoder[iid]);
+		// ga_error("Closing encoder context\n");
+		// avcodec_close(vencoder[iid]);
 
-		AVDictionary *opts = NULL;
-		int bitrate = atoi(bitrate_string);
-		if (bitrate > 1000000) {
-			bitrate_string = "100000";
-		} else {
-			bitrate_string = "3000000";
-		}
-		av_dict_set(&opts, "b", bitrate_string, 0);
-		av_dict_set(&opts, "g", "48", 0);
-		av_dict_set(&opts, "intra-refresh", "1", 0);
-		av_dict_set(&opts, "me_method", "dia", 0);
-		av_dict_set(&opts, "me_range", "16", 0);
-		av_dict_set(&opts, "preset", "faster", 0);
-		av_dict_set(&opts, "profile", "main", 0);
-		av_dict_set(&opts, "refs", "1", 0);
-		av_dict_set(&opts, "slices", "4", 0);
-		av_dict_set(&opts, "threads", "4", 0);
-		av_dict_set(&opts, "tune", "zerolatency", 0);
-
-		ga_error("Initializing new encoder context\n");
-		if (avcodec_open2(vencoder[iid], rtspconf->video_encoder_codec, &opts) != 0) {
-			avcodec_close(vencoder[iid]);
-			av_free(vencoder[iid]);
-			ga_error("Failed to initialize encoder\n");
-		} else {
-			ga_error("Succeeded in initializing encoder\n");
+		for (int i = 0; i < rtspconf->vso->size(); i += 2) {
+			if ((*rtspconf->vso)[i].compare("b") == 0) {
+				if (reconf->bitrateKbps > 0)
+					(*rtspconf->vso)[i+1] = std::to_string(reconf->bitrateKbps * 1000);
+				continue;
+			}
+			if ((*rtspconf->vso)[i].compare("crf") == 0) {
+				if (reconf->crf > 0)
+					(*rtspconf->vso)[i+1] = std::to_string(reconf->crf);
+				continue;
+			}
 		}
 
-		pthread_mutex_unlock(&avcodec_open_mutex);
+		if (reconf->framerate_n > 0)
+			rtspconf->video_fps = reconf->framerate_n;
+		if (reconf->width > 0)
+			outputW = reconf->width;
+		if (reconf->height > 0)
+			outputH = reconf->height;
+
+		ga_avcodec_vencoder_init(vencoder[iid], 
+			rtspconf->video_encoder_codec,
+			outputW, outputH,
+			rtspconf->video_fps,
+			rtspconf->vso);
 
 		if (vencoder[iid] == NULL) {
 			ga_error("video encoder: reconfigure failed. crf=%d; framerate=%d/%d; bitrate=%d; bufsize=%d.\n",
@@ -331,7 +325,6 @@ vencoder_threadproc(void *arg) {
 			pts++;
 		}
 		// encode
-		pthread_mutex_lock(&avcodec_open_mutex);
 		encoder_pts_put(iid, pts, &tv);
 		pic_in->pts = pts;
 		av_init_packet(&pkt);
@@ -341,7 +334,6 @@ vencoder_threadproc(void *arg) {
 			ga_error("video encoder: encode failed, terminated.\n");
 			goto video_quit;
 		}
-		pthread_mutex_unlock(&avcodec_open_mutex);
 		if(got_packet) {
 			if(pkt.pts == (int64_t) AV_NOPTS_VALUE) {
 				pkt.pts = pts;

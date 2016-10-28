@@ -39,9 +39,6 @@ extern "C" {
 #include <string>
 #include <vector>
 
-// avcodec_open/close is not thread-safe
-static pthread_mutex_t avcodec_open_mutex = PTHREAD_MUTEX_INITIALIZER;
-
 EXPORT AVFormatContext* ga_format_init(const char *filename);
 EXPORT AVFormatContext* ga_rtp_init(const char *url);
 EXPORT AVStream* ga_avformat_new_stream(AVFormatContext *ctx, int id, AVCodec *codec);

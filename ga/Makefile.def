@@ -15,7 +15,7 @@ AR	?= ar
 LD	?= ld
 
 GADEPS?= $(HOME)/myprog/gaminganywhere/deps.posix
-CFLAGS	= -O2 -fPIC -g -Wall -I$(GADEPS)/include $(EXTRACFLAGS) -I/usr/local/include -DPIPELINE_FILTER
+CFLAGS	= -O2 -fPIC -g -Wall -I$(GADEPS)/include $(EXTRACFLAGS) -I/usr/local/include -DPIPELINE_FILTER -std=c++11
 #	-D__STDC_CONSTANT_MACROS
 LDFLAGS	= $(EXTRALDFLAGS) -L$(GADEPS)/lib -Wl,-rpath,\$$ORIGIN
 ifeq ($(strip $(GA_ANDROID)),)

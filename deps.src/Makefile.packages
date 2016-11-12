@@ -1,9 +1,9 @@
 
 # packages
-SDL2		= SDL2-2.0.3.tar.gz
-SDL2DIR		= SDL2-2.0.3
-SDL2_TTF	= SDL2_ttf-2.0.12.tar.gz
-SDL2_TTFDIR	= SDL2_ttf-2.0.12
+SDL2		= SDL2-2.0.5.tar.gz
+SDL2DIR		= SDL2-2.0.5
+SDL2_TTF	= SDL2_ttf-2.0.14.tar.gz
+SDL2_TTFDIR	= SDL2_ttf-2.0.14
 YASM		= yasm-1.3.0.tar.gz
 YASMDIR		= yasm-1.3.0
 LAME		= lame-3.99.5.tar.gz

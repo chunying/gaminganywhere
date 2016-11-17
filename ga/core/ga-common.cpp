@@ -599,7 +599,7 @@ ga_aggregated_reset() {
  * To prevent output from different series collides at the same time.
  */
 void
-ga_aggregated_print(int key, int limit, int value) {
+ga_aggregated_print(int key, unsigned int limit, int value) {
 	map<int,list<int> >::iterator mi;
 	// push data
 	if((mi = aggmap.find(key)) == aggmap.end()) {

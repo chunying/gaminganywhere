@@ -29,7 +29,7 @@
 #include "controller.h"
 #include "encoder-common.h"
 
-//#define	TEST_RECONFIGURE
+#define	TEST_RECONFIGURE
 
 // image source pipeline:
 //	vsource -- [vsource-%d] --> filter -- [filter-%d] --> encoder
@@ -136,7 +136,7 @@ run_modules() {
 static void *
 test_reconfig(void *) {
 	int s = 0, err;
-	int kbitrate[] = { 2000, 8000 };
+	int kbitrate[] = { 3000, 100 };
 	int framerate[][2] = { { 12, 1 }, {30, 1}, {24, 1} };
 	ga_error("reconfigure thread started ...\n");
 	while(1) {
@@ -152,17 +152,18 @@ test_reconfig(void *) {
 #ifdef WIN32
 		Sleep(20 * 1000);
 #else
-		sleep(20);
+		sleep(3);
 #endif
 		bzero(&reconf, sizeof(reconf));
 		reconf.id = 0;
-#if 0
 		reconf.bitrateKbps = kbitrate[s%2];
+#if 0
 		reconf.bufsize = 5 * kbitrate[s%2] / 24;
 #endif
-		reconf.framerate_n = framerate[s%3][0];
-		reconf.framerate_d = framerate[s%3][1];
+		// reconf.framerate_n = framerate[s%3][0];
+		// reconf.framerate_d = framerate[s%3][1];
 		// vsource
+		/*
 		if(m_vsource->ioctl) {
 			err = m_vsource->ioctl(GA_IOCTL_RECONFIGURE, sizeof(reconf), &reconf);
 			if(err < 0) {
@@ -172,6 +173,7 @@ test_reconfig(void *) {
 						reconf.framerate_n, reconf.framerate_d);
 			}
 		}
+		*/
 		// encoder
 		if(m_vencoder->ioctl) {
 			err = m_vencoder->ioctl(GA_IOCTL_RECONFIGURE, sizeof(reconf), &reconf);

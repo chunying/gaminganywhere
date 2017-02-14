@@ -14,6 +14,9 @@ all: raspbian_pkgs $(PACKAGES)
 
 raspbian_pkgs:
 	sudo apt-get install \
+		libX11-dev libXtst-dev libfreetype6-dev \
+		libgl1-mesa-dev libglu1-mesa-dev libpulse-dev libasound2-dev
+	sudo apt-get install \
 		libdirectfb-dev \
 		libmp3lame-dev libopus-dev libogg-dev libvorbis-dev \
 		libtheora-dev libvpx-dev libx264-dev libxvidcore-dev

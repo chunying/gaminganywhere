@@ -15,7 +15,8 @@ endif
 
 ifeq ($(OS), Darwin)
 SO_EXT	= .dylib
-LDFLAGS	+= $(EXTRALDFLAGS) -install_name @executable_path/libga$(SO_EXT) $(AVCLD) $(L5LD)
+LDFLAGS	+= $(EXTRALDFLAGS) -install_name @executable_path/libga$(SO_EXT) $(AVCLD) $(L5LD) -isysroot $(GADEPS)/MacOSX10.9.sdk/
+CLAGS	+= -isysroot $(GADEPS)/MacOSX10.9.sdk/
 endif
 
 TARGET	= libga$(SO_EXT)

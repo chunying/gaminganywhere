@@ -9,8 +9,8 @@ LINKSTL = shared
 include $(GADEPS)/../deps.src/Makefile.ndk
 endif
 
-CC	?= gcc
-CXX	?= g++
+CC	:= gcc-7
+CXX	:= g++-7
 AR	?= ar
 LD	?= ld
 

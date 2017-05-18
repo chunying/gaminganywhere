@@ -40,9 +40,12 @@ all: $(PACKAGES)
 
 osx_brew:
 	brew install sdl2 sdl2_ttf yasm lame opus libogg libvorbis theora \
-		libvpx x264 x265 xvid
+		libvpx x264 x265 xvid gcc
 	brew install --with-libvorbis --with-libvpx --with-opus \
 		--with-theora --with-x265 --with-tools ffmpeg
+
+osx_sdk:
+	wget -qO- https://github.com/phracker/MacOSX-SDKs/releases/download/MacOSX10.11.sdk/MacOSX10.9.sdk.tar.xz | tar xJf -C ../ 
 
 linux_ubuntu:
 	@echo 'You will need root permissions to install packages'

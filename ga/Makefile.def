@@ -14,6 +14,11 @@ CXX	:= g++-7
 AR	?= ar
 LD	?= ld
 
+ifeq ($(OS), Darwin)
+LDFLAGS += -isysroot $(GADEPS)/MacOSX10.9.sdk/
+CFLAGS  += -isysroot $(GADEPS)/MacOSX10.9.sdk/
+endif
+
 GADEPS?= $(HOME)/myprog/gaminganywhere/deps.posix
 CFLAGS	= -O2 -fPIC -g -Wall -I$(GADEPS)/include $(EXTRACFLAGS) -I/usr/local/include -DPIPELINE_FILTER -std=c++11
 #	-D__STDC_CONSTANT_MACROS

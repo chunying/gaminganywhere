@@ -16,7 +16,7 @@ MACHINE		= $(shell uname -m)-apple-darwin
 OSX_CLANG_PATCH = perl -p -i -e "s/-falign-loops=16//g" configure; \
 		  perl -p -i -e "s/-fforce-addr//g"     configure
 ifeq ($(HAS_BREW),1)
-PACKAGES	= osx_brew live555
+PACKAGES	= osx_brew live555 osx_sdk
 endif
 else
 VPX_EXTRA_CONFIG = --enable-shared
@@ -45,7 +45,8 @@ osx_brew:
 		--with-theora --with-x265 --with-tools ffmpeg
 
 osx_sdk:
-	wget -qO- https://github.com/phracker/MacOSX-SDKs/releases/download/MacOSX10.11.sdk/MacOSX10.9.sdk.tar.xz | tar xJf -C ../ 
+	curl -o MacOSX10.9.sdk.tar.xz -L https://github.com/phracker/MacOSX-SDKs/releases/download/MacOSX10.11.sdk/MacOSX10.9.sdk.tar.xz
+	tar xJf MacOSX10.9.sdk.tar.xz -C $(GADEPS)
 
 linux_ubuntu:
 	@echo 'You will need root permissions to install packages'

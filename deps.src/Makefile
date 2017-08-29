@@ -45,7 +45,7 @@ osx_brew:
 		--with-theora --with-x265 --with-tools ffmpeg
 
 osx_sdk:
-	curl -o MacOSX10.9.sdk.tar.xz -L https://github.com/phracker/MacOSX-SDKs/releases/download/MacOSX10.11.sdk/MacOSX10.9.sdk.tar.xz
+	curl -o MacOSX10.9.sdk.tar.xz -L https://github.com/bglopez/MacOSX-SDKs/releases/download/MacOSX10.9.SDK/MacOSX10.9.sdk.tar.xz
 	tar xJf MacOSX10.9.sdk.tar.xz -C $(GADEPS)
 
 linux_ubuntu:

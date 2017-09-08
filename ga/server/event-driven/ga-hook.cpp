@@ -423,8 +423,10 @@ hook_dxgi(const char *hook_type, const char *hook_method) {
 	HMODULE hMod;
 	//
 	if((hMod = GetModuleHandle("dxgi.dll")) == NULL) {
-		ga_error("Load dxgi.dll failed.\n");
-		return -1;
+		if((hMod = LoadLibrary("dxgi.dll")) == NULL) {
+			ga_error("Load dxgi.dll failed.\n");
+			return -1;
+		}
 	}
 	//
 	pCreateDXGIFactory = (TCreateDXGIFactory) GetProcAddress(hMod, "CreateDXGIFactory");

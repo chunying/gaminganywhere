@@ -36,6 +36,9 @@
 #include "ga-hook-sdl2.h"
 #include "ga-hook-sdl2audio.h"
 #include "ga-hook-coreaudio.h"
+#ifdef ENABLE_WINMM
+#include "ga-hook-winmm.h"
+#endif
 #include "ga-hook-gl.h"
 
 #include "easyhook.h"
@@ -84,6 +87,10 @@ hook_audio(const char *type) {
 		return 0;
 	if(strcmp(type, "coreaudio") == 0)
 		return hook_coreaudio();
+#ifdef ENABLE_WINMM
+	if(strcmp(type, "winmm") == 0)
+		return hook_winmm();
+#endif
 	return 0;
 }
 

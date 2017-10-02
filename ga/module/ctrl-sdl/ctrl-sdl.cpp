@@ -530,7 +530,7 @@ sdlmsg_replay_native(sdlmsg_t *msg) {
 			pt.x = prect->left + scaleFactorX * msgm->mousex;
 			pt.y = prect->top + scaleFactorY * msgm->mousey;
 		}
-		event = CGEventCreateMouseEvent(NULL, kCGEventMouseMoved, pt, 0);
+		event = CGEventCreateMouseEvent(NULL, kCGEventMouseMoved, pt, (CGMouseButton)0);
 		break;
 	default: // do nothing
 		break;

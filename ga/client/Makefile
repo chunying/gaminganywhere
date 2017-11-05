@@ -9,6 +9,10 @@ CFLAGS	+= $(X11CF)
 LDFLAGS	+= $(X11LD) -lrt -lpthread
 endif
 
+ifeq ($(OS), MSYS)
+LDFLAGS	+= -lws2_32
+endif
+
 ifeq ($(OS), Darwin)
 LDFLAGS	+= -framework Cocoa
 endif

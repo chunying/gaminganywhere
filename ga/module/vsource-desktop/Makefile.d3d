@@ -1,0 +1,13 @@
+
+include ../Makefile.common
+
+ifeq ($(OS), MSYS)
+CFLAGS	+= -DD3D_CAPTURE
+LDFLAGS	+= ../../core/libga.dll -lole32 -lgdi32 -ld3d9 -ld3dx9
+OBJS	= vsource-desktop.o ga-win32-common.o ga-win32-d3d.o
+endif
+
+TARGET	= vsource-desktop-d3d.$(EXT)
+
+include ../Makefile.build
+

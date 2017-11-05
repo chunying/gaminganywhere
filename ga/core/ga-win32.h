@@ -79,8 +79,10 @@
 #define	getpid			_getpid
 #endif
 // gmtimr_r
+#if !defined(MSYS)
 #ifndef gmtime_r
 #define	gmtime_r(pt,ptm)	gmtime_s(ptm,pt)	/**< Mapping gmtime_r() to gmtime_s() */
+#endif
 #endif
 // dlopen
 #ifndef dlopen

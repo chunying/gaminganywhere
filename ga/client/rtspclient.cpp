@@ -626,7 +626,7 @@ bandwidth_estimator_update(unsigned int ssrc, unsigned short seq, struct timeval
 
 ////
 
-#ifdef WIN32
+#if defined(WIN32) && !defined(MSYS)
 #pragma pack(push, 1)
 #endif
 struct rtp_pkt_minimum_s {
@@ -635,7 +635,7 @@ struct rtp_pkt_minimum_s {
 	unsigned int timestamp;
 	unsigned int ssrc;
 }
-#ifdef WIN32
+#if defined(WIN32) && !defined(MSYS)
 #pragma pack(pop)
 #else
 __attribute__((__packed__))
@@ -979,10 +979,14 @@ init_decoder_buffer() {
 				i, PRIVATE_BUFFER_SIZE, strerror(errno));
 			goto adb_failed;
 		}
-#ifdef __LP64__ /* 64-bit */
+#if 0
+#if defined(__LP64__) || defined(_LP64) || defined(WIN64) /* 64-bit */
 		db[i].offset = 16 - (((unsigned long long) db[i].privbuf_unaligned) & 0x0f);
 #else
 		db[i].offset = 16 - (((unsigned) db[i].privbuf_unaligned) & 0x0f);
+#endif
+#else
+		db[i].offset = 16 - (((size_t) db[i].privbuf_unaligned) & 0x0f);
 #endif
 		db[i].privbuf = db[i].privbuf_unaligned + db[i].offset;
 	}

@@ -34,7 +34,7 @@
 #define	CTRL_MSGSYS_SUBTYPE_NETREPORT	2	/* system control message: report networking */
 #define	CTRL_MSGSYS_SUBTYPE_MAX		2	/* must equal to the last sub message type */
 
-#ifdef WIN32
+#if defined(WIN32) && !defined(MSYS)
 #define	BEGIN_CTRL_MESSAGE_STRUCT	__pragma(pack(push, 1))	/* equal to #pragma pack(push, 1) */
 #define END_CTRL_MESSAGE_STRUCT		; \
 					__pragma(pack(pop))	/* equal to #pragma pack(pop) */ 

@@ -526,7 +526,11 @@ rtsp_reply_header(RTSPContext *c, enum RTSPStatusCode error_number) {
 	rtsp_printf(c, "CSeq: %d\r\n", c->seq);
 	/* output GMT time */
 	ti = time(NULL);
+#ifdef MSYS
+	gmtime_s(&rtm, &ti);
+#else
 	gmtime_r(&ti, &rtm);
+#endif
 	strftime(buf2, sizeof(buf2), "%a, %d %b %Y %H:%M:%S", &rtm);
 	rtsp_printf(c, "Date: %s GMT\r\n", buf2);
 	//

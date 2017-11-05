@@ -1,6 +1,10 @@
 
 include ../Makefile.common
 
+ifeq ($(OS), MSYS)
+LDFLAGS	+= ../../core/libga.dll
+endif
+
 CFLAGS	+= $(shell pkg-config --cflags libswscale libswresample libpostproc libavdevice libavfilter libavcodec libavformat)
 LDFLAGS	+= $(shell pkg-config --libs libswscale libswresample libpostproc libavdevice libavfilter libavcodec libavformat)
 

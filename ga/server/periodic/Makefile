@@ -1,13 +1,20 @@
 
 include ../Makefile.def
 
-CFLAGS	+= -I../../core $(AVCCF) $(L5CF) $(SDLCF)
+CFLAGS	+= -I../../core $(AVCCF) $(L5CF) #$(SDLCF)
+
+ifneq ($(OS), MSYS)
 #LDFLAGS	= -rdynamic -L../../core -Wl,--whole-archive -lga -Wl,--no-whole-archive $(AVCLD) $(SDLLD)
 LDFLAGS	+= -rdynamic -L../../core -lga $(AVCLD) $(SDLLD) #-Wl,-rpath,\$$ORIGIN
+endif
 
 ifeq ($(OS), Linux)
 CFLAGS	+= $(ASNDCF) $(X11CF)
 LDFLAGS	+= $(ASNDLD) $(X11LD)
+endif
+
+ifeq ($(OS), MSYS)
+LDFLAGS	+= ../../core/libga.dll -lole32
 endif
 
 ifeq ($(OS), Darwin)

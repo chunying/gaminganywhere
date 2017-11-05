@@ -32,7 +32,7 @@
 #define SDL_EVENT_MSGTYPE_MOUSEMOTION	3
 #define SDL_EVENT_MSGTYPE_MOUSEWHEEL	4
 
-#ifdef WIN32
+#if defined(WIN32) && !defined(MSYS)
 #pragma pack(push, 1)
 #endif
 struct sdlmsg_s {
@@ -63,7 +63,7 @@ struct sdlmsg_s {
 	unsigned char padding[8];	// reserved padding
 #endif
 }
-#ifdef WIN32
+#if defined(WIN32) && !defined(MSYS)
 #pragma pack(pop)
 #else
 __attribute__((__packed__))
@@ -72,7 +72,7 @@ __attribute__((__packed__))
 typedef struct sdlmsg_s			sdlmsg_t;
 
 // keyboard event
-#ifdef WIN32
+#if defined(WIN32) && !defined(MSYS)
 #pragma pack(push, 1)
 #endif
 struct sdlmsg_keyboard_s {
@@ -86,7 +86,7 @@ struct sdlmsg_keyboard_s {
 	unsigned int unicode;		// unicode or ASCII value
 	unsigned short sdlmod;		// SDLMod
 }
-#ifdef WIN32
+#if defined(WIN32) && !defined(MSYS)
 #pragma pack(pop)
 #else
 __attribute__((__packed__))
@@ -95,7 +95,7 @@ __attribute__((__packed__))
 typedef struct sdlmsg_keyboard_s	sdlmsg_keyboard_t;
 
 // mouse event
-#ifdef WIN32
+#if defined(WIN32) && !defined(MSYS)
 #pragma pack(push, 1)
 #endif
 struct sdlmsg_mouse_s {
@@ -113,7 +113,7 @@ struct sdlmsg_mouse_s {
 	unsigned short mouseRelX;
 	unsigned short mouseRelY;
 }
-#ifdef WIN32
+#if defined(WIN32) && !defined(MSYS)
 #pragma pack(pop)
 #else
 __attribute__((__packed__))

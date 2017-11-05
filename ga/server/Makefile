@@ -3,10 +3,14 @@ OS	= $(shell uname -s)
 MACHINE	= $(shell uname -m)
 OS_M	= $(OS).$(MACHINE)
 
-ifneq ($(OS_M),Linux.x86_64)
-TARGET	= periodic event-posix
+ifeq ($(findstring MSYS,$(OS)),MSYS)
+OS	= MSYS
+endif
+
+ifeq ($(OS), MSYS)
+TARGET	= periodic 
 else
-TARGET	= periodic
+TARGET	= periodic event-posix
 endif
 
 all:

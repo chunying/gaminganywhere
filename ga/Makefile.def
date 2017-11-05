@@ -4,6 +4,11 @@
 OS	= $(shell uname -s)
 HAVE_X11 ?= 1
 
+ifeq ($(findstring MSYS,$(OS)),MSYS)
+OS	= MSYS
+HAVE_X11 = 0
+endif
+
 ifneq ($(strip $(GA_ANDROID)),)
 LINKSTL = shared
 include $(GADEPS)/../deps.src/Makefile.ndk
@@ -18,6 +23,11 @@ GADEPS?= $(HOME)/myprog/gaminganywhere/deps.posix
 CFLAGS	= -O2 -fPIC -g -Wall -I$(GADEPS)/include $(EXTRACFLAGS) -I/usr/local/include -DPIPELINE_FILTER -std=c++11
 #	-D__STDC_CONSTANT_MACROS
 LDFLAGS	= $(EXTRALDFLAGS) -L$(GADEPS)/lib -Wl,-rpath,\$$ORIGIN
+
+ifeq ($(OS), MSYS)
+CFLAGS  += -DWIN32 -DMSYS -DUSE_GA_WIN32_MACRO
+endif
+
 ifeq ($(strip $(GA_ANDROID)),)
 LDFLAGS	+= -lpthread
 endif

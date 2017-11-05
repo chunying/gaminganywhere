@@ -77,6 +77,7 @@ static char *ga_logfile = NULL;
  * @param tv2 [in] Pointer to the second \a timeval data structure.
  * @return The difference in micro seconds.
  */
+EXPORT
 long long
 tvdiff_us(struct timeval *tv1, struct timeval *tv2) {
 	struct timeval delta;
@@ -110,6 +111,7 @@ tvdiff_us(struct timeval *tv1, struct timeval *tv2) {
  * This function sleeps for \a interval micro seconds if the baseline
  * time is not specified.
  */
+EXPORT
 long long
 ga_usleep(long long interval, struct timeval *ptv) {
 	long long delta;
@@ -159,6 +161,7 @@ ga_writelog(struct timeval tv, const char *s) {
  * It outputs a timestamp before the message, and optionally writing
  * the message into a log file if log feature is turned on.
  */
+EXPORT
 int
 ga_log(const char *fmt, ...) {
 	char msg[4096];
@@ -190,6 +193,7 @@ ga_log(const char *fmt, ...) {
  * This function has the same syntax as the \em printf function.
  * It outputs a timestamp before the message.
  */
+EXPORT
 int
 ga_error(const char *fmt, ...) {
 	char msg[4096];
@@ -223,6 +227,7 @@ ga_error(const char *fmt, ...) {
  * Note: The actually allocated memory space is \a size + 16.
  * Data should be stored starting from \a *ptr + \a *alignment.
  */
+EXPORT
 int
 ga_malloc(int size, void **ptr, int *alignment) {
 	if((*ptr = malloc(size+16)) == NULL)
@@ -245,6 +250,7 @@ ga_malloc(int size, void **ptr, int *alignment) {
  * Note that this function does not check the alignto value.
  * The caller must ensure that the \a alignto value must be 2^n, n >= 0.
  */
+EXPORT
 int
 ga_alignment(void *ptr, int alignto) {
 	int mask = alignto - 1;
@@ -258,6 +264,7 @@ ga_alignment(void *ptr, int alignto) {
 /**
  * Get the thread ID in long format.
  */
+EXPORT
 long
 ga_gettid() {
 #ifdef WIN32
@@ -290,6 +297,7 @@ winsock_init() {
  * List registered ffmpeg codecs.
  * This function is for debug purpose, and could be removed in the future.
  */
+EXPORT
 void
 ga_dump_codecs() {
 	int n, count;
@@ -316,6 +324,7 @@ ga_dump_codecs() {
  * @param url [in] URL to the server URL address, in the form of rtsp://serveraddress:port/path
  * @return 0 on success or -1 on error
  */
+EXPORT
 int
 ga_init(const char *config, const char *url) {
 	srand(time(0));
@@ -344,6 +353,7 @@ ga_init(const char *config, const char *url) {
 /**
  * Deinitialize GamingAnywhere: currently do nothing
  */
+EXPORT
 void
 ga_deinit() {
 	return;
@@ -355,6 +365,7 @@ ga_deinit() {
  * This function must be called if you plan to write logs into a file.
  * It reads the \em logfile option specified in the configuration file.
  */
+EXPORT
 void
 ga_openlog() {
 	char fn[1024];
@@ -373,6 +384,7 @@ ga_openlog() {
 /**
  * Disable log feature
  */
+EXPORT
 void
 ga_closelog() {
 	if(ga_logfile != NULL) {
@@ -414,6 +426,7 @@ ga_save_init_internal(const char *filename, const char *mode) {
  * save raw video image feature.
  * All captured images will be stored in this single file.
  */
+EXPORT
 FILE *
 ga_save_init(const char *filename) {
 	return ga_save_init_internal(filename, "wb");
@@ -429,6 +442,7 @@ ga_save_init(const char *filename) {
  * text-based meta data for saved raw video image.
  * All stored meta-data will be stored in this single file.
  */
+EXPORT
 FILE *
 ga_save_init_txt(const char *filename) {
 	return ga_save_init_internal(filename, "wt");
@@ -441,6 +455,7 @@ ga_save_init_txt(const char *filename) {
  * @param buffer [in] Pointer to the data memory.
  * @param size [in] Size of the data, in bytes.
  */
+EXPORT
 int
 ga_save_data(FILE *fp, unsigned char *buffer, int size) {
 	if(fp == NULL || buffer == NULL || size < 0)
@@ -457,6 +472,7 @@ ga_save_data(FILE *fp, unsigned char *buffer, int size) {
  * @param fmt [in] Pointer the for format string.
  * @param ... [in] Arguments for specifiers in the format string.
  */
+EXPORT
 int
 ga_save_printf(FILE *fp, const char *fmt, ...) {
 	int wlen;
@@ -479,6 +495,7 @@ ga_save_printf(FILE *fp, const char *fmt, ...) {
  * @param planes [in] Pointers to address of (3) planes [Y, U, and V].
  * @param linesize [in] Pointers to linesize.
  */
+EXPORT
 int
 ga_save_yuv420p(FILE *fp, int w, int h, unsigned char *planes[], int linesize[]) {
 	int i, j, wlen, written = 0;
@@ -527,6 +544,7 @@ err_save_yuv:
  * @param planes [in] Pointers to the image data memory.
  * @param linesize [in] linesize, usually \a h * pixel size plus (optional) alignments.
  */
+EXPORT
 int
 ga_save_rgb4(FILE *fp, int w, int h, unsigned char *planes, int linesize) {
 	int i, wlen, written = 0;
@@ -559,6 +577,7 @@ err_save_rgb4:
  * @param fp [in] The opened file pointer.
  * @return This function currently always returns 0.
  */
+EXPORT
 int
 ga_save_close(FILE *fp) {
 	if(fp != NULL) {
@@ -574,6 +593,7 @@ static map<int,list<int> > aggmap;
 /**
  * Clear everything in the aggregated output buffer.
  */
+EXPORT
 void
 ga_aggregated_reset() {
 	aggmap.clear();
@@ -598,6 +618,7 @@ ga_aggregated_reset() {
  * The \a limit value would be better to be a distinct prime number:
  * To prevent output from different series collides at the same time.
  */
+EXPORT
 void
 ga_aggregated_print(int key, unsigned int limit, int value) {
 	map<int,list<int> >::iterator mi;
@@ -652,6 +673,7 @@ ga_aggregated_print(int key, unsigned int limit, int value) {
  * If a non-NULL pointer is returned, you can read the frame data start from
  * the returned pointer plus \a startcode_len.
  */
+EXPORT
 unsigned char *
 ga_find_startcode(unsigned char *buf, unsigned char *end, int *startcode_len) {
 	unsigned char *ptr;
@@ -675,6 +697,7 @@ ga_find_startcode(unsigned char *buf, unsigned char *end, int *startcode_len) {
  * @param str [in] The number string.
  * @return The converted number in long format.
  */
+EXPORT
 long
 ga_atoi(const char *str) {
 	// XXX: not sure why sometimes windows strtol failed on
@@ -686,6 +709,7 @@ ga_atoi(const char *str) {
 	return val;
 }
 
+EXPORT
 struct gaRect *
 ga_fillrect(struct gaRect *rect, int left, int top, int right, int bottom) {
 	if(rect == NULL)
@@ -715,6 +739,7 @@ ga_fillrect(struct gaRect *rect, int left, int top, int right, int bottom) {
 }
 
 #ifdef WIN32
+EXPORT
 int
 ga_crop_window(struct gaRect *rect, struct gaRect **prect) {
 	char wndname[1024], wndclass[1024];
@@ -921,6 +946,7 @@ ga_crop_window(struct gaRect *rect, struct gaRect **prect) {
  * Show the backtrace of current process
  * This function is only for debug purpose.
  */
+EXPORT
 void
 ga_backtrace() {
 #if defined(WIN32) || defined(ANDROID)
@@ -954,6 +980,7 @@ ga_backtrace() {
  * called by the function.
  * Put those function here to prevent them from being optimized out.
  */
+EXPORT
 void
 ga_dummyfunc() {
 #ifndef ANDROID_NO_FFMPEG
@@ -1003,6 +1030,7 @@ ga_lookup_core(const char *key) {
 /**
  * Get the codec MIME-type from the codec table by key.
  */
+EXPORT
 const char *
 ga_lookup_mime(const char *key) {
 	struct ga_codec_entry * e = ga_lookup_core(key);
@@ -1016,6 +1044,7 @@ ga_lookup_mime(const char *key) {
 /**
  * Get the codec ffmpeg decoders from the codec table by key.
  */
+EXPORT
 const char **
 ga_lookup_ffmpeg_decoders(const char *key) {
 	struct ga_codec_entry * e = ga_lookup_core(key);
@@ -1029,6 +1058,7 @@ ga_lookup_ffmpeg_decoders(const char *key) {
 /**
  * Get the codec Id from the codec table by key.
  */
+EXPORT
 enum AVCodecID
 ga_lookup_codec_id(const char *key) {
 	struct ga_codec_entry * e = ga_lookup_core(key);
@@ -1065,6 +1095,7 @@ pthread_cancel_handler(int s) {
  *
  * This function registers a handler for SIGUSR2.
  */
+EXPORT
 void
 pthread_cancel_init() {
 #ifdef ANDROID
@@ -1083,6 +1114,7 @@ pthread_cancel_init() {
  * Otherwise, it could be terminated, and not sure if there would be side-effect
  * or not.
  */
+EXPORT
 int
 pthread_cancel(pthread_t thread) {
 	return pthread_kill(thread, SIGUSR2);

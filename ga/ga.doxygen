@@ -683,7 +683,7 @@ RECURSIVE              = YES
 # run.
 
 #EXCLUDE                = 
-EXCLUDE                = ./core/deprecated ./android/jni/include ./android.test ./scripts ./module/server-ffmpeg/ffmpeg ./module/server-ffmpeg/ffmpeg-1.1
+EXCLUDE                = ./core/deprecated ./android/jni/include ./android.test ./scripts ./module/server-ffmpeg/ffmpeg ./module/server-ffmpeg/ffmpeg-1.1 ./ios ./module/asource-coreaudio ./module/encoder-omx ./module/vsource-v4l ./module/vsource-omx ./server/audio ./server/minimal ./server/rpi
 
 # The EXCLUDE_SYMLINKS tag can be used to select whether or not files or
 # directories that are symbolic links (a Unix file system feature) are excluded

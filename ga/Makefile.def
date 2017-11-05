@@ -24,6 +24,10 @@ CFLAGS	= -O2 -fPIC -g -Wall -I$(GADEPS)/include $(EXTRACFLAGS) -I/usr/local/incl
 #	-D__STDC_CONSTANT_MACROS
 LDFLAGS	= $(EXTRALDFLAGS) -L$(GADEPS)/lib -Wl,-rpath,\$$ORIGIN
 
+ifeq ($(OS), Linux)
+CFLAGS	+= -std=c++11
+endif
+
 ifeq ($(OS), MSYS)
 CFLAGS  += -DWIN32 -DMSYS -DUSE_GA_WIN32_MACRO
 endif

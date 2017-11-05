@@ -3,7 +3,7 @@ GADEPS		?= $(HOME)/myprog/gaminganywhere/deps.posix
 MACHINE		?= $(shell uname -m)
 SYSTEM		= $(shell uname -s)
 PARALLEL_MAKE	= -j5
-PACKAGES	= ive555
+PACKAGES	= live555
 
 TBZUNPACK	= tar xjf
 TGZUNPACK	= tar xzf

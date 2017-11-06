@@ -1,12 +1,12 @@
 
 include ../Makefile.common
 
-ifeq ($(OS), MSYS)
-LDFLAGS	+= ../../core/libga.dll
-endif
+CFLAGS	+= $(shell pkg-config --cflags libswscale libswresample libpostproc libavdevice libavfilter libavcodec libavformat libavutil)
+LDFLAGS	+= $(shell pkg-config --libs libswscale libswresample libpostproc libavdevice libavfilter libavcodec libavformat libavutil)
 
-CFLAGS	+= $(shell pkg-config --cflags libswscale libswresample libpostproc libavdevice libavfilter libavcodec libavformat)
-LDFLAGS	+= $(shell pkg-config --libs libswscale libswresample libpostproc libavdevice libavfilter libavcodec libavformat)
+ifeq ($(OS), MSYS)
+LDFLAGS	+= ../../core/libga.dll -lws2_32
+endif
 
 OBJS	= server-ffmpeg.o rtspserver.o
 TARGET	= server-ffmpeg.$(EXT)

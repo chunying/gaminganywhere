@@ -213,6 +213,7 @@ main(int argc, char *argv[]) {
 		fprintf(stderr, "cannot initialize COM.\n");
 		return -1;
 	}
+	ga_set_process_dpi_aware();
 #endif
 	//
 	if(argc < 2) {

@@ -204,3 +204,36 @@ pcdiff_us(LARGE_INTEGER t1, LARGE_INTEGER t2, LARGE_INTEGER freq) {
 	return 1000000LL * (t1.QuadPart - t2.QuadPart) / freq.QuadPart;
 }
 
+typedef enum GA_PROCESS_DPI_AWARENESS {
+	GA_PROCESS_DPI_UNAWARE = 0,
+	GA_PROCESS_SYSTEM_DPI_AWARE = 1,
+	GA_PROCESS_PER_MONITOR_DPI_AWARE = 2
+} GA_PROCESS_DPI_AWARENESS;
+typedef BOOL (WINAPI * setProcessDpiAware_t)(void);
+typedef HRESULT (WINAPI * setProcessDpiAwareness_t)(GA_PROCESS_DPI_AWARENESS);
+
+/**
+ * Platform dependent call to SetProcessDpiAware(PROCESS_PER_MONITOR_DPI_AWARE)
+ */
+EXPORT
+int
+ga_set_process_dpi_aware() {
+	HMODULE shcore, user32;
+	setProcessDpiAware_t     aw = NULL;
+	setProcessDpiAwareness_t awness = NULL;
+	int ret = 0;
+	if((shcore = LoadLibraryA("shcore.dll")))
+		awness = (setProcessDpiAwareness_t) GetProcAddress(shcore, "SetProcessDpiAwareness");
+	if((user32 = LoadLibraryA("user32.dll")))
+		aw = (setProcessDpiAware_t) GetProcAddress(user32, "SetProcessDPIAware");
+	if(awness) {
+		ret = (int) (awness(GA_PROCESS_PER_MONITOR_DPI_AWARE) == S_OK);
+	} else if(aw) {
+		ret = (int) (aw() != 0);
+	}
+	if(user32) FreeLibrary(user32);
+	if(shcore) FreeLibrary(shcore);
+	return ret;
+}
+
+

@@ -13,7 +13,11 @@ include Makefile.packages
 all: msys2_pkgs $(PACKAGES)
 
 msys2_pkgs:
-	pacman -Sy mingw-w64-x86_64-SDL2_ttf mingw-w64-x86_64-SDL2 mingw-w64-x86_64-ffmpeg
+	which tar    || pacman -Syu tar
+	which diff   || pacman -Syu diffutils
+	which patch  || pacman -Syu patch
+	which sdl2-config || pacman -Syu mingw-w64-x86_64-SDL2_ttf mingw-w64-x86_64-SDL2 
+	which ffmpeg || pacman -Syu mingw-w64-x86_64-ffmpeg
 
 live555:
 	-$(TGZUNPACK) $(LIVE555)

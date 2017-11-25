@@ -19,6 +19,8 @@ endif
 ifeq ($(OS), Darwin)
 EXT		= dylib
 MAKEMODULE	= $(CXX) -o $(TARGET) -dynamiclib -Wl,-undefined,dynamic_lookup $^ $(LDFLAGS)
+CFLAGS	+= -isysroot $(GADEPS)/MacOSX10.9.sdk/
+LDFLAGS	+= -isysroot $(GADEPS)/MacOSX10.9.sdk/
 endif
 
 .cpp.o:

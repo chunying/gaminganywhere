@@ -14,7 +14,8 @@ LDFLAGS	+= -lws2_32
 endif
 
 ifeq ($(OS), Darwin)
-LDFLAGS	+= -framework Cocoa
+LDFLAGS	+= -framework Cocoa -isysroot $(GADEPS)/MacOSX10.9.sdk/
+CFLAGS	+= -isysroot $(GADEPS)/MacOSX10.9.sdk/
 endif
 
 TARGET	= ga-client

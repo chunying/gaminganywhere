@@ -29,7 +29,7 @@ TARGET	= libga$(SO_EXT)
 all: $(TARGET)
 
 .cpp.o:
-	$(CXX) -c -g $(CFLAGS) $<
+	$(CXX) -c -g $(CXXFLAGS) $<
 
 OBJS =	ga-common.o ga-conf.o ga-confvar.o ga-module.o ga-avcodec.o \
 	ga-crc.o \

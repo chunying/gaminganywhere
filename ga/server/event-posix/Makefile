@@ -35,7 +35,7 @@ endif
 all: $(TARGET)
 
 .cpp.o:
-	$(CXX) -c -g $(CFLAGS) $<
+	$(CXX) -c -g $(CXXFLAGS) $<
 
 ga-server-event-driven: ga-server-event-driven.o 
 	$(CXX) -o $@ $^ $(LDFLAGS)

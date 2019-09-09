@@ -27,7 +27,7 @@ TARGET	= ga-server-periodic
 all: $(TARGET)
 
 .cpp.o:
-	$(CXX) -c -g $(CFLAGS) $<
+	$(CXX) -c -g $(CXXFLAGS) $<
 
 ga-server-periodic: ga-server-periodic.o 
 	$(CXX) -o $@ $^ $(LDFLAGS)

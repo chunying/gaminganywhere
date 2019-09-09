@@ -21,12 +21,13 @@ AR	?= ar
 LD	?= ld
 
 GADEPS?= $(HOME)/myprog/gaminganywhere/deps.posix
-CFLAGS	= -O2 -fPIC -g -Wall -I$(GADEPS)/include $(EXTRACFLAGS) -I/usr/local/include # -DPIPELINE_FILTER -std=c++11
+CFLAGS	= -O2 -fPIC -g -Wall -I$(GADEPS)/include $(EXTRACFLAGS) -I/usr/local/include # -DPIPELINE_FILTER
 #	-D__STDC_CONSTANT_MACROS
+CXXFLAGS = $(CFLAGS)
 LDFLAGS	= $(EXTRALDFLAGS) -L$(GADEPS)/lib -Wl,-rpath,\$$ORIGIN
 
 ifeq ($(OS), Linux)
-CFLAGS	+= -std=c++11
+CXXFLAGS += -std=c++11
 endif
 
 ifeq ($(OS), MSYS)
@@ -38,7 +39,7 @@ LDFLAGS	+= -lpthread
 endif
 
 ifneq ($(strip $(GA_ANDROID)),)
-CFLAGS	+= $(ANDROID_CXXFLAGS)
+CXXFLAGS	+= $(ANDROID_CXXFLAGS)
 LDFLAGS	+= $(ANDROID_LDFLAGS)
 endif
 

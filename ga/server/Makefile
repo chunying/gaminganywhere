@@ -1,9 +1,10 @@
 
 OS	= $(shell uname -s)
+SYS	= $(shell uname -o | tr a-z A-Z)
 MACHINE	= $(shell uname -m)
 OS_M	= $(OS).$(MACHINE)
 
-ifeq ($(findstring MSYS,$(OS)),MSYS)
+ifeq ($(SYS), MSYS)
 OS	= MSYS
 endif
 

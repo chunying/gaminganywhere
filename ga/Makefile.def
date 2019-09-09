@@ -2,9 +2,10 @@
 # Makefile.def for POSIX-based OSes
 
 OS	= $(shell uname -s)
+SYS	= $(shell uname -o | tr a-z A-Z)
 HAVE_X11 ?= 1
 
-ifeq ($(findstring MSYS,$(OS)),MSYS)
+ifeq ($(SYS), MSYS)
 OS	= MSYS
 HAVE_X11 = 0
 endif

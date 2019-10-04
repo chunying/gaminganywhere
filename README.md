@@ -24,7 +24,7 @@ can be ported to other OS's including OS X and Android.
 
 * Recommended development platforms Ubuntu Linux x86_64.
 
-* Required packages on Linux OS (both runtime and development files):
+* Required packages on Linux (both runtime and development files):
 ```libx11```, ```libxext```, ```libxtst```, ```libfreetype6```,
 ```libgl1-mesa```, ```libglu1-mesa```, ```libpulse```,
 ```libasound2```, ```lib32z1```

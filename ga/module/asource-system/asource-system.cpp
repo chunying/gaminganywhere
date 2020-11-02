@@ -20,7 +20,7 @@
 
 #include "ga-common.h"
 #include "ga-conf.h"
-#include "server.h"
+#include "rtspconf.h"
 #include "asource.h"
 #include "asource-system.h"
 
@@ -37,9 +37,9 @@ static int asource_started = 0;
 static pthread_t asource_tid;
 
 #ifdef WIN32
-static struct Xcap_wasapi_param audioparam;
+static struct ga_wasapi_param audioparam;
 #else
-static struct Xcap_alsa_param audioparam;
+static struct ga_alsa_param audioparam;
 #endif
 
 static int
@@ -116,7 +116,7 @@ asource_init(void *arg) {
 static void *
 asource_threadproc(void *arg) {
 	int r;
-	unsigned char *fbuffer;
+	unsigned char *fbuffer = NULL;
 	//
 	if(asource_init(NULL) < 0) {
 		exit(-1);
@@ -150,6 +150,8 @@ asource_threadproc(void *arg) {
 		audio_source_buffer_fill(fbuffer, r);
 	}
 	//
+	if(fbuffer)
+		free(fbuffer);
 	ga_error("audio capture thread terminated.\n");
 	//
 	return NULL;

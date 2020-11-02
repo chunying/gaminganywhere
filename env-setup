@@ -1,4 +1,12 @@
 #!/bin/sh
+GA_OS=`uname -s`
 export GADEPS=$HOME/myprog/gaminganywhere/deps.posix
-export PKG_CONFIG_PATH=$GADEPS/lib/pkgconfig:/opt/local/lib/pkgconfig:/usr/lib/i386-linux-gnu/pkgconfig/:/usr/lib/pkgconfig
+case $GA_OS in
+MSYS*)
+	export PKG_CONFIG_PATH=/mingw64/lib/pkgconfig
+	;;
+*)
+	export PKG_CONFIG_PATH=$GADEPS/lib/pkgconfig:/opt/local/lib/pkgconfig:/usr/lib/i386-linux-gnu/pkgconfig/:/usr/lib/pkgconfig
+	;;
+esac
 export PATH=$GADEPS/bin:$PATH

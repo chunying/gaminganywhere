@@ -210,12 +210,12 @@ parse_sps(struct mini_h264_context *ctx, unsigned char *buf, int len) {
 	sps->vui_parameters_present_flag = U(1);
 	// XXX: skip vui_parameters
 	ctx->width = ((sps->pic_width_in_mbs_minus1 + 1) * 16)
-			- sps->frame_crop_bottom_offset * 2
-			- sps->frame_crop_top_offset * 2;
+			- sps->frame_crop_right_offset * 2
+			- sps->frame_crop_left_offset * 2;
 	ctx->height = ((2 - sps->frame_mbs_only_flag)
 			* (sps->pic_height_in_map_units_minus1 + 1) * 16)
-			- (sps->frame_crop_right_offset * 2)
-			- (sps->frame_crop_left_offset * 2);
+			- (sps->frame_crop_top_offset * 2)
+			- (sps->frame_crop_bottom_offset * 2);
 	//
 	free(buf);
 	//

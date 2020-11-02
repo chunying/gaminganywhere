@@ -1,0 +1,78 @@
+
+GADEPS		?= $(HOME)/myprog/gaminganywhere/deps.posix
+MACHINE		?= $(shell uname -m)
+SYSTEM		= $(shell uname -s)
+PARALLEL_MAKE	= -j5
+PACKAGES	= sdl2 sdl2_ttf ffmpeg live555
+
+TBZUNPACK	= tar xjf
+TGZUNPACK	= tar xzf
+
+include Makefile.packages
+
+all: raspbian_pkgs $(PACKAGES)
+
+raspbian_pkgs:
+	sudo apt-get install \
+		libX11-dev libXtst-dev libfreetype6-dev \
+		libgl1-mesa-dev libglu1-mesa-dev libpulse-dev libasound2-dev
+	sudo apt-get install \
+		libdirectfb-dev \
+		libmp3lame-dev libopus-dev libogg-dev libvorbis-dev \
+		libtheora-dev libvpx-dev libx264-dev libxvidcore-dev
+
+sdl2:
+	$(TGZUNPACK) $(SDL2)
+	mkdir -p $(SDL2DIR)/mybuild
+	cd $(SDL2DIR)/mybuild; ../configure --prefix=$(GADEPS) --with-pic \
+		--disable-video-opengl --enable-video-directfb
+	make -C $(SDL2DIR)/mybuild $(PARALLEL_MAKE)
+	make -C $(SDL2DIR)/mybuild install
+	rm -rf $(SDL2DIR)
+
+# this two for opengles/2:
+#		CPPFLAGS='-I/opt/vc/include -I/opt/vc/include/interface/vcos/pthreads' \
+#		LDFLAGS='-L/opt/vc/lib'
+
+sdl2_ttf:
+	$(TGZUNPACK) $(SDL2_TTF)
+	mkdir -p $(SDL2_TTFDIR)/mybuild
+	cd $(SDL2_TTFDIR)/mybuild; ../configure --prefix=$(GADEPS) --with-pic
+	make -C $(SDL2_TTFDIR)/mybuild $(PARALLEL_MAKE)
+	make -C $(SDL2_TTFDIR)/mybuild install
+	rm -rf $(SDL2_TTFDIR)
+
+ffmpeg:
+	$(TBZUNPACK) $(FFMPEG)
+	cd $(FFMPEGDIR); ./configure --prefix=$(GADEPS) \
+		--enable-shared --enable-pic \
+		--enable-libmp3lame \
+		--enable-libtheora --enable-libvorbis \
+		--enable-libx264 --enable-libvpx \
+		--enable-libopus \
+		--enable-libxvid \
+		--enable-gpl --enable-nonfree --disable-outdev=sdl \
+		--extra-cflags=-I$(GADEPS)/include \
+		--extra-ldflags=-L$(GADEPS)/lib
+	make -C $(FFMPEGDIR) $(PARALLEL_MAKE)
+	make -C $(FFMPEGDIR) install
+	rm -rf $(FFMPEGDIR)
+
+live555:
+	$(TGZUNPACK) $(LIVE555)
+	# enable -fPIC for macosx and linux
+	mv -f $(LIVE555DIR)/config.linux $(LIVE555DIR)/config.linux.old
+	mv -f $(LIVE555DIR)/config.macosx $(LIVE555DIR)/config.macosx.old
+	cat $(LIVE555DIR)/config.linux.old | sed -e 's,^COMPILE_OPTS.*$$,& -fPIC,' > $(LIVE555DIR)/config.linux
+	cat $(LIVE555DIR)/config.macosx.old | sed -e 's,^COMPILE_OPTS.*$$,& -fPIC,' > $(LIVE555DIR)/config.macosx
+	cd $(LIVE555DIR); cat ../patches/live555-* | patch -p1 
+	#
+	cd $(LIVE555DIR); ./genMakefiles $(shell uname -s | tr A-Z a-z | sed -e 's,darwin,macosx,' -e 's,cygwin.*,cygwin,')
+	make -C $(LIVE555DIR) $(PARALLEL_MAKE)
+	-mkdir -p $(GADEPS)/lib
+	find $(LIVE555DIR) -name '*.a' -exec cp -f {} $(GADEPS)/lib \;
+	-mkdir -p $(GADEPS)/include/live555
+	find $(LIVE555DIR) -name '*.hh' -exec cp -f {} $(GADEPS)/include/live555 \;
+	cp -f $(LIVE555DIR)/groupsock/include/NetCommon.h $(GADEPS)/include/live555
+	rm -rf $(LIVE555DIR)
+

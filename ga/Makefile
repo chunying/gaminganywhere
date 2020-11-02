@@ -27,6 +27,11 @@ install:
 	make -C client install
 	cp -fr config ../bin/
 
+msys2-dist:
+	mkdir -p ../bin-dist
+	cp -fr ../bin/* ../bin-dist/
+	cp `ldd ../bin/*.exe ../bin/*.dll | grep -Ei '/mingw.*/bin' | awk '{print $$3}' | sort | uniq` ../bin-dist/
+
 clean:
 	make -C core clean
 	make -C module clean

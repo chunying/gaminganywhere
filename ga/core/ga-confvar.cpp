@@ -16,11 +16,19 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+/**
+ * @file
+ * Class used to store a single GamingAnywhere parameter: implementations
+ */
+
 #include <stdio.h>
 #include "ga-confvar.h"
 
 using namespace std;
 
+/**
+ * Reset everything.
+ */
 void
 gaConfVar::clear() {
 	this->data = "";
@@ -32,11 +40,17 @@ gaConfVar::gaConfVar() {
 	this->clear();
 }
 
+/**
+ * Get the stored value.
+ */
 string
 gaConfVar::value() {
 	return this->data;
 }
 
+/**
+ * Implement the = operator for assign plain-text value.
+ */
 gaConfVar&
 gaConfVar::operator=(const char *value) {
 	this->data = value;
@@ -45,6 +59,9 @@ gaConfVar::operator=(const char *value) {
 	return *this;
 }
 
+/**
+ * Implement the = operator for assign plain-text value.
+ */
 gaConfVar&
 gaConfVar::operator=(const string value) {
 	this->data = value;
@@ -53,6 +70,9 @@ gaConfVar::operator=(const string value) {
 	return *this;
 }
 
+/**
+ * Implement the = operator for assign from another \em gaConfVar class.
+ */
 gaConfVar&
 gaConfVar::operator=(const gaConfVar var) {
 	this->data = var.data;
@@ -61,32 +81,57 @@ gaConfVar::operator=(const gaConfVar var) {
 	return *this;
 }
 
+/**
+ * Implement the [] operator for reading from parameter map.
+ */
 string&
 gaConfVar::operator[](const char *key) {
 	return mapdata[key];
 }
 
+/**
+ * Implement the [] operator for reading from parameter map.
+ */
 string&
 gaConfVar::operator[](const string key) {
 	return mapdata[key];
 }
 
+/**
+ * Determine if the parameter map contains a given key.
+ *
+ * @param key [in] The key to be tested.
+ * @return true on success, or false on error.
+ */
 bool
 gaConfVar::haskey(const char *key) {
 	return (mapdata.find(key) != mapdata.end());
 }
 
+/**
+ * Return the number of key/value pairs stored in the parameter map.
+ *
+ * @return The number of stored key/value pairs.
+ */
 int
 gaConfVar::msize() {
 	return this->mapdata.size();
 }
 
+/**
+ * Reset the iteration counter for the parameter map.
+ */
 void
 gaConfVar::mreset() {
 	this->mi = this->mapdata.begin();
 	return;
 }
 
+/**
+ * Get the current key from the parameter map.
+ *
+ * @return A non-empty key string, or an empty string if it reaches the end.
+ */
 string
 gaConfVar::mkey() {
 	if(this->mi == this->mapdata.end())
@@ -94,6 +139,11 @@ gaConfVar::mkey() {
 	return mi->first;
 }
 
+/**
+ * Get the current value from the parameter map.
+ *
+ * @return A non-empty value string, or an empty string if it reaches the end.
+ */
 string
 gaConfVar::mvalue() {
 	if(this->mi == this->mapdata.end())
@@ -101,6 +151,11 @@ gaConfVar::mvalue() {
 	return mi->second;
 }
 
+/**
+ * Advance the iteration pointer and get the key from the parameter map.
+ *
+ * @return A non-empty key string, or an empty string if it reaches the end.
+ */
 string
 gaConfVar::mnextkey() {
 	if(this->mi == this->mapdata.end())

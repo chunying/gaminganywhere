@@ -19,7 +19,22 @@
 #ifndef __GA_HOOK_COMMON_H__
 #define __GA_HOOK_COMMON_H__
 
+#include "dpipe.h"
+#include "vsource.h"
+
 #define	SOURCES			1
+
+#define	GA_HOOK_INVALID_THREADID	0xffffffff
+
+/** COM Interface vtable pointers */
+typedef struct vtable_s {
+	void *func[1];
+}	vtable_t;
+
+/** COM Interface pointer to vtable */
+typedef struct comobj_s {
+	vtable_t *vtbl;
+}	comobj_t;
 
 extern int vsource_initialized;
 extern int resolution_retrieved;
@@ -34,7 +49,7 @@ extern int server_num_token_to_fill;
 extern int server_max_tokens;
 extern int video_fps;
 
-extern pipeline *g_pipe[SOURCES];
+extern dpipe_t *g_pipe[SOURCES];
 
 int vsource_init(int width, int height);
 
@@ -48,6 +63,8 @@ int ga_hook_init();
 #ifndef WIN32
 void * ga_hook_lookup(void *handle, const char *name);
 void * ga_hook_lookup_or_quit(void *handle, const char *name);
+#else
+void ga_hook_function(const char *id, void *oldfunc, void *newfunc);
 #endif
 
-#endif
+#endif	/* __GA_HOOK_COMMON_H__ */

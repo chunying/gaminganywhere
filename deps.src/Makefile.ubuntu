@@ -1,0 +1,38 @@
+
+GADEPS		?= $(HOME)/myprog/gaminganywhere/deps.posix
+MACHINE		?= $(shell uname -m)
+SYSTEM		= $(shell uname -s)
+PARALLEL_MAKE	= -j5
+PACKAGES	= live555
+
+TBZUNPACK	= tar xjf
+TGZUNPACK	= tar xzf
+
+include Makefile.packages
+
+all: ubuntu_pkgs $(PACKAGES)
+
+ubuntu_pkgs:
+	sudo apt-get install libsdl2-dev libsdl2-ttf-dev 
+	sudo apt-get install libx264-dev
+	sudo apt-get install libavcodec-dev libavdevice-dev libavfilter-dev \
+		libavformat-dev libavresample-dev libavutil-dev libpostproc-dev \
+		libswresample-dev libswscale-dev ffmpeg
+
+live555:
+	$(TGZUNPACK) $(LIVE555)
+	# enable -fPIC
+	mv -f $(LIVE555DIR)/config.linux $(LIVE555DIR)/config.linux.old
+	cat $(LIVE555DIR)/config.linux.old | sed -e 's,^COMPILE_OPTS.*$$,& -fPIC,' > $(LIVE555DIR)/config.linux
+	# apply patches
+	cd $(LIVE555DIR); cat ../patches/live555-* | patch -p1 
+	#
+	cd $(LIVE555DIR); ./genMakefiles linux
+	make -C $(LIVE555DIR) $(PARALLEL_MAKE)
+	-mkdir -p $(GADEPS)/lib
+	find $(LIVE555DIR) -name '*.a' -exec cp -f {} $(GADEPS)/lib \;
+	-mkdir -p $(GADEPS)/include/live555
+	find $(LIVE555DIR) -name '*.hh' -exec cp -f {} $(GADEPS)/include/live555 \;
+	cp -f $(LIVE555DIR)/groupsock/include/NetCommon.h $(GADEPS)/include/live555
+	rm -rf $(LIVE555DIR)
+

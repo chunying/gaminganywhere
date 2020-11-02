@@ -19,8 +19,13 @@
 #include <stdio.h>
 #ifdef WIN32
 #elif defined __APPLE__
+#include <TargetConditionals.h>
+#if TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR
+#include <arpa/inet.h>
+#else
 #include <Carbon/Carbon.h>	// for Events.h
 #include <ApplicationServices/ApplicationServices.h>
+#endif
 #elif defined ANDROID
 #include <arpa/inet.h>
 #else	// X11
@@ -53,8 +58,13 @@ static map<int, int> kbSdlkey;
 #define	INVALID_KEY	0xffff
 typedef WORD	KeySym;		// map to Windows Virtual Keycode
 #elif defined __APPLE__
+#if TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR
+#define	INVALID_KEY	0xffff
+typedef short	KeySym;
+#else
 #define	INVALID_KEY	0xffff
 typedef	CGKeyCode KeySym;
+#endif
 #elif defined ANDROID
 #define	INVALID_KEY	0xffff
 typedef short	KeySym;
@@ -233,6 +243,9 @@ sdlmsg_replay_init(void *arg) {
 	ctrl_server_set_output_resolution(cxsize, cysize);
 	ga_error("sdl replayer: Replay using SendInput(), screen-size=%dx%d\n", cxsize, cysize);
 #elif defined __APPLE__
+#if TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR
+    ga_error("sdl replayer: iOS is not supported now\n");
+#else
 	do {
 		CGDirectDisplayID displayID;
 		CGImageRef screen;
@@ -246,6 +259,7 @@ sdlmsg_replay_init(void *arg) {
 	ctrl_server_set_output_resolution(cxsize, cysize);
 	ga_error("sdl replayer: Replay using CGPostEvent(), screen-size=%dx%d\n",
 		cxsize, cysize);
+#endif
 #elif defined ANDROID
 	ga_error("sdl replayer: Android is not supported now\n");
 #else	// X11
@@ -419,8 +433,8 @@ sdlmsg_replay_native(sdlmsg_t *msg) {
 			}
 			in.mi.dwFlags = MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE;
 		} else {
-			in.mi.dx = (short) (scaleFactorX * msgm->mouseRelX);
-			in.mi.dy = (short) (scaleFactorY * msgm->mouseRelY);
+			in.mi.dx = (short) (scaleFactorX * (short) msgm->mouseRelX);
+			in.mi.dy = (short) (scaleFactorY * (short) msgm->mouseRelY);
 			in.mi.dwFlags = MOUSEEVENTF_MOVE;
 		}
 		SendInput(1, &in, sizeof(in));
@@ -431,6 +445,13 @@ sdlmsg_replay_native(sdlmsg_t *msg) {
 	return;
 }
 #elif defined __APPLE__
+#if TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR
+static void
+sdlmsg_replay_native(sdlmsg_t *msg) {
+    // server codes do not support android
+    return;
+}
+#else
 static void
 sdlmsg_replay_native(sdlmsg_t *msg) {
 	// read: CGEventCreateMouseEvent()
@@ -509,7 +530,7 @@ sdlmsg_replay_native(sdlmsg_t *msg) {
 			pt.x = prect->left + scaleFactorX * msgm->mousex;
 			pt.y = prect->top + scaleFactorY * msgm->mousey;
 		}
-		event = CGEventCreateMouseEvent(NULL, kCGEventMouseMoved, pt, 0);
+		event = CGEventCreateMouseEvent(NULL, kCGEventMouseMoved, pt, (CGMouseButton)0);
 		break;
 	default: // do nothing
 		break;
@@ -522,10 +543,11 @@ sdlmsg_replay_native(sdlmsg_t *msg) {
 	}
 	return;
 }
+#endif
 #elif defined ANDROID
 static void
 sdlmsg_replay_native(sdlmsg_t *msg) {
-	// server codes do snot support android
+	// server codes do not support android
 	return;
 }
 #else	// X11
@@ -848,6 +870,13 @@ SDLKeyToKeySym_init() {
 	return;
 }
 #elif defined __APPLE__
+#if TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR
+static void
+SDLKeyToKeySym_init() {
+    // server codes do not support android
+    return;
+}
+#else
 static void
 SDLKeyToKeySym_init() {
 	// read: /System/Library/Frameworks/Carbon.framework/Versions/A/Frameworks/HIToolbox.framework/Versions/A/Headers/Events.h
@@ -1011,6 +1040,7 @@ SDLKeyToKeySym_init() {
 	keymap_initialized = true;
 	return;
 }
+#endif
 #elif defined ANDROID
 static void
 SDLKeyToKeySym_init() {

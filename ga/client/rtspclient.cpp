@@ -41,6 +41,7 @@ unsigned increaseReceiveBufferTo(UsageEnvironment& env,
 #ifdef ANDROID
 #include "android-decoders.h"
 #endif
+#include "vconverter.h"
 
 #ifdef ANDROID
 #include "libgaclient.h"
@@ -81,6 +82,7 @@ static enum AVCodecID audio_codec_id = AV_CODEC_ID_NONE;
 #define	MAX_FRAMING_SIZE	8
 static int video_framing = 0;
 static int audio_framing = 0;
+static int log_rtp = 0;
 
 #ifdef COUNT_FRAME_RATE
 static int cf_frame[VIDEO_SOURCE_CHANNEL_MAX];
@@ -129,14 +131,33 @@ static AVCodecContext *adecoder = NULL;
 static AVFrame *aframe = NULL;
 
 static int packet_queue_initialized = 0;
+static int packet_queue_limit = 5;	// limit the queue size
+static int packet_queue_dropfactor = 2;	// default drop half
 static PacketQueue audioq;
 
 void
 packet_queue_init(PacketQueue *q) {
+	int val;
+	char buf[8];
 	packet_queue_initialized = 1;
 	q->queue.clear();
 	pthread_mutex_init(&q->mutex, NULL);
 	pthread_cond_init(&q->cond, NULL);
+	if(ga_conf_readv("audio-playback-queue-limit", buf, sizeof(buf)) != NULL) {
+		// must ensure that we have configured audio-playback-queue-limit
+		if((val = ga_conf_readint("audio-playback-queue-limit")) >= 0) {
+			packet_queue_limit = val;
+		}
+	}
+	if((val = ga_conf_readint("audio-playback-queue-dropfactor")) > 0) {
+		packet_queue_dropfactor = val;
+	}
+	ga_error("packet queue: initialized - limit %d%s; dropfactor %d%s\n",
+		packet_queue_limit,
+		packet_queue_limit <= 0 ? " (unlimited)" : "",
+		packet_queue_dropfactor,
+		packet_queue_dropfactor <= 0 ? " (no drop)" : "");
+	return;
 }
 
 int
@@ -195,6 +216,36 @@ packet_queue_get(PacketQueue *q, AVPacket *pkt, int block) {
 	}
 	pthread_mutex_unlock(&q->mutex);
 	return ret;
+}
+
+int
+packet_queue_drop(PacketQueue *q) {
+	int dropped, count = 0;
+	AVPacket pkt;
+	// dropping enabled?
+	if(packet_queue_limit <= 0 || packet_queue_dropfactor <= 0)
+		return 0;
+	pthread_mutex_lock(&q->mutex);
+	// queue size exceeded?
+	if(q->queue.size() <= packet_queue_limit) {
+		pthread_mutex_unlock(&q->mutex);
+		return 0;
+	}
+	// start dropping
+	dropped = q->queue.size() / packet_queue_dropfactor;
+	// keep at least one
+	if(dropped == q->queue.size())
+		dropped--;
+	while(dropped-- > 0) {
+		if(q->queue.size() <= 0)
+			break;
+		pkt = q->queue.front();
+		q->queue.pop_front();
+		q->size -= pkt.size;
+		count++;
+	}
+	pthread_mutex_unlock(&q->mutex);
+	return count;
 }
 
 UsageEnvironment&
@@ -479,7 +530,103 @@ pktloss_monitor_get(unsigned int ssrc, int *count = NULL, int reset = 0) {
 	return mi->second.lost;
 }
 
-#ifdef WIN32
+//// bandwidth estimator
+
+typedef struct bwe_record_s {
+	struct timeval initTime;
+	unsigned int framecount;
+	unsigned int pktcount;
+	unsigned int pktloss;
+	unsigned int bytesRcvd;
+	unsigned short lastPktSeq;
+	struct timeval lastPktRcvdTimestamp;
+	unsigned int lastPktSentTimestamp;
+	unsigned int lastPktSize;
+	// for estimating capacity
+	unsigned int samples;
+	unsigned int totalBytes;
+	unsigned int totalElapsed;
+}	bwe_record_t;
+
+static map<unsigned int,bwe_record_t> bwe_watchlist;
+
+void
+bandwidth_estimator_update(unsigned int ssrc, unsigned short seq, struct timeval rcvtv, unsigned int timestamp, unsigned int pktsize) {
+	bwe_record_t r;
+	map<unsigned int,bwe_record_t>::iterator mi;
+	bool sampleframe = true;
+	//
+	if((mi = bwe_watchlist.find(ssrc)) == bwe_watchlist.end()) {
+		bzero(&r, sizeof(r));
+		r.initTime = rcvtv;
+		r.framecount = 1;
+		r.pktcount = 1;
+		r.bytesRcvd = pktsize;
+		r.lastPktSeq = seq;
+		r.lastPktRcvdTimestamp = rcvtv;
+		r.lastPktSentTimestamp = timestamp;
+		r.lastPktSize = pktsize;
+		bwe_watchlist[ssrc] = r;
+		return;
+	}
+	// new frame?
+	if(timestamp != mi->second.lastPktSentTimestamp) {
+		mi->second.framecount++;
+		sampleframe = false;
+	}
+	// no packet loss && is the same frame
+	if((seq-1) == mi->second.lastPktSeq) {
+		if(sampleframe) {
+			unsigned cbw;
+			unsigned elapsed = tvdiff_us(&rcvtv, &mi->second.lastPktRcvdTimestamp);
+			//cbw = 8.0 * mi->second.lastPktSize / (elapsed / 1000000.0);
+			//ga_error("XXX: sampled bw = %u bps\n", cbw);
+			mi->second.samples++;
+			mi->second.totalElapsed += elapsed;
+			mi->second.totalBytes += mi->second.lastPktSize;
+			if(mi->second.framecount >= 240 && mi->second.samples >= 3000) {
+				ctrlmsg_t m;
+				cbw = 8.0 * mi->second.totalBytes / (mi->second.totalElapsed / 1000000.0);
+				ga_error("XXX: received: %uKB; capacity = %.3fKbps (%d samples); loss-rate = %.2f%% (%u/%u); average per-frame overhead factor = %.2f\n",
+					mi->second.bytesRcvd / 1024,
+					cbw / 1024.0, mi->second.samples,
+					100.0 * mi->second.pktloss / mi->second.pktcount,
+					mi->second.pktloss, mi->second.pktcount,
+					1.0 * mi->second.pktcount / mi->second.framecount);
+				// send back to the server
+				ctrlsys_netreport(&m,
+					tvdiff_us(&rcvtv, &mi->second.initTime),
+					mi->second.framecount,
+					mi->second.pktcount,
+					mi->second.pktloss,
+					mi->second.bytesRcvd,
+					cbw);
+				ctrl_client_sendmsg(&m, sizeof(ctrlmsg_system_netreport_t));
+				//
+				bzero(&mi->second, sizeof(bwe_record_t));
+				mi->second.initTime = rcvtv;
+				mi->second.framecount = 1;
+			}
+		}
+	// has packet loss
+	} else {
+		unsigned short delta = (seq - mi->second.lastPktSeq - 1);
+		mi->second.pktloss += delta;
+		mi->second.pktcount += delta;
+	}
+	// update the rest
+	mi->second.pktcount++;
+	mi->second.bytesRcvd += pktsize;
+	mi->second.lastPktSeq = seq;
+	mi->second.lastPktRcvdTimestamp = rcvtv;
+	mi->second.lastPktSentTimestamp = timestamp;
+	mi->second.lastPktSize = pktsize;
+	return;
+}
+
+////
+
+#if defined(WIN32) && !defined(MSYS)
 #pragma pack(push, 1)
 #endif
 struct rtp_pkt_minimum_s {
@@ -488,7 +635,7 @@ struct rtp_pkt_minimum_s {
 	unsigned int timestamp;
 	unsigned int ssrc;
 }
-#ifdef WIN32
+#if defined(WIN32) && !defined(MSYS)
 #pragma pack(pop)
 #else
 __attribute__((__packed__))
@@ -498,15 +645,34 @@ __attribute__((__packed__))
 typedef struct rtp_pkt_minimum_s rtp_pkt_minimum_t;
 
 void
-pktloss_monitor(void *clientData, unsigned char *packet, unsigned &packetSize) {
+rtp_packet_handler(void *clientData, unsigned char *packet, unsigned &packetSize) {
 	rtp_pkt_minimum_t *rtp = (rtp_pkt_minimum_t*) packet;
 	unsigned int ssrc;
 	unsigned short seqnum;
+	unsigned short flags;
+	unsigned int timestamp;
+	struct timeval tv;
 	if(packet == NULL || packetSize < 12)
 		return;
+	gettimeofday(&tv, NULL);
 	ssrc = ntohl(rtp->ssrc);
 	seqnum = ntohs(rtp->seqnum);
+	flags = ntohs(rtp->flags);
+	timestamp = ntohl(rtp->timestamp);
+	//
+	if(log_rtp > 0) {
+#ifdef ANDROID
+		ga_log("%10u.%06u log_rtp: flags %04x seq %u ts %u ssrc %u size %u\n",
+			tv.tv_sec, tv.tv_usec, flags, seqnum, timestamp, ssrc, packetSize);
+#else
+		ga_log("log_rtp: flags %04x seq %u ts %u ssrc %u size %u\n",
+			flags, seqnum, timestamp, ssrc, packetSize);
+#endif
+	}
+	//
+	bandwidth_estimator_update(ssrc, seqnum, tv, timestamp, packetSize);
 	pktloss_monitor_update(ssrc, seqnum);
+	//
 	return;
 }
 
@@ -535,7 +701,6 @@ drop_video_frame_init(long long max_delay_us) {
 
 static int
 drop_video_frame(int ch/*channel*/, unsigned char *buffer, int bufsize, struct timeval pts) {
-	long long delta;
 	struct timeval now;
 	// disabled?
 	if(max_tolerable_video_delay_us <= 0)
@@ -600,7 +765,7 @@ play_video_priv(int ch/*channel*/, unsigned char *buffer, int bufsize, struct ti
 #ifndef ANDROID
 	union SDL_Event evt;
 #endif
-	pooldata_t *data = NULL;
+	dpipe_buffer_t *data = NULL;
 	AVPicture *dstframe = NULL;
 	struct timeval ftv;
 	static unsigned fcount = 0;
@@ -634,6 +799,21 @@ play_video_priv(int ch/*channel*/, unsigned char *buffer, int bufsize, struct ti
 	av_init_packet(&avpkt);
 	avpkt.size = bufsize;
 	avpkt.data = buffer;
+#if 0	// XXX: dump nal units
+	do {
+		int codelen = 0;
+		unsigned char *ptr = NULL;
+		//
+		fprintf(stderr, "[XXX-nalcode]");
+		for(	ptr = ga_find_startcode(avpkt.data, avpkt.data+avpkt.size, &codelen);
+			ptr != NULL;
+			ptr = ga_find_startcode(ptr+codelen, avpkt.data+avpkt.size, &codelen)) {
+			//
+			fprintf(stderr, " (+%d|%d)-%02x", ptr-avpkt.data, codelen, ptr[codelen] & 0x1f);
+		}
+		fprintf(stderr, "\n");
+	} while(0);
+#endif
 	//
 	while(avpkt.size > 0) {
 		//
@@ -667,9 +847,9 @@ play_video_priv(int ch/*channel*/, unsigned char *buffer, int bufsize, struct ti
 			if(rtspParam->swsctx[ch] == NULL) {
 				rtspParam->width[ch] = vframe[ch]->width;
 				rtspParam->height[ch] = vframe[ch]->height;
-				rtspParam->format[ch] = (PixelFormat) vframe[ch]->format;
+				rtspParam->format[ch] = (AVPixelFormat) vframe[ch]->format;
 #ifdef ANDROID
-				create_overlay(ch, vframe[0]->width, vframe[0]->height, (PixelFormat) vframe[0]->format);
+				create_overlay(ch, vframe[0]->width, vframe[0]->height, (AVPixelFormat) vframe[0]->format);
 #else
 				pthread_mutex_unlock(&rtspParam->surfaceMutex[ch]);
 				bzero(&evt, sizeof(evt));
@@ -686,14 +866,49 @@ play_video_priv(int ch/*channel*/, unsigned char *buffer, int bufsize, struct ti
 			}
 			pthread_mutex_unlock(&rtspParam->surfaceMutex[ch]);
 			// copy into pool
-			data = rtspParam->pipe[ch]->allocate_data();
-			dstframe = (AVPicture*) data->ptr;
-			sws_scale(rtspParam->swsctx[ch],
-				// source: decoded frame
-				vframe[ch]->data, vframe[ch]->linesize,
-				0, vframe[ch]->height,
-				// destination: texture
-				dstframe->data, dstframe->linesize);
+			data = dpipe_get(rtspParam->pipe[ch]);
+			dstframe = (AVPicture*) data->pointer;
+			// do scaling
+			if(vframe[ch]->width  == rtspParam->width[ch]
+			&& vframe[ch]->height == rtspParam->height[ch]
+			&& vframe[ch]->format == rtspParam->format[ch]) {
+				/* fast path? no lookup on converter */
+				sws_scale(rtspParam->swsctx[ch],
+					// source: decoded frame
+					vframe[ch]->data, vframe[ch]->linesize,
+					0, vframe[ch]->height,
+					// destination: texture
+					dstframe->data, dstframe->linesize);
+			} else {
+				/* slower path - need to lookup converter */
+				SwsContext *swsctx;
+				if((swsctx = create_frame_converter(
+						vframe[ch]->width,
+						vframe[ch]->height,
+						(AVPixelFormat) vframe[ch]->format,
+						rtspParam->width[ch],
+						rtspParam->height[ch],
+#ifdef ANDROID
+						PIX_FMT_RGB565
+#else
+						(AVPixelFormat) rtspParam->format[ch]
+#endif
+						)) == NULL) {
+					ga_error("*** FATAL *** Create frame converter failed.\n");
+#ifdef ANDROID
+					rtspParam->quitLive555 = 1;
+					return -1;
+#else
+					exit(-1);
+#endif
+				}
+				sws_scale(swsctx,
+					// source: decoded frame
+					vframe[ch]->data, vframe[ch]->linesize,
+					0, vframe[ch]->height,
+					// destination: texture
+					dstframe->data, dstframe->linesize);
+			}
 			if(ch==0 && savefp_yuv != NULL) {
 				ga_save_yuv420p(savefp_yuv, vframe[0]->width, vframe[0]->height, dstframe->data, dstframe->linesize);
 				if(savefp_yuvts != NULL) {
@@ -701,7 +916,7 @@ play_video_priv(int ch/*channel*/, unsigned char *buffer, int bufsize, struct ti
 					ga_save_printf(savefp_yuvts, "Frame #%08d: %u.%06u\n", fcount++, ftv.tv_sec, ftv.tv_usec);
 				}
 			}
-			rtspParam->pipe[ch]->store_data(data);
+			dpipe_store(rtspParam->pipe[ch], data);
 			// request to render it
 #ifdef PRINT_LATENCY
 			gettimeofday(&ptv1, NULL);
@@ -764,10 +979,14 @@ init_decoder_buffer() {
 				i, PRIVATE_BUFFER_SIZE, strerror(errno));
 			goto adb_failed;
 		}
-#ifdef __LP64__ /* 64-bit */
+#if 0
+#if defined(__LP64__) || defined(_LP64) || defined(WIN64) /* 64-bit */
 		db[i].offset = 16 - (((unsigned long long) db[i].privbuf_unaligned) & 0x0f);
 #else
 		db[i].offset = 16 - (((unsigned) db[i].privbuf_unaligned) & 0x0f);
+#endif
+#else
+		db[i].offset = 16 - (((size_t) db[i].privbuf_unaligned) & 0x0f);
 #endif
 		db[i].privbuf = db[i].privbuf_unaligned + db[i].offset;
 	}
@@ -1078,9 +1297,13 @@ play_audio(unsigned char *buffer, int bufsize, struct timeval pts) {
 	avpkt.data = buffer;
 	avpkt.size = bufsize;
 	if(avpkt.size > 0) {
-		//fprintf(stderr, "DEBUG: audio pts=%08ld.%06ld\n",
-		//	pts.tv_sec, pts.tv_usec);
+#if 0
+		fprintf(stderr, "DEBUG: audio pts=%08ld.%06ld queue-count=%u queue-size=%u\n",
+			pts.tv_sec, pts.tv_usec,
+			audioq.queue.size(), audioq.size);
+#endif
 		packet_queue_put(&audioq, &avpkt);
+		packet_queue_drop(&audioq);
 	}
 #ifndef ANDROID
 	if(rtspParam->audioOpened == false) {
@@ -1120,6 +1343,8 @@ rtsp_thread(void *param) {
 		ga_save_close(savefp_yuvts);
 	savefp_yuv = savefp_yuvts = NULL;
 	//
+	if(ga_conf_readbool("log-rtp-packet", 0) != 0)
+		log_rtp = 1;
 	if(ga_conf_readv("save-yuv-image", savefile_yuv, sizeof(savefile_yuv)) != NULL)
 		savefp_yuv = ga_save_init(savefile_yuv);
 	if(savefp_yuv != NULL
@@ -1182,6 +1407,14 @@ rtsp_thread(void *param) {
 	//
 	shutdownStream(client);
 	deinit_decoder_buffer();
+	// release resources in rtspThreadParam
+	for(int i = 0; i < VIDEO_SOURCE_CHANNEL_MAX; i++) {
+		if(rtspParam->pipe[i] != NULL) {
+			dpipe_destroy(rtspParam->pipe[i]);
+			rtspParam->pipe[i] = NULL;
+		}
+	}
+	//
 	rtsperror("rtsp thread: terminated.\n");
 #ifndef ANDROID
 	exit(0);
@@ -1335,7 +1568,7 @@ setupNextSubsession(RTSPClient* rtspClient) {
 				video_sess_fmt = scs.subsession->rtpPayloadFormat();
 				video_codec_name = strdup(scs.subsession->codecName());
 				qos_add_source(video_codec_name, scs.subsession->rtpSource());
-				scs.subsession->rtpSource()->setAuxilliaryReadHandler(pktloss_monitor, NULL);
+				scs.subsession->rtpSource()->setAuxilliaryReadHandler(rtp_packet_handler, NULL);
 				if(rtp_packet_reordering_threshold > 0)
 					scs.subsession->rtpSource()->setPacketReorderingThresholdTime(rtp_packet_reordering_threshold);
 				if(port2channel.find(scs.subsession->clientPortNum()) == port2channel.end()) {
@@ -1752,9 +1985,11 @@ DummySink::afterGettingFrame(unsigned frameSize, unsigned numTruncatedBytes,
 		//
 		if(stats != NULL) {
 			lost = pktloss_monitor_get(stats->SSRC(), &count, 1/*reset*/);
+#if 0
 			if(lost > 0) {
 				ga_error("rtspclient: frame corrupted? lost=%d; count=%d (packets)\n", lost, count);
 			}
+#endif
 		}
 		//
 		play_video(channel,

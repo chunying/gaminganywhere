@@ -78,6 +78,11 @@ struct RTSPConf {
 #ifdef ANDROID
 	int builtin_video_decoder;
 	int builtin_audio_decoder;
+#elif defined __APPLE__
+#if TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR
+	int builtin_video_decoder;
+	int builtin_audio_decoder;
+#endif
 #endif
 	//std::vector<std::string> *vgo;	// video generic options
 	std::vector<std::string> *vso;	// video specific options

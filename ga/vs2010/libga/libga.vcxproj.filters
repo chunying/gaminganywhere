@@ -21,6 +21,12 @@
     <ClCompile Include="..\..\core\controller.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\core\ctrl-msg.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\core\dpipe.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\core\encoder-common.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -36,6 +42,9 @@
     <ClCompile Include="..\..\core\ga-confvar.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\core\ga-crc.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\core\ga-module.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -45,22 +54,13 @@
     <ClCompile Include="..\..\core\libga.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\core\pipeline.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\core\rtspconf.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\core\rtspserver.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\core\server.cpp">
+    <ClCompile Include="..\..\core\vconverter.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\..\core\vsource.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\core\vconverter.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -69,6 +69,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\core\controller.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\core\ctrl-msg.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\core\dpipe.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\core\encoder-common.h">
@@ -86,28 +92,22 @@
     <ClInclude Include="..\..\core\ga-confvar.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\core\ga-crc.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="..\..\core\ga-module.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\core\ga-win32.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\core\pipeline.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\core\rtspconf.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\core\rtspserver.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\core\server.h">
+    <ClInclude Include="..\..\core\vconverter.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\core\vsource.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\core\vconverter.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

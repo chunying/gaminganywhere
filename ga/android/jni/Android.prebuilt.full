@@ -3,97 +3,97 @@
 # theora
 include $(CLEAR_VARS)
 LOCAL_MODULE := theora
-LOCAL_SRC_FILES := lib/libtheora.a
+LOCAL_SRC_FILES := $(TARGET_ARCH_ABI)/lib/libtheora.a
 include $(PREBUILT_STATIC_LIBRARY)
 
 # theoradec
 include $(CLEAR_VARS)
 LOCAL_MODULE := theoradec
-LOCAL_SRC_FILES := lib/libtheoradec.a
+LOCAL_SRC_FILES := $(TARGET_ARCH_ABI)/lib/libtheoradec.a
 include $(PREBUILT_STATIC_LIBRARY)
 
 # theoraenc
 include $(CLEAR_VARS)
 LOCAL_MODULE := theoraenc
-LOCAL_SRC_FILES := lib/libtheoraenc.a
+LOCAL_SRC_FILES := $(TARGET_ARCH_ABI)/lib/libtheoraenc.a
 include $(PREBUILT_STATIC_LIBRARY)
 
 # avcodec
 include $(CLEAR_VARS)
 LOCAL_MODULE := avcodec
-LOCAL_SRC_FILES := lib/libavcodec.a
+LOCAL_SRC_FILES := $(TARGET_ARCH_ABI)/lib/libavcodec.a
 include $(PREBUILT_STATIC_LIBRARY)
 
 # avdevice
 include $(CLEAR_VARS)
 LOCAL_MODULE := avdevice
-LOCAL_SRC_FILES := lib/libavdevice.a
+LOCAL_SRC_FILES := $(TARGET_ARCH_ABI)/lib/libavdevice.a
 include $(PREBUILT_STATIC_LIBRARY)
 
 # avfilter
 include $(CLEAR_VARS)
 LOCAL_MODULE := avfilter
-LOCAL_SRC_FILES := lib/libavfilter.a
+LOCAL_SRC_FILES := $(TARGET_ARCH_ABI)/lib/libavfilter.a
 include $(PREBUILT_STATIC_LIBRARY)
 
 # avformat
 include $(CLEAR_VARS)
 LOCAL_MODULE := avformat
-LOCAL_SRC_FILES := lib/libavformat.a
+LOCAL_SRC_FILES := $(TARGET_ARCH_ABI)/lib/libavformat.a
 include $(PREBUILT_STATIC_LIBRARY)
 
 # avutil
 include $(CLEAR_VARS)
 LOCAL_MODULE := avutil
-LOCAL_SRC_FILES := lib/libavutil.a
+LOCAL_SRC_FILES := $(TARGET_ARCH_ABI)/lib/libavutil.a
 include $(PREBUILT_STATIC_LIBRARY)
 
 # postproc
 include $(CLEAR_VARS)
 LOCAL_MODULE := postproc
-LOCAL_SRC_FILES := lib/libpostproc.a
+LOCAL_SRC_FILES := $(TARGET_ARCH_ABI)/lib/libpostproc.a
 include $(PREBUILT_STATIC_LIBRARY)
 
 # swresample
 include $(CLEAR_VARS)
 LOCAL_MODULE := swresample
-LOCAL_SRC_FILES := lib/libswresample.a
+LOCAL_SRC_FILES := $(TARGET_ARCH_ABI)/lib/libswresample.a
 include $(PREBUILT_STATIC_LIBRARY)
 
 # swscale
 include $(CLEAR_VARS)
 LOCAL_MODULE := swscale
-LOCAL_SRC_FILES := lib/libswscale.a
+LOCAL_SRC_FILES := $(TARGET_ARCH_ABI)/lib/libswscale.a
 include $(PREBUILT_STATIC_LIBRARY)
 
 # BasicUsageEnvironment
 include $(CLEAR_VARS)
 LOCAL_MODULE := BasicUsageEnvironment
-LOCAL_SRC_FILES := lib/libBasicUsageEnvironment.a
+LOCAL_SRC_FILES := $(TARGET_ARCH_ABI)/lib/libBasicUsageEnvironment.a
 include $(PREBUILT_STATIC_LIBRARY)
 
 # UsageEnvironment
 include $(CLEAR_VARS)
 LOCAL_MODULE := UsageEnvironment
-LOCAL_SRC_FILES := lib/libUsageEnvironment.a
+LOCAL_SRC_FILES := $(TARGET_ARCH_ABI)/lib/libUsageEnvironment.a
 include $(PREBUILT_STATIC_LIBRARY)
 
 # groupsock
 include $(CLEAR_VARS)
 LOCAL_MODULE := groupsock
-LOCAL_SRC_FILES := lib/libgroupsock.a
+LOCAL_SRC_FILES := $(TARGET_ARCH_ABI)/lib/libgroupsock.a
 include $(PREBUILT_STATIC_LIBRARY)
 
 # liveMedia
 include $(CLEAR_VARS)
 LOCAL_MODULE := liveMedia
-LOCAL_SRC_FILES := lib/libliveMedia.a
+LOCAL_SRC_FILES := $(TARGET_ARCH_ABI)/lib/libliveMedia.a
 include $(PREBUILT_STATIC_LIBRARY)
 
 # vpx
 include $(CLEAR_VARS)
 LOCAL_MODULE := vpx
-LOCAL_SRC_FILES := lib/libvpx.a
+LOCAL_SRC_FILES := $(TARGET_ARCH_ABI)/lib/libvpx.a
 include $(PREBUILT_STATIC_LIBRARY)
 
 #### prebuilt shared libraries
@@ -101,48 +101,48 @@ include $(PREBUILT_STATIC_LIBRARY)
 # mp3lame
 include $(CLEAR_VARS)
 LOCAL_MODULE := mp3lame
-LOCAL_SRC_FILES := lib/libmp3lame.so
+LOCAL_SRC_FILES := $(TARGET_ARCH_ABI)/lib/libmp3lame.so
 include $(PREBUILT_SHARED_LIBRARY)
 
 # opus
 include $(CLEAR_VARS)
 LOCAL_MODULE := opus
-LOCAL_SRC_FILES := lib/libopus.so
+LOCAL_SRC_FILES := $(TARGET_ARCH_ABI)/lib/libopus.so
 include $(PREBUILT_SHARED_LIBRARY)
 
 # ogg
 include $(CLEAR_VARS)
 LOCAL_MODULE := ogg
-LOCAL_SRC_FILES := lib/libogg.so
+LOCAL_SRC_FILES := $(TARGET_ARCH_ABI)/lib/libogg.so
 include $(PREBUILT_SHARED_LIBRARY)
 
 # vorbisenc
 include $(CLEAR_VARS)
 LOCAL_MODULE := vorbisenc
-LOCAL_SRC_FILES := lib/libvorbisenc.so
+LOCAL_SRC_FILES := $(TARGET_ARCH_ABI)/lib/libvorbisenc.so
 include $(PREBUILT_SHARED_LIBRARY)
 
 # vorbisfile
 include $(CLEAR_VARS)
 LOCAL_MODULE := vorbisfile
-LOCAL_SRC_FILES := lib/libvorbisfile.so
+LOCAL_SRC_FILES := $(TARGET_ARCH_ABI)/lib/libvorbisfile.so
 include $(PREBUILT_SHARED_LIBRARY)
 
 # vorbis
 include $(CLEAR_VARS)
 LOCAL_MODULE := vorbis
-LOCAL_SRC_FILES := lib/libvorbis.so
+LOCAL_SRC_FILES := $(TARGET_ARCH_ABI)/lib/libvorbis.so
 include $(PREBUILT_SHARED_LIBRARY)
 
 # x264
 include $(CLEAR_VARS)
 LOCAL_MODULE := x264
-LOCAL_SRC_FILES := lib/libx264.so
+LOCAL_SRC_FILES := $(TARGET_ARCH_ABI)/lib/libx264.so
 include $(PREBUILT_SHARED_LIBRARY)
 
 # SDL2
 include $(CLEAR_VARS)
 LOCAL_MODULE := SDL2
-LOCAL_SRC_FILES := lib/libSDL2.so
+LOCAL_SRC_FILES := $(TARGET_ARCH_ABI)/lib/libSDL2.so
 include $(PREBUILT_SHARED_LIBRARY)
 

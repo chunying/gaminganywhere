@@ -5,8 +5,8 @@ module: $(OBJS)
 	$(MAKEMODULE)
 
 install: module
-	-mkdir ..\..\..\bin\mod
-	copy /y *.$(EXT) ..\..\..\bin\mod\
+	-mkdir ..\..\..\bin.$(GA_WINSYS)\mod
+	copy /y *.$(EXT) ..\..\..\bin.$(GA_WINSYS)\mod\
 
 clean:
 	-del /f /q *.o *.obj *.lib *.exp *.dll *.dylib *.so

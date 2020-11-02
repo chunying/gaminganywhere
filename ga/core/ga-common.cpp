@@ -16,6 +16,11 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+/**
+ * @file
+ * implementation: common GA functions and macros
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -26,15 +31,17 @@
 #ifndef ANDROID
 #include <execinfo.h>
 #endif /* !ANDROID */
+#include <signal.h>
 #include <unistd.h>
 #include <sys/time.h>
-#ifndef GA_EMCC
 #include <sys/syscall.h>
-#endif /* GA_EMCC */
 #endif /* !WIN32 */
 #ifdef ANDROID
 #include <android/log.h>
 #endif /* ANDROID */
+#ifdef __APPLE__
+#include <syslog.h>
+#endif
 
 #if !defined(WIN32) && !defined(__APPLE__) && !defined(ANDROID)
 #include <X11/Xlib.h>
@@ -52,14 +59,25 @@
 using namespace std;
 
 #ifndef NIPQUAD
+/** For printing IPv4 addresses: convert an unsigned int to 4 unsigned char. */
 #define NIPQUAD(x)	((unsigned char*)&(x))[0],	\
 			((unsigned char*)&(x))[1],	\
 			((unsigned char*)&(x))[2],	\
 			((unsigned char*)&(x))[3]
 #endif
 
+/** The gloabl log file name */
 static char *ga_logfile = NULL;
 
+/**
+ * Compute the time difference for two \a timeval data structure, i.e.,
+ * \a tv1 - \a tv2.
+ *
+ * @param tv1 [in] Pointer to the first \a timeval data structure.
+ * @param tv2 [in] Pointer to the second \a timeval data structure.
+ * @return The difference in micro seconds.
+ */
+EXPORT
 long long
 tvdiff_us(struct timeval *tv1, struct timeval *tv2) {
 	struct timeval delta;
@@ -72,6 +90,28 @@ tvdiff_us(struct timeval *tv1, struct timeval *tv2) {
 	return 1000000LL*delta.tv_sec + delta.tv_usec;
 }
 
+/**
+ * Sleep and wake up at \a ptv + \a interval (micro seconds).
+ *
+ * @param interval [in] The expected sleeping time (in micro seconds).
+ * @param ptv [in] Pointer to the baseline time.
+ * @return Currently always return 0.
+ *
+ * This function is useful for controlling precise sleeps.
+ * We usually have to process each video frame in a fixed interval.
+ * Each time interval includes the processing time and the sleeping time.
+ * However, the processing time could be different in each iteration, so
+ * the sleeping time has to be adapted as well.
+ * To achieve the goal, we have to obtain the baseline time \a ptv
+ * (using \a gettimeofday function)
+ * \em before the processing task and call this function \em after
+ * the processing task. In this case, the \a interval is set to the total
+ * length of the interval, e.g., 41667 for 24fps video.
+ *
+ * This function sleeps for \a interval micro seconds if the baseline
+ * time is not specified.
+ */
+EXPORT
 long long
 ga_usleep(long long interval, struct timeval *ptv) {
 	long long delta;
@@ -89,6 +129,16 @@ ga_usleep(long long interval, struct timeval *ptv) {
 	return 0LL;
 }
 
+/**
+ * Write message \a s into the log file.
+ * This in an internal function only called by \em ga_log function.
+ *
+ * @param tv [in] The timestamp of logging.
+ * @param s [in] The message to be written.
+ *
+ * This function is SLOW, but it attempts to make all writes successfull.
+ * It appends the message into the file each time when it is called.
+ */
 static void
 ga_writelog(struct timeval tv, const char *s) {
 	FILE *fp;
@@ -101,6 +151,17 @@ ga_writelog(struct timeval tv, const char *s) {
 	return;
 }
 
+/**
+ * Write log messages and print on Android console.
+ *
+ * @param fmt [in] The format string for the message.
+ * @param ... [in] The arguments for replacing specifiers in the format string.
+ *
+ * This function has the same syntax as the \em printf function.
+ * It outputs a timestamp before the message, and optionally writing
+ * the message into a log file if log feature is turned on.
+ */
+EXPORT
 int
 ga_log(const char *fmt, ...) {
 	char msg[4096];
@@ -114,12 +175,25 @@ ga_log(const char *fmt, ...) {
 #endif
 	vsnprintf(msg, sizeof(msg), fmt, ap);
 	va_end(ap);
+#ifdef __APPLE__
+	syslog(LOG_NOTICE, "%s", msg);
+#endif
 	//
 	ga_writelog(tv, msg);
 	//
 	return 0;
 }
 
+/**
+ * Print out log messages (on \em stderr or log console (on Android)).
+ *
+ * @param fmt [in] The format string for the message.
+ * @param ... [in] The arguments for replacing specifiers in the format string.
+ *
+ * This function has the same syntax as the \em printf function.
+ * It outputs a timestamp before the message.
+ */
+EXPORT
 int
 ga_error(const char *fmt, ...) {
 	char msg[4096];
@@ -132,6 +206,9 @@ ga_error(const char *fmt, ...) {
 #endif
 	vsnprintf(msg, sizeof(msg), fmt, ap);
 	va_end(ap);
+#ifdef __APPLE__
+	syslog(LOG_NOTICE, "%s", msg);
+#endif
 	fprintf(stderr, "# [%d] %ld.%06ld %s", getpid(), tv.tv_sec, tv.tv_usec, msg);
 	//
 	ga_writelog(tv, msg);
@@ -139,18 +216,55 @@ ga_error(const char *fmt, ...) {
 	return -1;
 }
 
+/**
+ * malloc() and return the offset to align pointer at 16-byte boundary.
+ *
+ * @param size [in] Requested memory space.
+ * @param ptr [out] Pointer to the memory pointer.
+ * @param alignment [out] Pointer to the alignment value.
+ * @return 0 on success, or -1 on failure.
+ *
+ * Note: The actually allocated memory space is \a size + 16.
+ * Data should be stored starting from \a *ptr + \a *alignment.
+ */
+EXPORT
 int
 ga_malloc(int size, void **ptr, int *alignment) {
 	if((*ptr = malloc(size+16)) == NULL)
 		return -1;
 #ifdef __x86_64__
-	*alignment = 16 - (((long long) *ptr)&0x0f);
+	*alignment = 16 - (((unsigned long long) *ptr) & 0x0f);
 #else
-	*alignment = 16 - (((unsigned) *ptr)&0x0f);
+	*alignment = 16 - (((unsigned) *ptr) & 0x0f);
 #endif
 	return 0;
 }
 
+/**
+ * Compute the alignment offset for a given pointer and the align-to value.
+ *
+ * @param ptr [in] The pointer address used to compute alignment offset.
+ * @param alignto [in] The align-to value, must be 2^n, e.g., 1, 2, 4, 8, 16.
+ * @return The alignment offset has to be added to the pointer address.
+ *
+ * Note that this function does not check the alignto value.
+ * The caller must ensure that the \a alignto value must be 2^n, n >= 0.
+ */
+EXPORT
+int
+ga_alignment(void *ptr, int alignto) {
+	int mask = alignto - 1;
+#ifdef __x86_64__
+	return alignto - (((unsigned long long) ptr) & mask);
+#else
+	return alignto - (((unsigned) ptr) & mask);
+#endif
+}
+
+/**
+ * Get the thread ID in long format.
+ */
+EXPORT
 long
 ga_gettid() {
 #ifdef WIN32
@@ -159,13 +273,16 @@ ga_gettid() {
 	return pthread_mach_thread_np(pthread_self());
 #elif defined ANDROID
 	return gettid();
-#elif defined GA_EMCC
-	return pthread_self();
 #else
 	return (pid_t) syscall(SYS_gettid);
 #endif
 }
 
+/**
+ * Initialize windows socket sub-system.
+ *
+ * @return 0 on success and -1 on error.
+ */
 static int
 winsock_init() {
 #ifdef WIN32
@@ -176,6 +293,11 @@ winsock_init() {
 	return 0;
 }
 
+/**
+ * List registered ffmpeg codecs.
+ * This function is for debug purpose, and could be removed in the future.
+ */
+EXPORT
 void
 ga_dump_codecs() {
 	int n, count;
@@ -195,6 +317,14 @@ ga_dump_codecs() {
 	return;
 }
 
+/**
+ * Initialize GamingAnywhere
+ *
+ * @param config [in] Pathname to the configuration file
+ * @param url [in] URL to the server URL address, in the form of rtsp://serveraddress:port/path
+ * @return 0 on success or -1 on error
+ */
+EXPORT
 int
 ga_init(const char *config, const char *url) {
 	srand(time(0));
@@ -220,11 +350,22 @@ ga_init(const char *config, const char *url) {
 	return 0;
 }
 
+/**
+ * Deinitialize GamingAnywhere: currently do nothing
+ */
+EXPORT
 void
 ga_deinit() {
 	return;
 }
 
+/**
+ * Enable log feature
+ *
+ * This function must be called if you plan to write logs into a file.
+ * It reads the \em logfile option specified in the configuration file.
+ */
+EXPORT
 void
 ga_openlog() {
 	char fn[1024];
@@ -240,6 +381,10 @@ ga_openlog() {
 	return;
 }
 
+/**
+ * Disable log feature
+ */
+EXPORT
 void
 ga_closelog() {
 	if(ga_logfile != NULL) {
@@ -251,6 +396,14 @@ ga_closelog() {
 
 // save file feature
 
+/**
+ * Internal function for \em ga_save_init and \em ga_save_init_txt.
+ * Returns the FILE pointer.
+ *
+ * @param filename [in] Pathname to store the image data.
+ * @param mode [in] File access mode pass to \em fopen function.
+ * @return FILE pointer to the opened file.
+ */
 static FILE *
 ga_save_init_internal(const char *filename, const char *mode) {
 	FILE *fp = NULL;
@@ -263,16 +416,46 @@ ga_save_init_internal(const char *filename, const char *mode) {
 	return fp;
 }
 
+/**
+ * Return the FILE pointer used to store saved raw image frame data.
+ *
+ * @param filename [in] Pathname to store the image data.
+ * @return FILE pointer to the opened file.
+ *
+ * This function must be called if you plan to use the
+ * save raw video image feature.
+ * All captured images will be stored in this single file.
+ */
+EXPORT
 FILE *
 ga_save_init(const char *filename) {
 	return ga_save_init_internal(filename, "wb");
 }
 
+/**
+ * Return the FILE pointer used to stora text-based meta-data for saved image frame.
+ *
+ * @param filename [in] Pathname to store the text-based meta-data.
+ * @return the FILE pointer to the opened file.
+ *
+ * This function can be called optionally when you need to store
+ * text-based meta data for saved raw video image.
+ * All stored meta-data will be stored in this single file.
+ */
+EXPORT
 FILE *
 ga_save_init_txt(const char *filename) {
 	return ga_save_init_internal(filename, "wt");
 }
 
+/**
+ * Save arbitrary binary data.
+ *
+ * @param fp [in] FILE pointer to the opened file (by \em ga_save_init).
+ * @param buffer [in] Pointer to the data memory.
+ * @param size [in] Size of the data, in bytes.
+ */
+EXPORT
 int
 ga_save_data(FILE *fp, unsigned char *buffer, int size) {
 	if(fp == NULL || buffer == NULL || size < 0)
@@ -282,6 +465,14 @@ ga_save_data(FILE *fp, unsigned char *buffer, int size) {
 	return fwrite(buffer, sizeof(char), size, fp);
 }
 
+/**
+ * Save text data.
+ *
+ * @param fp [in] FILE pointer to the opened file (by \em ga_save_init_txt).
+ * @param fmt [in] Pointer the for format string.
+ * @param ... [in] Arguments for specifiers in the format string.
+ */
+EXPORT
 int
 ga_save_printf(FILE *fp, const char *fmt, ...) {
 	int wlen;
@@ -295,6 +486,16 @@ ga_save_printf(FILE *fp, const char *fmt, ...) {
 	return wlen;
 }
 
+/**
+ * Save YUV420 image frame data
+ *
+ * @param fp [in] FILE pointer to the opened file (by \em ga_save_init).
+ * @param w [in] Width of the frame.
+ * @param h [in] Height of the frame.
+ * @param planes [in] Pointers to address of (3) planes [Y, U, and V].
+ * @param linesize [in] Pointers to linesize.
+ */
+EXPORT
 int
 ga_save_yuv420p(FILE *fp, int w, int h, unsigned char *planes[], int linesize[]) {
 	int i, j, wlen, written = 0;
@@ -334,6 +535,16 @@ err_save_yuv:
 	return -1;
 }
 
+/**
+ * Save RGB4 image frame data
+ *
+ * @param fp [in] FILE pointer to the opened file (by \em ga_save_init).
+ * @param w [in] Width of the frame.
+ * @param h [in] Height of the frame.
+ * @param planes [in] Pointers to the image data memory.
+ * @param linesize [in] linesize, usually \a h * pixel size plus (optional) alignments.
+ */
+EXPORT
 int
 ga_save_rgb4(FILE *fp, int w, int h, unsigned char *planes, int linesize) {
 	int i, wlen, written = 0;
@@ -360,6 +571,13 @@ err_save_rgb4:
 	return -1;
 }
 
+/**
+ * Close a file opened by \em ga_save_init or \em ga_save_init_txt
+ *
+ * @param fp [in] The opened file pointer.
+ * @return This function currently always returns 0.
+ */
+EXPORT
 int
 ga_save_close(FILE *fp) {
 	if(fp != NULL) {
@@ -372,14 +590,37 @@ ga_save_close(FILE *fp) {
 
 static map<int,list<int> > aggmap;
 
+/**
+ * Clear everything in the aggregated output buffer.
+ */
+EXPORT
 void
 ga_aggregated_reset() {
 	aggmap.clear();
 	return;
 }
 
+/**
+ * Output aggregated statistic numbers periodically
+ *
+ * @param key [in] The key used to uniquely identify an record series.
+ * @param limit [in] Output buffered records when the number of records
+ *		reaches the \a limit
+ * @param value [in] The value to be output
+ *
+ * This function is used to reduce the output frequency of statistics.
+ * If you need to output integer statistics but does not want the output
+ * affect the performance too much.
+ * You can consider use the aggregated output function.
+ * Call this function to output an integer value as usual but the output
+ * is only output when the number of records reaches the limit.
+ * The \a key value must be different for different statistic series.
+ * The \a limit value would be better to be a distinct prime number:
+ * To prevent output from different series collides at the same time.
+ */
+EXPORT
 void
-ga_aggregated_print(int key, int limit, int value) {
+ga_aggregated_print(int key, unsigned int limit, int value) {
 	map<int,list<int> >::iterator mi;
 	// push data
 	if((mi = aggmap.find(key)) == aggmap.end()) {
@@ -421,8 +662,42 @@ ga_aggregated_print(int key, int limit, int value) {
 	return;
 }
 
-//
+/**
+ * Find mpeg start code 00 00 01 or 00 00 00 01.
+ *
+ * @param buf [in] The byte buffer to search.
+ * @param end [in] End of the byte buffer.
+ * @param startcode_len [out] Length of start code.
+ * @return pointer to the beginning of the start code, or NULL if not found.
+ *
+ * If a non-NULL pointer is returned, you can read the frame data start from
+ * the returned pointer plus \a startcode_len.
+ */
+EXPORT
+unsigned char *
+ga_find_startcode(unsigned char *buf, unsigned char *end, int *startcode_len) {
+	unsigned char *ptr;
+	for(ptr = buf; ptr < end-4; ptr++) {
+		if(*ptr == 0 && *(ptr+1)==0) {
+			if(*(ptr+2) == 1) {
+				*startcode_len = 3;
+				return ptr;
+			} else if(*(ptr+2)==0 && *(ptr+3)==1) {
+				*startcode_len = 4;
+				return ptr;
+			}
+		}
+	}
+	return NULL;
+}
 
+/**
+ * Convert a number represented in a string to a long integer.
+ *
+ * @param str [in] The number string.
+ * @return The converted number in long format.
+ */
+EXPORT
 long
 ga_atoi(const char *str) {
 	// XXX: not sure why sometimes windows strtol failed on
@@ -434,6 +709,7 @@ ga_atoi(const char *str) {
 	return val;
 }
 
+EXPORT
 struct gaRect *
 ga_fillrect(struct gaRect *rect, int left, int top, int right, int bottom) {
 	if(rect == NULL)
@@ -463,6 +739,7 @@ ga_fillrect(struct gaRect *rect, int left, int top, int right, int bottom) {
 }
 
 #ifdef WIN32
+EXPORT
 int
 ga_crop_window(struct gaRect *rect, struct gaRect **prect) {
 	char wndname[1024], wndclass[1024];
@@ -665,6 +942,11 @@ ga_crop_window(struct gaRect *rect, struct gaRect **prect) {
 }
 #endif
 
+/**
+ * Show the backtrace of current process
+ * This function is only for debug purpose.
+ */
+EXPORT
 void
 ga_backtrace() {
 #if defined(WIN32) || defined(ANDROID)
@@ -692,6 +974,13 @@ ga_backtrace() {
 #endif	/* WIN32 */
 }
 
+/**
+ * This function is not used.
+ * It is sometimes that a function is optimized out because it is not
+ * called by the function.
+ * Put those function here to prevent them from being optimized out.
+ */
+EXPORT
 void
 ga_dummyfunc() {
 #ifndef ANDROID_NO_FFMPEG
@@ -701,13 +990,20 @@ ga_dummyfunc() {
 	return;
 }
 
+/**
+ * Data struture to describe codecs supported by GA.
+ * The last data must have a key of NULL.
+ */
 struct ga_codec_entry {
-	const char *key;
-	enum AVCodecID id;
-	const char *mime;
-	const char *ffmpeg_decoders[4];
+	const char *key;	/**< Key to identify the codec, must be unique */
+	enum AVCodecID id;	/**< codec Id: defined in (ffmpeg) AVCodecID */
+	const char *mime;	/**< MIME-type name */
+	const char *ffmpeg_decoders[4]; /**< The ffmpeg decoder name */
 };
 
+/**
+ * The codec table.
+ */
 struct ga_codec_entry ga_codec_table[] = {
 	{ "H264", AV_CODEC_ID_H264, "video/avc", { "h264", NULL } },
 	{ "H265", AV_CODEC_ID_H265, "video/hevc", { "hevc", NULL } },
@@ -717,6 +1013,9 @@ struct ga_codec_entry ga_codec_table[] = {
 	{ NULL, AV_CODEC_ID_NONE, NULL, { NULL } } /* END */
 };
 
+/**
+ * Get the codec entry from the codec table by key.
+ */
 static ga_codec_entry *
 ga_lookup_core(const char *key) {
 	int i = 0;
@@ -728,6 +1027,10 @@ ga_lookup_core(const char *key) {
 	return NULL;
 }
 
+/**
+ * Get the codec MIME-type from the codec table by key.
+ */
+EXPORT
 const char *
 ga_lookup_mime(const char *key) {
 	struct ga_codec_entry * e = ga_lookup_core(key);
@@ -738,6 +1041,10 @@ ga_lookup_mime(const char *key) {
 	return e->mime;
 }
 
+/**
+ * Get the codec ffmpeg decoders from the codec table by key.
+ */
+EXPORT
 const char **
 ga_lookup_ffmpeg_decoders(const char *key) {
 	struct ga_codec_entry * e = ga_lookup_core(key);
@@ -748,6 +1055,10 @@ ga_lookup_ffmpeg_decoders(const char *key) {
 	return e->ffmpeg_decoders;
 }
 
+/**
+ * Get the codec Id from the codec table by key.
+ */
+EXPORT
 enum AVCodecID
 ga_lookup_codec_id(const char *key) {
 	struct ga_codec_entry * e = ga_lookup_core(key);
@@ -757,4 +1068,56 @@ ga_lookup_codec_id(const char *key) {
 	}
 	return e->id;
 }
+
+#ifdef ANDROID
+/**
+ * Built-in signal handler for emulating pthread_cancel.
+ */
+static void
+pthread_cancel_handler(int s) {
+	if(s == SIGUSR2) {
+		pthread_exit(NULL);
+	}
+	return;
+}
+#endif
+
+/**
+ * Initialize the emulated pthread_cancel function.
+ *
+ * This function MUST be called before calling pthread_cancel.
+ * Otherwise, the entire process would be killed.
+ * pthread_cancel() emulating is done by using pthread_kill,
+ * which wake up the specified thread to handle the signal.
+ *
+ * This function can be called only once because a handler is
+ * registered process-wide.
+ *
+ * This function registers a handler for SIGUSR2.
+ */
+EXPORT
+void
+pthread_cancel_init() {
+#ifdef ANDROID
+	signal(SIGUSR2, pthread_cancel_handler);
+#endif
+	return;
+}
+
+#ifdef ANDROID
+/**
+ * Emulate pthread_cancel in Android
+ *
+ * @param thread [in] thread id.
+ *
+ * The threa to be cancelled must be setup by calling pthread_cancel_init().
+ * Otherwise, it could be terminated, and not sure if there would be side-effect
+ * or not.
+ */
+EXPORT
+int
+pthread_cancel(pthread_t thread) {
+	return pthread_kill(thread, SIGUSR2);
+}
+#endif
 

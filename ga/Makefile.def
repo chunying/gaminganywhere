@@ -2,28 +2,69 @@
 # Makefile.def for POSIX-based OSes
 
 OS	= $(shell uname -s)
+SYS	= $(shell uname -o | tr a-z A-Z)
 HAVE_X11 ?= 1
+
+ifeq ($(SYS), MSYS)
+OS	= MSYS
+HAVE_X11 = 0
+endif
+
+ifneq ($(strip $(GA_ANDROID)),)
+LINKSTL = shared
+include $(GADEPS)/../deps.src/Makefile.ndk
+endif
 
 CC	?= gcc
 CXX	?= g++
 AR	?= ar
-GADEPS?= $(HOME)/myprog/gaminganywhere/deps.posix
-CFLAGS	= -O2 -fPIC -g -Wall -I$(GADEPS)/include $(EXTRACFLAGS) -I/usr/local/include -DPIPELINE_FILTER
-#	-D__STDC_CONSTANT_MACROS
-LDFLAGS	= $(EXTRALDFLAGS) -L$(GADEPS)/lib -lpthread -Wl,-rpath,$$ORIGIN
+LD	?= ld
 
-X11CF	?=
-X11LD	?= -lX11 -lXext -lXtst
+GADEPS?= $(HOME)/myprog/gaminganywhere/deps.posix
+CFLAGS	= -O2 -fPIC -g -Wall -I$(GADEPS)/include $(EXTRACFLAGS) -I/usr/local/include # -DPIPELINE_FILTER
+#	-D__STDC_CONSTANT_MACROS
+CXXFLAGS = $(CFLAGS)
+LDFLAGS	= $(EXTRALDFLAGS) -L$(GADEPS)/lib -Wl,-rpath,\$$ORIGIN
+
+ifeq ($(OS), Linux)
+CXXFLAGS += -std=c++11
+endif
+
+ifeq ($(OS), MSYS)
+CFLAGS  += -DWIN32 -DMSYS -DUSE_GA_WIN32_MACRO
+endif
+
+ifeq ($(strip $(GA_ANDROID)),)
+LDFLAGS	+= -lpthread
+endif
+
+ifneq ($(strip $(GA_ANDROID)),)
+CXXFLAGS	+= $(ANDROID_CXXFLAGS)
+LDFLAGS	+= $(ANDROID_LDFLAGS)
+endif
 
 AVCCF	= -D__STDC_CONSTANT_MACROS $(shell pkg-config --cflags libswscale libswresample libpostproc libavdevice libavfilter libavcodec libavformat)
 AVCLD	= $(shell pkg-config --libs libswscale libswresample libpostproc libavdevice libavfilter libavcodec libavformat libavutil)
 
-SDLCF	= $(shell pkg-config sdl2 SDL2_ttf --cflags)
-SDLLD	= $(shell pkg-config sdl2 SDL2_ttf --libs)
+ifneq ($(strip $(GA_ANDROID)),)
+######## fixed SDL2 path
+SDLCF	= -I$(GADEPS)/include/SDL2
+SDLLD	= -L$(GADEPS)/lib -lSDL2
 
-L5CF	= -I$(GADEPS)/include/live555
-L5LD	= -L$(GADEPS)/lib -lliveMedia -lBasicUsageEnvironment -lUsageEnvironment -lgroupsock
+else
+######## libraries for non-Android systems
+
+X11CF	?=
+X11LD	?= -lX11 -lXext -lXtst
 
 ASNDCF	=
 ASNDLD	= -lasound
+
+SDLCF	= $(shell pkg-config sdl2 SDL2_ttf --cflags)
+SDLLD	= $(shell pkg-config sdl2 SDL2_ttf --libs)
+
+endif
+
+L5CF	= -I$(GADEPS)/include/live555
+L5LD	= -L$(GADEPS)/lib -lliveMedia -lBasicUsageEnvironment -lUsageEnvironment -lgroupsock
 

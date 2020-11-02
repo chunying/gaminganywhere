@@ -29,7 +29,7 @@
 #include "ga-conf.h"
 #include "asource.h"
 #include "vsource.h"
-#include "pipeline.h"
+#include "dpipe.h"
 #include "controller.h"
 #include "ctrl-sdl.h"
 
@@ -791,7 +791,7 @@ hook_SDL_SetVideoMode(int width, int height, int bpp, uint32_t flags) {
 			ga_error("SDL_SetVideoMode: GA detect endianness failed.\n");
 			goto err_quit;
 		}
-		dupsurface = old_SDL_CreateRGBSurface(SDL_SWSURFACE, width, height, 32,
+		dupsurface = old_SDL_CreateRGBSurface(SDL12_SWSURFACE, width, height, 32,
 				rmask, gmask, bmask, amask);
 		if(dupsurface == NULL) {
 			ga_error("SDL_SetVideoMode: GA cannot create RGB surface.\n");
@@ -844,7 +844,7 @@ hook_SDL_capture_screen(const char *caller) {
 	static int frame_interval;
 	static struct timeval initialTv, captureTv;
 	static int sb_initialized = 0;
-	pooldata_t *data;
+	dpipe_buffer_t *data;
 	vsource_frame_t *frame;
 	//
 	if(old_SDL_BlitSurface(screensurface, NULL, dupsurface, NULL) != 0) {
@@ -868,9 +868,9 @@ hook_SDL_capture_screen(const char *caller) {
 		return;
 	// copy screen
 	do {
-		data = g_pipe[0]->allocate_data();
-		frame = (vsource_frame_t*) data->ptr;
-		frame->pixelformat = PIX_FMT_RGBA;
+		data = dpipe_get(g_pipe[0]);
+		frame = (vsource_frame_t*) data->pointer;
+		frame->pixelformat = AV_PIX_FMT_RGBA;
 		frame->realwidth = dupsurface->w;
 		frame->realheight = dupsurface->h;
 		frame->realstride = dupsurface->pitch;
@@ -882,8 +882,7 @@ hook_SDL_capture_screen(const char *caller) {
 	} while(0);
 	// duplicate from channel 0 to other channels
 	ga_hook_capture_dupframe(frame);
-	g_pipe[0]->store_data(data);
-	g_pipe[0]->notify_all();		
+	dpipe_store(g_pipe[0], data);
 	return;
 }
 
@@ -897,7 +896,7 @@ hook_SDL_BlitSurface(SDL12_Surface *src, SDL12_Rect *srcrect, SDL12_Surface *dst
 	ret = old_SDL_BlitSurface(src, srcrect, dst, dstrect);
 	//
 	if(dst == screensurface) {
-		if((screensurface->flags & SDL_HWSURFACE) != 0) {
+		if((screensurface->flags & SDL12_HWSURFACE) != 0) {
 			hook_SDL_capture_screen("SDL_BlitSurface");
 		}
 	}
@@ -958,7 +957,7 @@ hook_SDL_GL_SwapBuffers() {
 	GLint vp[4];
 	int vp_x, vp_y, vp_width, vp_height;
 	int i;
-	pooldata_t *data;
+	dpipe_buffer_t *data;
 	vsource_frame_t *frame;
 	//
 	if(old_SDL_GL_SwapBuffers == NULL) {
@@ -1000,9 +999,9 @@ hook_SDL_GL_SwapBuffers() {
 		//
 		frameLinesize = vp_width<<2;
 		//
-		data = g_pipe[0]->allocate_data();
-		frame = (vsource_frame_t*) data->ptr;
-		frame->pixelformat = PIX_FMT_RGBA;
+		data = dpipe_get(g_pipe[0]);
+		frame = (vsource_frame_t*) data->pointer;
+		frame->pixelformat = AV_PIX_FMT_RGBA;
 		frame->realwidth = vp_width;
 		frame->realheight = vp_height;
 		frame->realstride = frameLinesize;
@@ -1025,8 +1024,7 @@ hook_SDL_GL_SwapBuffers() {
 
 	// duplicate from channel 0 to other channels
 	ga_hook_capture_dupframe(frame);
-	g_pipe[0]->store_data(data);
-	g_pipe[0]->notify_all();		
+	dpipe_store(g_pipe[0], data);
 	
 	return;
 }
@@ -1079,7 +1077,7 @@ hook_SDL_PeepEvents(SDL12_Event *event, int numevents, SDL12_eventaction action,
 	if(old_SDL_PeepEvents == NULL) {
 		sdl_hook_symbols();
 	}
-	if(action == SDL_ADDEVENT)
+	if(action == SDL12_ADDEVENT)
 		return old_SDL_PeepEvents(event, numevents, action, mask);
 	ret = old_SDL_PeepEvents(event, numevents, action, mask);
 	if(ret > 0) {

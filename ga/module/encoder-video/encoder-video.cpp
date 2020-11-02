@@ -19,8 +19,7 @@
 #include <stdio.h>
 
 #include "vsource.h"
-#include "server.h"
-#include "rtspserver.h"
+#include "rtspconf.h"
 #include "encoder-common.h"
 
 #include "ga-common.h"
@@ -28,7 +27,7 @@
 #include "ga-conf.h"
 #include "ga-module.h"
 
-#include "pipeline.h"
+#include "dpipe.h"
 
 //// Prevent use of GLOBAL_HEADER to pass parameters, disabled by default
 //#define STANDALONE_SDP	1
@@ -40,6 +39,9 @@ static int vencoder_started = 0;
 static pthread_t vencoder_tid[VIDEO_SOURCE_CHANNEL_MAX];
 //// encoders for encoding
 static AVCodecContext *vencoder[VIDEO_SOURCE_CHANNEL_MAX];
+// Mutex for reconfiguration settings
+static pthread_mutex_t vencoder_reconf_mutex[VIDEO_SOURCE_CHANNEL_MAX];
+static ga_ioctl_reconfigure_t vencoder_reconf[VIDEO_SOURCE_CHANNEL_MAX];
 #ifdef STANDALONE_SDP
 //// encoders for generating SDP
 /* separate encoder and encoder_sdp because some ffmpeg codecs
@@ -73,6 +75,7 @@ vencoder_deinit(void *arg) {
 #ifdef STANDALONE_SDP
 		vencoder_sdp[iid] = NULL;
 #endif
+		pthread_mutex_destroy(&vencoder_reconf_mutex[iid]);
 		vencoder[iid] = NULL;
 	}
 	bzero(_sps, sizeof(_sps));
@@ -100,19 +103,21 @@ vencoder_init(void *arg) {
 	for(iid = 0; iid < video_source_channels(); iid++) {
 		char pipename[64];
 		int outputW, outputH;
-		pipeline *pipe;
+		dpipe_t *pipe;
 		//
 		_sps[iid] = _pps[iid] = NULL;
 		_spslen[iid] = _ppslen[iid] = 0;
+		pthread_mutex_init(&vencoder_reconf_mutex[iid], NULL);
+		vencoder_reconf[iid].id = -1;
 		snprintf(pipename, sizeof(pipename), pipefmt, iid);
 		outputW = video_source_out_width(iid);
 		outputH = video_source_out_height(iid);
-		if((pipe = pipeline::lookup(pipename)) == NULL) {
+		if((pipe = dpipe_lookup(pipename)) == NULL) {
 			ga_error("video encoder: pipe %s is not found\n", pipename);
 			goto init_failed;
 		}
 		ga_error("video encoder: video source #%d from '%s' (%dx%d).\n",
-			iid, pipe->name(), outputW, outputH, iid);
+			iid, pipe->name, outputW, outputH);
 		vencoder[iid] = ga_avcodec_vencoder_init(NULL,
 				rtspconf->video_encoder_codec,
 				outputW, outputH,
@@ -154,14 +159,70 @@ init_failed:
 	return -1;
 }
 
+static int
+vencoder_reconfigure(int iid) {
+	struct RTSPConf *rtspconf = rtspconf_global();
+	int ret = 0;
+	ga_ioctl_reconfigure_t *reconf = &vencoder_reconf[iid];
+	pthread_mutex_lock(&vencoder_reconf_mutex[iid]);
+	if(reconf->id >= 0) {
+		ga_error("video encoder: Reconfiguring video encoder\n");
+		int outputW, outputH;
+		outputW = video_source_out_width(iid);
+		outputH = video_source_out_height(iid);
+
+		ga_avcodec_close(vencoder[iid]);
+		// ga_error("Closing encoder context\n");
+		// avcodec_close(vencoder[iid]);
+
+		for (int i = 0; i < rtspconf->vso->size(); i += 2) {
+			if ((*rtspconf->vso)[i].compare("b") == 0) {
+				if (reconf->bitrateKbps > 0)
+					(*rtspconf->vso)[i+1] = std::to_string(reconf->bitrateKbps * 1000);
+				continue;
+			}
+			if ((*rtspconf->vso)[i].compare("crf") == 0) {
+				if (reconf->crf > 0)
+					(*rtspconf->vso)[i+1] = std::to_string(reconf->crf);
+				continue;
+			}
+		}
+
+		if (reconf->framerate_n > 0)
+			rtspconf->video_fps = reconf->framerate_n;
+		if (reconf->width > 0)
+			outputW = reconf->width;
+		if (reconf->height > 0)
+			outputH = reconf->height;
+
+		ga_avcodec_vencoder_init(vencoder[iid], 
+			rtspconf->video_encoder_codec,
+			outputW, outputH,
+			rtspconf->video_fps,
+			rtspconf->vso);
+
+		if (vencoder[iid] == NULL) {
+			ga_error("video encoder: reconfigure failed. crf=%d; framerate=%d/%d; bitrate=%d; bufsize=%d.\n",
+					reconf->crf,
+					reconf->framerate_n, reconf->framerate_d,
+					reconf->bitrateKbps,
+					reconf->bufsize);
+			ret = -1;
+		}
+		reconf->id = -1;
+	}
+	pthread_mutex_unlock(&vencoder_reconf_mutex[iid]);
+	return ret;
+}
+
 static void *
 vencoder_threadproc(void *arg) {
 	// arg is pointer to source pipename
 	int iid, outputW, outputH;
-	pooldata_t *data = NULL;
 	vsource_frame_t *frame = NULL;
 	char *pipename = (char*) arg;
-	pipeline *pipe = pipeline::lookup(pipename);
+	dpipe_t *pipe = dpipe_lookup(pipename);
+	dpipe_buffer_t *data = NULL;
 	AVCodecContext *encoder = NULL;
 	//
 	AVFrame *pic_in = NULL;
@@ -182,11 +243,13 @@ vencoder_threadproc(void *arg) {
 	//
 	rtspconf = rtspconf_global();
 	// init variables
-	iid = ((vsource_t*) pipe->get_privdata())->channel;
+	iid = pipe->channel_id;
 	encoder = vencoder[iid];
 	//
 	outputW = video_source_out_width(iid);
 	outputH = video_source_out_height(iid);
+	//
+	encoder_pts_clear(iid);
 	//
 	nalbuf_size = 100000+12 * outputW * outputH;
 	if(ga_malloc(nalbuf_size, (void**) &nalbuf, &nalign) < 0) {
@@ -199,13 +262,16 @@ vencoder_threadproc(void *arg) {
 		ga_error("video encoder: picture allocation failed, terminated.\n");
 		goto video_quit;
 	}
-	pic_in_size = avpicture_get_size(PIX_FMT_YUV420P, outputW, outputH);
+	pic_in->width = outputW;
+	pic_in->height = outputH;
+	pic_in->format = AV_PIX_FMT_YUV420P;
+	pic_in_size = avpicture_get_size(AV_PIX_FMT_YUV420P, outputW, outputH);
 	if((pic_in_buf = (unsigned char*) av_malloc(pic_in_size)) == NULL) {
 		ga_error("video encoder: picture buffer allocation failed, terminated.\n");
 		goto video_quit;
 	}
 	avpicture_fill((AVPicture*) pic_in, pic_in_buf,
-			PIX_FMT_YUV420P, outputW, outputH);
+			AV_PIX_FMT_YUV420P, outputW, outputH);
 	//ga_error("video encoder: linesize = %d|%d|%d\n", pic_in->linesize[0], pic_in->linesize[1], pic_in->linesize[2]);
 	// start encoding
 	ga_error("video encoding started: tid=%ld %dx%d@%dfps, nalbuf_size=%d, pic_in_size=%d.\n",
@@ -213,33 +279,23 @@ vencoder_threadproc(void *arg) {
 		outputW, outputH, rtspconf->video_fps,
 		nalbuf_size, pic_in_size);
 	//
-	pipe->client_register(ga_gettid(), &cond);
-	//
 	while(vencoder_started != 0 && encoder_running() > 0) {
+		// Reconfigure encoder (if required)
+		vencoder_reconfigure(iid);
 		AVPacket pkt;
 		int got_packet = 0;
 		// wait for notification
-		data = pipe->load_data();
+		struct timeval tv;
+		struct timespec to;
+		gettimeofday(&tv, NULL);
+		to.tv_sec = tv.tv_sec+1;
+		to.tv_nsec = tv.tv_usec * 1000;
+		data = dpipe_load(pipe, &to);
 		if(data == NULL) {
-			int err;
-			struct timeval tv;
-			struct timespec to;
-			gettimeofday(&tv, NULL);
-			to.tv_sec = tv.tv_sec+1;
-			to.tv_nsec = tv.tv_usec * 1000;
-			//
-			if((err = pipe->timedwait(&cond, &condMutex, &to)) != 0) {
-				ga_error("viedo encoder: image source timed out.\n");
-				continue;
-			}
-			data = pipe->load_data();
-			if(data == NULL) {
-				ga_error("viedo encoder: unexpected NULL frame received (from '%s', data=%d, buf=%d).\n",
-					pipe->name(), pipe->data_count(), pipe->buf_count());
-				continue;
-			}
+			ga_error("viedo encoder: image source timed out.\n");
+			continue;
 		}
-		frame = (vsource_frame_t*) data->ptr;
+		frame = (vsource_frame_t*) data->pointer;
 		// handle pts
 		if(basePts == -1LL) {
 			basePts = frame->imgpts;
@@ -257,10 +313,11 @@ vencoder_threadproc(void *arg) {
 			ga_error("video encoder: YUV mode failed - mismatched linesize(s) (src:%d,%d,%d; dst:%d,%d,%d)\n",
 				frame->linesize[0], frame->linesize[1], frame->linesize[2],
 				pic_in->linesize[0], pic_in->linesize[1], pic_in->linesize[2]);
-			pipe->release_data(data);
+			dpipe_put(pipe, data);
 			goto video_quit;
 		}
-		pipe->release_data(data);
+		tv = frame->timestamp;
+		dpipe_put(pipe, data);
 		// pts must be monotonically increasing
 		if(newpts > pts) {
 			pts = newpts;
@@ -268,6 +325,7 @@ vencoder_threadproc(void *arg) {
 			pts++;
 		}
 		// encode
+		encoder_pts_put(iid, pts, &tv);
 		pic_in->pts = pts;
 		av_init_packet(&pkt);
 		pkt.data = nalbuf_a;
@@ -281,10 +339,32 @@ vencoder_threadproc(void *arg) {
 				pkt.pts = pts;
 			}
 			pkt.stream_index = 0;
+#if 0			// XXX: dump naltype
+			do {
+				int codelen;
+				unsigned char *ptr;
+				fprintf(stderr, "[XXX-naldump]");
+				for(	ptr = ga_find_startcode(pkt.data, pkt.data+pkt.size, &codelen);
+					ptr != NULL;
+					ptr = ga_find_startcode(ptr+codelen, pkt.data+pkt.size, &codelen)) {
+					//
+					fprintf(stderr, " (+%d|%d)-%02x", ptr-pkt.data, codelen, ptr[codelen] & 0x1f);
+				}
+				fprintf(stderr, "\n");
+			} while(0);
+#endif
+			//
+			if(pkt.pts != AV_NOPTS_VALUE) {
+				if(encoder_ptv_get(iid, pkt.pts, &tv, 0) == NULL) {
+					gettimeofday(&tv, NULL);
+				}
+			} else {
+				gettimeofday(&tv, NULL);
+			}
 			// send the packet
-			if(encoder_send_packet_all("video-encoder",
+			if(encoder_send_packet("video-encoder",
 				iid/*rtspconf->video_id*/, &pkt,
-				pkt.pts, NULL) < 0) {
+				pkt.pts, &tv) < 0) {
 				goto video_quit;
 			}
 			// free unused side-data
@@ -305,7 +385,6 @@ vencoder_threadproc(void *arg) {
 	//
 video_quit:
 	if(pipe) {
-		pipe->client_unregister(ga_gettid());
 		pipe = NULL;
 	}
 	//
@@ -358,6 +437,8 @@ vencoder_raw(void *arg, int *size) {
 #if defined __APPLE__
 	int64_t in = (int64_t) arg;
 	int iid = (int) (in & 0xffffffffLL);
+#elif defined __x86_64__
+	int iid = (long long) arg;
 #else
 	int iid = (int) arg;
 #endif
@@ -492,6 +573,12 @@ vencoder_ioctl(int command, int argsize, void *arg) {
 	AVCodecContext *ve = NULL;
 	//
 	switch(command) {
+	case GA_IOCTL_RECONFIGURE:
+		ga_error("Staging video encoder reconfiguration\n");
+		pthread_mutex_lock(&vencoder_reconf_mutex[((ga_ioctl_reconfigure_t *) arg)->id]);
+		bcopy(arg, &vencoder_reconf[((ga_ioctl_reconfigure_t *) arg)->id], sizeof(ga_ioctl_reconfigure_t));
+		pthread_mutex_unlock(&vencoder_reconf_mutex[((ga_ioctl_reconfigure_t *) arg)->id]);
+		return ret; // 0
 	case GA_IOCTL_GETSPS:
 	case GA_IOCTL_GETPPS:
 	case GA_IOCTL_GETVPS:

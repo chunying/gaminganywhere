@@ -19,16 +19,15 @@
 #include <stdio.h>
 
 #include "vsource.h"
-#include "server.h"
-#include "rtspserver.h"
 #include "encoder-common.h"
+#include "rtspconf.h"
 
 #include "ga-common.h"
 #include "ga-avcodec.h"
 #include "ga-conf.h"
 #include "ga-module.h"
 
-#include "pipeline.h"
+#include "dpipe.h"
 #include "vpu-common.h"
 
 static int vencoder_initialized = 0;
@@ -85,19 +84,19 @@ vencoder_init(void *arg) {
 	for(iid = 0; iid < video_source_channels(); iid++) {
 		char pipename[64];
 		int outputW, outputH;
-		pipeline *pipe;
+		dpipe_t *pipe;
 		//
 		_sps[iid] = _pps[iid] = NULL;
 		_spslen[iid] = _ppslen[iid] = 0;
 		snprintf(pipename, sizeof(pipename), pipefmt, iid);
 		outputW = video_source_out_width(iid);
 		outputH = video_source_out_height(iid);
-		if((pipe = pipeline::lookup(pipename)) == NULL) {
+		if((pipe = dpipe_lookup(pipename)) == NULL) {
 			ga_error("video encoder: pipe %s is not found\n", pipename);
 			goto init_failed;
 		}
 		ga_error("video encoder: video source #%d from '%s' (%dx%d).\n",
-			iid, pipe->name(), outputW, outputH, iid);
+			iid, pipe->name, outputW, outputH, iid);
 		//
 		if(vpu_encoder_init(&vpu[iid], outputW, outputH, rtspconf->video_fps, 1,
 				ga_conf_mapreadint("video-specific", "b") / 1000,
@@ -117,10 +116,10 @@ static void *
 vencoder_threadproc(void *arg) {
 	// arg is pointer to source pipename
 	int cid;
-	pooldata_t *data = NULL;
 	vsource_frame_t *frame = NULL;
 	char *pipename = (char*) arg;
-	pipeline *pipe = pipeline::lookup(pipename);
+	dpipe_t *pipe = dpipe_lookup(pipename);
+	dpipe_buffer_t *data = NULL;
 	struct RTSPConf *rtspconf = NULL;
 	//
 	long long basePts = -1LL, newpts = 0LL, pts = -1LL, ptsSync = 0LL;
@@ -142,41 +141,30 @@ vencoder_threadproc(void *arg) {
 	}
 	//
 	rtspconf = rtspconf_global();
-	cid = ((vsource_t*) pipe->get_privdata())->channel;
+	cid = pipe->channel_id;
 	outputW = video_source_out_width(cid);
 	outputH = video_source_out_height(cid);
 	//
 	// start encoding
 	ga_error("video encoding started: tid=%ld.\n", ga_gettid());
-	pipe->client_register(ga_gettid(), &cond);
 	//
 	while(vencoder_started != 0 && encoder_running() > 0) {
 		//
 		AVPacket pkt;
 		unsigned char *enc;
 		int encsize;
+		struct timeval tv;
+		struct timespec to;
 		// wait for notification
-		data = pipe->load_data();
+		gettimeofday(&tv, NULL);
+		to.tv_sec = tv.tv_sec+1;
+		to.tv_nsec = tv.tv_usec * 1000;
+		data = dpipe_load(pipe, &to);
 		if(data == NULL) {
-			int err;
-			struct timeval tv;
-			struct timespec to;
-			gettimeofday(&tv, NULL);
-			to.tv_sec = tv.tv_sec+1;
-			to.tv_nsec = tv.tv_usec * 1000;
-			//
-			if((err = pipe->timedwait(&cond, &condMutex, &to)) != 0) {
-				ga_error("viedo encoder: image source timed out.\n");
-				continue;
-			}
-			data = pipe->load_data();
-			if(data == NULL) {
-				ga_error("viedo encoder: unexpected NULL frame received (from '%s', data=%d, buf=%d).\n",
-					pipe->name(), pipe->data_count(), pipe->buf_count());
-				continue;
-			}
+			ga_error("viedo encoder: image source timed out.\n");
+			continue;
 		}
-		frame = (vsource_frame_t*) data->ptr;
+		frame = (vsource_frame_t*) data->pointer;
 		// handle pts
 		if(basePts == -1LL) {
 			basePts = frame->imgpts;
@@ -189,7 +177,7 @@ vencoder_threadproc(void *arg) {
 		gettimeofday(&pkttv, NULL);
 		enc = vpu_encoder_encode(&vpu[cid], frame->imgbuf, vpu[cid].vpu_framesize, &encsize);
 		//
-		pipe->release_data(data);
+		dpipe_put(pipe, data);
 		//
 		if(enc == NULL) {
 			ga_error("encoder-vpu: encode failed.\n");
@@ -208,7 +196,7 @@ vencoder_threadproc(void *arg) {
 #endif
 		pkt.data = enc;
 		pkt.size = encsize;
-		if(encoder_send_packet_all("video-encoder", cid, &pkt, pkt.pts, &pkttv) < 0) {
+		if(encoder_send_packet("video-encoder", cid, &pkt, pkt.pts, &pkttv) < 0) {
 			goto video_quit;
 		}
 		if(video_written == 0) {
@@ -223,7 +211,6 @@ vencoder_threadproc(void *arg) {
 	//
 video_quit:
 	if(pipe) {
-		pipe->client_unregister(ga_gettid());
 		pipe = NULL;
 	}
 	//

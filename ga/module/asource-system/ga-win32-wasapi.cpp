@@ -41,7 +41,7 @@ const IID IID_IAudioClient = __uuidof(IAudioClient);
 const IID IID_IAudioCaptureClient = __uuidof(IAudioCaptureClient);
 
 static int
-check_wave_format(Xcap_wasapi_param *wparam) {
+check_wave_format(ga_wasapi_param *wparam) {
 	WAVEFORMATEX *pwfx = wparam->pwfx;
 	WAVEFORMATEXTENSIBLE *ext = (WAVEFORMATEXTENSIBLE*) wparam->pwfx;
 	//
@@ -96,7 +96,7 @@ check_wave_format(Xcap_wasapi_param *wparam) {
 }
 
 int
-ga_wasapi_init(Xcap_wasapi_param *wasapi) {
+ga_wasapi_init(ga_wasapi_param *wasapi) {
 	REFERENCE_TIME hnsRequestedDuration;
 	int ret = 0;
 	HRESULT hr;
@@ -168,7 +168,7 @@ quit:
 }
 
 int
-ga_wasapi_read(Xcap_wasapi_param *wasapi, unsigned char *wbuf, int wframes) {
+ga_wasapi_read(ga_wasapi_param *wasapi, unsigned char *wbuf, int wframes) {
 	int i, copysize = 0, copyframe = 0;
 	HRESULT hr;
 	UINT32 packetLength, numFramesAvailable;
@@ -301,7 +301,7 @@ quit:
 }
 
 int
-ga_wasapi_close(Xcap_wasapi_param *wasapi) {
+ga_wasapi_close(ga_wasapi_param *wasapi) {
 	//
 	wasapi->pAudioClient->Stop();
 	//

@@ -14,7 +14,8 @@ bin\7za x -y msinttypes-r26.zip *.h
 move /y *.h %GADEPS%\include
 @REM
 echo Installing ffmpeg ...
-set FFMPEG=2.2.3
+@REM set FFMPEG=2.5.2
+set FFMPEG=2.8
 bin\7za x -y ffmpeg-%FFMPEG%-win32-shared.7z
 move /y ffmpeg-%FFMPEG%-win32-shared\bin\* %GADEPS%\bin\
 rmdir /s /q ffmpeg-%FFMPEG%-win32-shared
@@ -23,16 +24,6 @@ bin\7za x -y ffmpeg-%FFMPEG%-win32-dev.7z
 move /y ffmpeg-%FFMPEG%-win32-dev\lib\*.lib %GADEPS%\lib\
 xcopy /e /q /h /r /y ffmpeg-%FFMPEG%-win32-dev\include\* %GADEPS%\include\
 rmdir /s /q ffmpeg-%FFMPEG%-win32-dev
-@REM
-@REM echo Installing SDL ...
-@REM @REM set SDL=20130130
-@REM set SDL=20130219
-@REM bin\7za x -y SDL-devel-%SDL%-VC.zip
-@REM move /y SDL-%SDL%\lib\x86\*.dll %GADEPS%\bin\
-@REM move /y SDL-%SDL%\include\*.h %GADEPS%\include\SDL2\
-@REM move /y SDL-%SDL%\lib\x86\*.lib %GADEPS%\lib\
-@REM rmdir /s /q SDL-%SDL%
-@REM
 @REM
 echo Installing SDL2 ...
 set SDL2=2.0.3
@@ -58,27 +49,34 @@ move /y Pre-built.2\lib\x86\*.lib %GADEPS%\lib\
 rmdir /s /q Pre-built.2
 @REM
 echo Installing live555 ...
-@REM bin\7za x live.2013.04.30-bin.zip
-@REM bin\7za x live.2014.03.25-bin.zip
-bin\7za x live.2014.05.27v2-bin.zip
+@REM bin\7za x live.2014.05.27v2-bin.zip
+bin\7za x live.2015.02.05-bin.zip
 move /y live555\include\*.* %GADEPS%\include\live555\
-move /y live555\lib\*.lib %GADEPS%\lib\
+move /y live555\x86\lib\*.lib %GADEPS%\lib\
 rmdir /s /q live555
 @REM
 echo Installing x264 ...
-bin\7za x x264-20140330-2245.zip
-move /y x264bin\include\*.h %GADEPS%\include\
-move /y x264bin\bin\*.exe %GADEPS%\bin\
-move /y x264bin\bin\*.dll %GADEPS%\bin\
-move /y x264bin\lib\*.lib %GADEPS%\lib\
-rmdir /s /q x264bin
+@REM bin\7za x x264-20140330-2245.zip
+bin\7za x x264-20141218-2245.zip
+move /y x264\x86\include\*.h %GADEPS%\include\
+move /y x264\x86\bin\*.exe %GADEPS%\bin\
+move /y x264\x86\bin\*.dll %GADEPS%\bin\
+move /y x264\x86\lib\*.lib %GADEPS%\lib\
+rmdir /s /q x264
 @REM
-echo Installing detour library ...
-bin\7za x detour.7z
-move /y detour\*.h %GADEPS%\include\
-move /y detour\*.lib %GADEPS%\lib\
-move /y detour\*.dll %GADEPS%\bin\
-rmdir /s /q detour
+echo Installing easyhook-2.6-stable library ...
+bin\7za x easyhook-2.6s.zip
+move /y easyhook-2.6s\*.h %GADEPS%\include\
+move /y easyhook-2.6s\*.lib %GADEPS%\lib\
+move /y easyhook-2.6s\*.dll %GADEPS%\bin\
+rmdir /s /q easyhook-2.6s
+@REM
+@REM echo Installing detour library ...
+@REM bin\7za x detour.7z
+@REM move /y detour\*.h %GADEPS%\include\
+@REM move /y detour\*.lib %GADEPS%\lib\
+@REM move /y detour\*.dll %GADEPS%\bin\
+@REM rmdir /s /q detour
 @REM
 echo Installation finished
 pause

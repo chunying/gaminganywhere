@@ -2,7 +2,26 @@
 export KERNEL=`uname -s | tr A-Z a-z`
 export ANDROID_HOME=$HOME/android/android-sdk/.
 export NDK_ROOT=$HOME/android/android-ndk/.
+if [ -z "$TOOLCHAIN_ARCH" ]; then
+	export TOOLCHAIN_ARCH=arm
+	export TOOLCHAIN_ABI=armeabi-v7a
+fi
+if [ -z "$TOOLCHAIN_ABI" ]; then
+	case $TOOLCHAIN_ARCH in
+	arm)	TOOLCHAIN_ABI=armeavi-v7a
+		;;
+	x86)	TOOLCHAIN_ABI=x86
+		;;
+	*)	echo "*** No TOOLCHAIN_ABI provided ***"
+		;;
+	esac
+fi
 #
-export GADEPS=$HOME/myprog/gaminganywhere/deps.android
+export GA_ANDROID=1
+#export ANDROID_GCC=4.6		# ndk-r8b
+export ANDROID_GCC=4.8		# ndk-r10e
+export MY_HOST_ARCH=x86_64	# or x86
+export SYSROOT=$NDK_ROOT/platforms/android-9/arch-$TOOLCHAIN_ARCH
+export GADEPS=$HOME/myprog/gaminganywhere/deps.android-$TOOLCHAIN_ARCH
 export PKG_CONFIG_PATH=$GADEPS/lib/pkgconfig
-export PATH=$GADEPS/bin:$ANDROID_HOME/tools:$NDK_ROOT:$NDK_ROOT/toolchains/arm-linux-androideabi-4.6/prebuilt/$KERNEL-x86/bin:$PATH
+export PATH=$GADEPS/bin:$ANDROID_HOME/tools:$NDK_ROOT:$NDK_ROOT/toolchains/arm-linux-androideabi-$ANDROID_GCC/prebuilt/$KERNEL-$MY_HOST_ARCH/bin:$NDK_ROOT/toolchains/x86-$ANDROID_GCC/prebuilt/$KERNEL-$MY_HOST_ARCH/bin:$PATH

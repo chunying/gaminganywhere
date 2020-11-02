@@ -29,8 +29,6 @@
 #include <d3dx9tex.h>
 #include <dxerr.h>
 
-#include "detours.h"
-
 #define DllImport   __declspec( dllimport )
 #define DllExport   __declspec( dllexport )
 

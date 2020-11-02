@@ -29,6 +29,13 @@
 #include "controller.h"
 #include "encoder-common.h"
 
+#ifndef WIN32
+#include <libgen.h>         // dirname
+#include <unistd.h>         // readlink
+#include <linux/limits.h>   // PATH_MAX
+#endif
+
+
 //#define	TEST_RECONFIGURE
 
 // image source pipeline:
@@ -48,27 +55,49 @@ static struct gaRect rect;
 
 static ga_module_t *m_vsource, *m_filter, *m_vencoder, *m_asource, *m_aencoder, *m_ctrl, *m_server;
 
+
+#ifndef WIN32
+std::string getExePath()
+{
+	char result[PATH_MAX];
+	ssize_t count = readlink("/proc/self/exe", result, PATH_MAX);
+	char *path;
+	if (count != -1) {
+		path = dirname(result);
+	}
+	return std::string(path) + "/";
+}
+#endif
+#ifdef WIN32
+std::string getExePath()
+{
+	return "";
+}
+#endif
+
 int
 load_modules() {
-	if((m_vsource = ga_load_module("mod/vsource-desktop", "vsource_")) == NULL)
+	std::string exePath = getExePath();
+
+	if((m_vsource = ga_load_module(std::string(exePath + "mod/vsource-desktop").c_str(), "vsource_")) == NULL)
 		return -1;
-	if((m_filter = ga_load_module("mod/filter-rgb2yuv", "filter_RGB2YUV_")) == NULL)
+	if((m_filter = ga_load_module(std::string(exePath + "mod/filter-rgb2yuv").c_str(), "filter_RGB2YUV_")) == NULL)
 		return -1;
-	if((m_vencoder = ga_load_module("mod/encoder-video", "vencoder_")) == NULL)
+	if((m_vencoder = ga_load_module(std::string(exePath + "mod/encoder-video").c_str(), "vencoder_")) == NULL)
 		return -1;
 	if(ga_conf_readbool("enable-audio", 1) != 0) {
 	//////////////////////////
 #ifndef __APPLE__
-	if((m_asource = ga_load_module("mod/asource-system", "asource_")) == NULL)
+	if((m_asource = ga_load_module(std::string(exePath + "mod/asource-system").c_str(), "asource_")) == NULL)
 		return -1;
 #endif
-	if((m_aencoder = ga_load_module("mod/encoder-audio", "aencoder_")) == NULL)
+	if((m_aencoder = ga_load_module(std::string(exePath + "mod/encoder-audio").c_str(), "aencoder_")) == NULL)
 		return -1;
 	//////////////////////////
 	}
-	if((m_ctrl = ga_load_module("mod/ctrl-sdl", "sdlmsg_replay_")) == NULL)
+	if((m_ctrl = ga_load_module(std::string(exePath + "mod/ctrl-sdl").c_str(), "sdlmsg_replay_")) == NULL)
 		return -1;
-	if((m_server = ga_load_module("mod/server-live555", "live_")) == NULL)
+	if((m_server = ga_load_module(std::string(exePath + "mod/server-live555").c_str(), "live_")) == NULL)
 		return -1;
 	return 0;
 }

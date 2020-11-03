@@ -29,6 +29,18 @@
 
 #include "dpipe.h"
 
+#include <sstream>
+
+namespace patch
+{
+    template < typename T > std::string to_string( const T& n )
+    {
+        std::ostringstream stm ;
+        stm << n ;
+        return stm.str() ;
+    }
+}
+
 //// Prevent use of GLOBAL_HEADER to pass parameters, disabled by default
 //#define STANDALONE_SDP	1
 
@@ -178,12 +190,12 @@ vencoder_reconfigure(int iid) {
 		for (int i = 0; i < rtspconf->vso->size(); i += 2) {
 			if ((*rtspconf->vso)[i].compare("b") == 0) {
 				if (reconf->bitrateKbps > 0)
-					(*rtspconf->vso)[i+1] = std::to_string(reconf->bitrateKbps * 1000);
+					(*rtspconf->vso)[i+1] = patch::to_string(reconf->bitrateKbps * 1000);
 				continue;
 			}
 			if ((*rtspconf->vso)[i].compare("crf") == 0) {
 				if (reconf->crf > 0)
-					(*rtspconf->vso)[i+1] = std::to_string(reconf->crf);
+					(*rtspconf->vso)[i+1] = patch::to_string(reconf->crf);
 				continue;
 			}
 		}

@@ -25,6 +25,7 @@ import java.util.List;
 import org.gaminganywhere.gaclient.util.GAControllerBasic;
 import org.gaminganywhere.gaclient.util.GAControllerDualPad;
 import org.gaminganywhere.gaclient.util.GAControllerEmpty;
+import org.gaminganywhere.gaclient.util.GAControllerHWKbdMouse;
 import org.gaminganywhere.gaclient.util.GAControllerLimbo;
 import org.gaminganywhere.gaclient.util.GAControllerN64;
 import org.gaminganywhere.gaclient.util.GAControllerPSP;
@@ -302,6 +303,11 @@ public class MainActivity extends Activity implements
 			item = new HashMap<String,String>();
 			item.put("name", GAControllerEmpty.getName());
 			item.put("desc", GAControllerEmpty.getDescription());
+			list_control.add(item);
+			//
+			item = new HashMap<String,String>();
+			item.put("name", GAControllerHWKbdMouse.getName());
+			item.put("desc", GAControllerHWKbdMouse.getDescription());
 			list_control.add(item);
 			//
 			item = new HashMap<String,String>();

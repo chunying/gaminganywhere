@@ -23,6 +23,7 @@ import javax.microedition.khronos.opengles.GL10;
 
 import org.gaminganywhere.gaclient.util.GAController;
 import org.gaminganywhere.gaclient.util.GAControllerBasic;
+import org.gaminganywhere.gaclient.util.GAControllerHWKbdMouse;
 import org.gaminganywhere.gaclient.util.GAControllerDualPad;
 import org.gaminganywhere.gaclient.util.GAControllerEmpty;
 import org.gaminganywhere.gaclient.util.GAControllerLimbo;
@@ -42,16 +43,18 @@ import android.os.Message;
 import android.os.PowerManager;
 import android.util.DisplayMetrics;
 import android.util.Log;
+import android.view.KeyEvent;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
+import android.view.View.OnKeyListener;
 import android.widget.FrameLayout;
 import android.widget.Toast;
 
-public class PlayerActivity extends Activity implements SurfaceHolder.Callback, GLSurfaceView.Renderer {
+public class PlayerActivity extends Activity implements SurfaceHolder.Callback, GLSurfaceView.Renderer  {
 
 	private PowerManager.WakeLock mWakeLock = null;
 	private GAClient client = null;
@@ -211,6 +214,8 @@ public class PlayerActivity extends Activity implements SurfaceHolder.Callback, 
 				controller = new GAControllerBasic(this);
 			} else if(cname.equals(GAControllerEmpty.getName())) {
 				controller = new GAControllerEmpty(this);
+			} else if(cname.equals(GAControllerHWKbdMouse.getName())) {
+				controller = new GAControllerHWKbdMouse(this);
 			} else if(cname.equals(GAControllerDualPad.getName())) {
 				controller = new GAControllerDualPad(this);
 			} else if(cname.equals(GAControllerLimbo.getName())){
@@ -231,7 +236,6 @@ public class PlayerActivity extends Activity implements SurfaceHolder.Callback, 
 		
 		topLayout.addView(contentView);
 		topLayout.addView(controller.getView());
-		
 		setContentView(topLayout);
 	}
 

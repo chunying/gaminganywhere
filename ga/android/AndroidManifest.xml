@@ -1,37 +1,87 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     package="org.gaminganywhere.gaclient"
     android:versionCode="2"
-    android:versionName="0.1" >
+    android:versionName="0.1">
 
+    <!-- Updated SDK versions for better compatibility -->
     <uses-sdk
-        android:minSdkVersion="16"
-        android:targetSdkVersion="16" />
-    <uses-permission android:name="android.permission.INTERNET"/>
-    <uses-permission android:name="android.permission.WAKE_LOCK"/>
+        android:minSdkVersion="21"       <!-- Updated from 16 (Android 4.1) to 21 (Android 5.0) -->
+        android:targetSdkVersion="34"    <!-- Updated to latest stable API (Android 14 as of Feb 2025) -->
+        tools:overrideLibrary="androidx.appcompat" />
+
+    <!-- Core Permissions -->
+    <uses-permission android:name="android.permission.INTERNET" />          <!-- Network access -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />         <!-- Prevent device sleep -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" /> <!-- Check network status -->
+
+    <!-- Additional recommended permissions for a gaming client -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"   android:maxSdkVersion="33" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"   android:minSdkVersion="33" />
+    <uses-permission android:name="android.permission.VIBRATE" />           <!-- For haptic feedback -->
+
+    <!-- Features declaration for Play Store compatibility -->
+    <uses-feature
+        android:name="android.hardware.touchscreen"
+        android:required="true" />
+    <uses-feature
+        android:name="android.hardware.screen.landscape"
+        android:required="false" />
 
     <application
         android:allowBackup="true"
-        android:icon="@drawable/ic_launcher"
+        android:dataExtractionRules="@xml/data_extraction_rules"           <!-- Modern backup rules -->
+        android:fullBackupContent="@xml/backup_rules"                      <!-- Define backup content -->
+        android:icon="@mipmap/ic_launcher"                                 <!-- Updated to mipmap -->
         android:label="@string/app_name"
-        android:theme="@style/AppTheme" >
+        android:roundIcon="@mipmap/ic_launcher_round"                      <!-- Adaptive icon support -->
+        android:supportsRtl="true"                                         <!-- Right-to-left support -->
+        android:theme="@style/AppTheme"
+        tools:targetApi="34">
+
+        <!-- Main Launcher Activity -->
         <activity
-            android:name="org.gaminganywhere.gaclient.MainActivity"
-            android:label="@string/app_name" >
+            android:name=".MainActivity"
+            android:exported="true"                                        <!-- Required for Android 12+ -->
+            android:label="@string/app_name"
+            android:screenOrientation="portrait"                           <!-- Enforce orientation -->
+            android:theme="@style/AppTheme">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity android:name="org.gaminganywhere.gaclient.SettingsActivity" >
-        </activity>
+
+        <!-- Settings Activity -->
         <activity
-            android:name="org.gaminganywhere.gaclient.PlayerActivity"
-            android:configChanges="orientation|keyboardHidden|screenSize"
-            android:label="@string/title_activity_player"
-            android:theme="@style/FullscreenTheme" >
+            android:name=".SettingsActivity"
+            android:exported="false"                                       <!-- Not publicly accessible -->
+            android:label="@string/settings_title"
+            android:parentActivityName=".MainActivity">                    <!-- Navigation support -->
+            <meta-data
+                android:name="android.support.PARENT_ACTIVITY"
+                android:value=".MainActivity" />
         </activity>
+
+        <!-- Player Activity with enhanced configuration -->
+        <activity
+            android:name=".PlayerActivity"
+            android:exported="false"
+            android:label="@string/title_activity_player"
+            android:theme="@style/FullscreenTheme"
+            android:configChanges="orientation|keyboardHidden|screenSize|smallestScreenSize|screenLayout"
+            android:screenOrientation="sensorLandscape"                    <!-- Better orientation handling -->
+            android:windowSoftInputMode="adjustPan|stateHidden"            <!-- Keyboard handling -->
+            android:immersive="true">                                      <!-- Sticky immersive mode -->
+        </activity>
+
+        <!-- Service for background operations (if needed) -->
+        <service
+            android:name=".GamingService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />               <!-- Example service type -->
+
     </application>
 
 </manifest>
